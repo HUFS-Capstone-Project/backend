@@ -1,0 +1,35 @@
+spring:
+  application:
+    name: udidura-backend
+  mvc:
+    problemdetails:
+      enabled: true
+  jpa:
+    open-in-view: false
+    properties:
+      hibernate:
+        default_batch_fetch_size: 100
+        jdbc:
+          time_zone: UTC
+    show-sql: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when_authorized
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: alpha
+    tags-sorter: alpha
+
+app:
+  fastapi:
+    base-url: http://localhost:8000
+    connect-timeout-ms: 3000
+    read-timeout-ms: 30000

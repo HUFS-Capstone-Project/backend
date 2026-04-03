@@ -1,4 +1,9 @@
 HELP.md
+
+### Local secrets ###
+.env
+.env.*
+src/main/resources/application-local.yml
 .gradle
 build/
 !gradle/wrapper/gradle-wrapper.jar
