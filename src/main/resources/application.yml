@@ -1,6 +1,7 @@
 spring:
   application:
     name: udidura-backend
+
   mvc:
     problemdetails:
       enabled: true
@@ -12,6 +13,16 @@ spring:
         jdbc:
           time_zone: UTC
     show-sql: false
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            scope:
+              - openid
+              - profile
+              - email
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
 
 management:
   endpoints:
@@ -30,6 +41,32 @@ springdoc:
 
 app:
   fastapi:
-    base-url: http://localhost:8000
     connect-timeout-ms: 3000
     read-timeout-ms: 30000
+  auth:
+    jwt:
+      issuer: udidura-backend
+      audience: udidura-api
+      access-token-ttl: 10m
+    refresh:
+      ttl: 30d
+      token-bytes: 32
+      rotation-replay-window: 15s
+      cleanup-retention-days: 14
+    cookie:
+      http-only: true
+      same-site: Lax
+      refresh-path: /api/v1/auth
+      oauth-context-path: /login/oauth2/code/google
+      max-age-seconds: 2592000
+    redirect:
+      default-web-return-path: /auth/callback
+      allowed-web-return-paths:
+        - /auth/callback
+        - /app
+    one-time-code:
+      ticket-ttl: 60s
+      mobile-code-ttl: 60s
+      replay-window: 20s
+    redis:
+      key-prefix: auth

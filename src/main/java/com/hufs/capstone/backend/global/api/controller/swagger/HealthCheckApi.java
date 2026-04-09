@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 public interface HealthCheckApi {
 
 	@Operation(
-			summary = "헬스 체크",
+			summary = "헬스 체크 API",
 			description = "L7/클라이언트용 상태 확인. 인프라 프로브는 /actuator/health 를 사용한다."
 	)
 	@ApiResponse(
