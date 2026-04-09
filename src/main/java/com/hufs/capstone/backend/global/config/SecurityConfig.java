@@ -68,28 +68,28 @@ public class SecurityConfig {
 						.failureHandler(oauth2AuthenticationFailureHandler)
 				)
 				.authorizeHttpRequests(auth -> {
-						auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
-						if (swaggerExposed) {
-							auth.requestMatchers(
-									"/swagger-ui.html",
-									"/swagger-ui/**",
-									"/v3/api-docs/**"
-							).permitAll();
-						}
+					auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
+					if (swaggerExposed) {
 						auth.requestMatchers(
-								"/api/v1/health",
-								"/actuator/**",
-								"/oauth2/**",
-								"/login/oauth2/**",
-								"/api/v1/auth/web/exchange-ticket",
-								"/api/v1/auth/mobile/exchange",
-								"/api/v1/auth/mobile/refresh",
-								"/api/v1/auth/mobile/logout",
-								"/api/v1/auth/csrf",
-								"/api/v1/auth/refresh",
-								"/api/v1/auth/logout"
+								"/swagger-ui.html",
+								"/swagger-ui/**",
+								"/v3/api-docs/**"
 						).permitAll();
-						auth.anyRequest().authenticated();
+					}
+					auth.requestMatchers(
+							"/api/v1/health",
+							"/actuator/**",
+							"/oauth2/**",
+							"/login/oauth2/**",
+							"/api/v1/auth/web/exchange-ticket",
+							"/api/v1/auth/mobile/exchange",
+							"/api/v1/auth/mobile/refresh",
+							"/api/v1/auth/mobile/logout",
+							"/api/v1/auth/csrf",
+							"/api/v1/auth/refresh",
+							"/api/v1/auth/logout"
+					).permitAll();
+					auth.anyRequest().authenticated();
 				})
 				.exceptionHandling(ex -> ex
 						.authenticationEntryPoint(restAuthenticationEntryPoint)
