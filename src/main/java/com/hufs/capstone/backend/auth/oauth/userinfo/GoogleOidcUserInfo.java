@@ -18,7 +18,8 @@ public class GoogleOidcUserInfo implements OAuth2UserInfo {
 		String email = getString("email");
 		boolean emailVerified = Boolean.TRUE.equals(attributes.get("email_verified"));
 		String nickname = getString("name");
-		return new SocialIdentity(SocialProvider.GOOGLE, sub, email, emailVerified, nickname);
+		String picture = getString("picture");
+		return new SocialIdentity(SocialProvider.GOOGLE, sub, email, emailVerified, nickname, picture);
 	}
 
 	private String getString(String key) {

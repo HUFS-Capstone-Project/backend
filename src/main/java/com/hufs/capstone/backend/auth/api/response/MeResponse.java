@@ -6,6 +6,7 @@ public record MeResponse(
 		Long id,
 		String email,
 		String nickname,
+		String profileImageUrl,
 		String role,
 		String status
 ) {
@@ -14,6 +15,7 @@ public record MeResponse(
 				user.getId(),
 				user.getEmail(),
 				user.getNickname(),
+				user.getProfileImageUrl(),
 				user.getRole().name(),
 				user.getStatus().name()
 		);

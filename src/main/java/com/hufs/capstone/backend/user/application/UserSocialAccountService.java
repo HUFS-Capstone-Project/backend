@@ -25,6 +25,7 @@ public class UserSocialAccountService {
 					account.markLogin(now);
 					account.updateProviderProfile(identity.email(), identity.emailVerified());
 					User linkedUser = account.getUser();
+					linkedUser.updateProfileImageUrl(identity.profileImageUrl());
 					linkedUser.markLoginSuccess(now);
 					return linkedUser;
 				})
@@ -32,7 +33,9 @@ public class UserSocialAccountService {
 	}
 
 	private User createUserAndSocialAccount(SocialIdentity identity) {
-		User created = userRepository.save(User.register(identity.email(), identity.emailVerified(), identity.nickname()));
+		User created = userRepository.save(
+				User.register(identity.email(), identity.emailVerified(), identity.nickname(), identity.profileImageUrl())
+		);
 		socialAccountRepository.save(
 				SocialAccount.link(created, identity.provider(), identity.providerUserId(), identity.email(), identity.emailVerified())
 		);

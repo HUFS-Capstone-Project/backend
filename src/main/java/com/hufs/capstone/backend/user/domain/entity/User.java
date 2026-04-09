@@ -28,6 +28,9 @@ public class User extends SoftDeletableEntity {
 	@Column(length = 60)
 	private String nickname;
 
+	@Column(length = 2048)
+	private String profileImageUrl;
+
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false, length = 20)
 	private UserRole role;
@@ -39,22 +42,35 @@ public class User extends SoftDeletableEntity {
 	@Column
 	private Instant lastLoginAt;
 
-	private User(String email, boolean emailVerified, String nickname, UserRole role, UserStatus status, Instant lastLoginAt) {
+	private User(
+			String email,
+			boolean emailVerified,
+			String nickname,
+			String profileImageUrl,
+			UserRole role,
+			UserStatus status,
+			Instant lastLoginAt
+	) {
 		this.email = email;
 		this.emailVerified = emailVerified;
 		this.nickname = nickname;
+		this.profileImageUrl = profileImageUrl;
 		this.role = role;
 		this.status = status;
 		this.lastLoginAt = lastLoginAt;
 	}
 
-	public static User register(String email, boolean emailVerified, String nickname) {
+	public static User register(String email, boolean emailVerified, String nickname, String profileImageUrl) {
 		Instant now = Instant.now();
-		return new User(email, emailVerified, nickname, UserRole.USER, UserStatus.ACTIVE, now);
+		return new User(email, emailVerified, nickname, profileImageUrl, UserRole.USER, UserStatus.ACTIVE, now);
 	}
 
 	public void markLoginSuccess(Instant now) {
 		this.lastLoginAt = now;
+	}
+
+	public void updateProfileImageUrl(String profileImageUrl) {
+		this.profileImageUrl = profileImageUrl;
 	}
 
 	public void changeStatus(UserStatus status) {

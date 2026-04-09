@@ -7,7 +7,8 @@ public record SocialIdentity(
 		String providerUserId,
 		String email,
 		boolean emailVerified,
-		String nickname
+		String nickname,
+		String profileImageUrl
 ) {
 }
 
