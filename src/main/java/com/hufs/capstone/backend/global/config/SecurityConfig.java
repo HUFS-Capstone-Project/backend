@@ -7,9 +7,11 @@ import com.hufs.capstone.backend.auth.oauth.OAuthAuthorizationContextCaptureFilt
 import com.hufs.capstone.backend.auth.security.JwtAuthenticationFilter;
 import com.hufs.capstone.backend.auth.security.RestAccessDeniedHandler;
 import com.hufs.capstone.backend.auth.security.RestAuthenticationEntryPoint;
+import java.util.Arrays;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -36,10 +38,12 @@ public class SecurityConfig {
 	private final CustomOidcUserService customOidcUserService;
 	private final RestAuthenticationEntryPoint restAuthenticationEntryPoint;
 	private final RestAccessDeniedHandler restAccessDeniedHandler;
+	private final Environment environment;
 
 	@Bean
 	public SecurityFilterChain securityFilterChain(HttpSecurity http, CorsConfigurationSource corsConfigurationSource)
 			throws Exception {
+		boolean swaggerExposed = !Arrays.asList(environment.getActiveProfiles()).contains("prod");
 		XorCsrfTokenRequestAttributeHandler xorCsrf = new XorCsrfTokenRequestAttributeHandler();
 		http
 				.cors(cors -> cors.configurationSource(corsConfigurationSource))
@@ -63,13 +67,17 @@ public class SecurityConfig {
 						.successHandler(oauth2AuthenticationSuccessHandler)
 						.failureHandler(oauth2AuthenticationFailureHandler)
 				)
-				.authorizeHttpRequests(auth -> auth
-						.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-						.requestMatchers(
+				.authorizeHttpRequests(auth -> {
+						auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
+						if (swaggerExposed) {
+							auth.requestMatchers(
+									"/swagger-ui.html",
+									"/swagger-ui/**",
+									"/v3/api-docs/**"
+							).permitAll();
+						}
+						auth.requestMatchers(
 								"/api/v1/health",
-								"/swagger-ui.html",
-								"/swagger-ui/**",
-								"/v3/api-docs/**",
 								"/actuator/**",
 								"/oauth2/**",
 								"/login/oauth2/**",
@@ -80,9 +88,9 @@ public class SecurityConfig {
 								"/api/v1/auth/csrf",
 								"/api/v1/auth/refresh",
 								"/api/v1/auth/logout"
-						).permitAll()
-						.anyRequest().authenticated()
-				)
+						).permitAll();
+						auth.anyRequest().authenticated();
+				})
 				.exceptionHandling(ex -> ex
 						.authenticationEntryPoint(restAuthenticationEntryPoint)
 						.accessDeniedHandler(restAccessDeniedHandler)

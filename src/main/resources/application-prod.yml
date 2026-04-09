@@ -32,6 +32,12 @@ logging:
     root: info
     com.hufs.capstone.backend: info
 
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
 management:
   endpoint:
     health:
