@@ -4,7 +4,7 @@ import com.hufs.capstone.backend.auth.api.response.MeResponse;
 import com.hufs.capstone.backend.global.response.CommonResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import org.springframework.security.web.csrf.CsrfToken;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -14,12 +14,12 @@ public interface AuthCommonApi {
 
 	@Operation(
 			tags = {"Auth Common"},
-			summary = "CSRF 토큰 조회 API",
-			description = "클라이언트 요청용 CSRF 토큰을 조회하는 API"
+			summary = "CSRF 쿠키 초기화 API",
+			description = "토큰 본문을 반환하지 않고 CSRF 쿠키 발급·갱신을 처리합니다"
 	)
-	@ApiResponse(responseCode = "200", description = "성공")
+	@ApiResponse(responseCode = "204", description = "No Content")
 	@GetMapping("/csrf")
-	CommonResponse<String> csrf(CsrfToken csrfToken);
+	ResponseEntity<Void> csrf();
 
 	@Operation(
 			tags = {"Auth Common"},

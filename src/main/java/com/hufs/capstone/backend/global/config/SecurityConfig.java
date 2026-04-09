@@ -7,7 +7,10 @@ import com.hufs.capstone.backend.auth.oauth.OAuthAuthorizationContextCaptureFilt
 import com.hufs.capstone.backend.auth.security.JwtAuthenticationFilter;
 import com.hufs.capstone.backend.auth.security.RestAccessDeniedHandler;
 import com.hufs.capstone.backend.auth.security.RestAuthenticationEntryPoint;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.util.Arrays;
+import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -21,8 +24,12 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.csrf.CsrfToken;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
+import org.springframework.security.web.csrf.CsrfTokenRequestHandler;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.XorCsrfTokenRequestAttributeHandler;
+import org.springframework.util.StringUtils;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -43,9 +50,19 @@ public class SecurityConfig {
 
 	@Bean
 	public CookieCsrfTokenRepository cookieCsrfTokenRepository(
-			@Value("${app.security.csrf.cookie.same-site:Lax}") String sameSite) {
+			@Value("${app.security.csrf.cookie.same-site:Lax}") String sameSite,
+			@Value("${app.security.csrf.cookie.secure:true}") boolean secure,
+			@Value("${app.security.csrf.cookie.path:/}") String path,
+			@Value("${app.security.csrf.cookie.domain:}") String domain) {
 		CookieCsrfTokenRepository repository = CookieCsrfTokenRepository.withHttpOnlyFalse();
-		repository.setCookieCustomizer(builder -> builder.sameSite(sameSite));
+		repository.setCookieCustomizer(builder -> {
+			builder.sameSite(sameSite);
+			builder.secure(secure);
+			builder.path(path);
+			if (StringUtils.hasText(domain)) {
+				builder.domain(domain);
+			}
+		});
 		return repository;
 	}
 
@@ -54,12 +71,12 @@ public class SecurityConfig {
 			CookieCsrfTokenRepository cookieCsrfTokenRepository)
 			throws Exception {
 		boolean swaggerExposed = !Arrays.asList(environment.getActiveProfiles()).contains("prod");
-		XorCsrfTokenRequestAttributeHandler xorCsrf = new XorCsrfTokenRequestAttributeHandler();
+		SpaCsrfTokenRequestHandler spaCsrfTokenRequestHandler = new SpaCsrfTokenRequestHandler();
 		http
 				.cors(cors -> cors.configurationSource(corsConfigurationSource))
 				.csrf(csrf -> csrf
 						.csrfTokenRepository(cookieCsrfTokenRepository)
-						.csrfTokenRequestHandler(xorCsrf::handle)
+						.csrfTokenRequestHandler(spaCsrfTokenRequestHandler)
 						.ignoringRequestMatchers(
 								"/oauth2/**",
 								"/login/oauth2/**",
@@ -127,6 +144,27 @@ public class SecurityConfig {
 		source.registerCorsConfiguration("/oauth2/**", corsConfiguration);
 		source.registerCorsConfiguration("/login/oauth2/**", corsConfiguration);
 		return source;
+	}
+
+	static final class SpaCsrfTokenRequestHandler implements CsrfTokenRequestHandler {
+
+		private final CsrfTokenRequestHandler plain = new CsrfTokenRequestAttributeHandler();
+		private final CsrfTokenRequestHandler xor = new XorCsrfTokenRequestAttributeHandler();
+
+		@Override
+		public void handle(HttpServletRequest request, HttpServletResponse response, Supplier<CsrfToken> csrfToken) {
+			this.xor.handle(request, response, csrfToken);
+			csrfToken.get();
+		}
+
+		@Override
+		public String resolveCsrfTokenValue(HttpServletRequest request, CsrfToken csrfToken) {
+			String csrfHeaderValue = request.getHeader(csrfToken.getHeaderName());
+			if (StringUtils.hasText(csrfHeaderValue)) {
+				return this.plain.resolveCsrfTokenValue(request, csrfToken);
+			}
+			return this.xor.resolveCsrfTokenValue(request, csrfToken);
+		}
 	}
 }
 

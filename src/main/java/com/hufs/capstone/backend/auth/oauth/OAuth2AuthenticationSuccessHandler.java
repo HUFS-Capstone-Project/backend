@@ -18,9 +18,11 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
+import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -35,6 +37,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
 	private final CookieService cookieService;
 	private final WebRedirectService webRedirectService;
 	private final DeepLinkRedirectService deepLinkRedirectService;
+	private final ObjectProvider<CsrfTokenRepository> csrfTokenRepositoryProvider;
 
 	@Override
 	public void onAuthenticationSuccess(
@@ -49,6 +52,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
 			String registrationId = "google";
 			SocialIdentity identity = oauth2UserInfoFactory.from(registrationId, oidcUser);
 			User user = authLoginService.upsertSocialUser(identity);
+			rotateCsrfToken(request, response);
 			if (context.clientType() == AuthClientType.APP) {
 				handleAppLogin(request, response, context, user);
 				return;
@@ -78,6 +82,15 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
 		String code = authLoginService.issueMobileAuthCode(user, context.codeChallenge(), context.codeChallengeMethod());
 		String redirectUri = deepLinkRedirectService.success(code);
 		getRedirectStrategy().sendRedirect(request, response, redirectUri);
+	}
+
+	private void rotateCsrfToken(HttpServletRequest request, HttpServletResponse response) {
+		CsrfTokenRepository csrfTokenRepository = csrfTokenRepositoryProvider.getIfAvailable();
+		if (csrfTokenRepository == null) {
+			return;
+		}
+		csrfTokenRepository.saveToken(null, request, response);
+		csrfTokenRepository.saveToken(csrfTokenRepository.generateToken(request), request, response);
 	}
 }
 

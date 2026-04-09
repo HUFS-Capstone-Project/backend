@@ -40,6 +40,12 @@ springdoc:
     tags-sorter: alpha
 
 app:
+  security:
+    csrf:
+      cookie:
+        same-site: Lax
+        secure: false
+        path: /
   cors:
     allowed-methods:
       - GET

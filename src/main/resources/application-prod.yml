@@ -47,21 +47,20 @@ server:
   servlet:
     session:
       cookie:
-        same-site: none
+        same-site: None
         secure: true
+        path: /
 
 app:
   security:
     csrf:
       cookie:
         same-site: None
+        secure: true
+        path: /
   cors:
     allowed-origins:
       - https://udidura.vercel.app
-      - http://localhost:5173
-      - http://127.0.0.1:5173
-      - https://localhost
-      - capacitor://localhost
     allow-credentials: true
   fastapi:
     base-url: ${FASTAPI_BASE_URL}

@@ -10,13 +10,13 @@ import com.hufs.capstone.backend.auth.api.request.WebExchangeTicketRequest;
 import com.hufs.capstone.backend.auth.api.response.AuthTokenBootstrapResponse;
 import com.hufs.capstone.backend.auth.api.response.MeResponse;
 import com.hufs.capstone.backend.auth.api.response.TokenResponse;
+import com.hufs.capstone.backend.auth.application.dto.TokenPair;
+import com.hufs.capstone.backend.auth.application.dto.WebLoginTicketPayload;
 import com.hufs.capstone.backend.auth.application.service.AuthLoginService;
 import com.hufs.capstone.backend.auth.application.service.AuthQueryService;
 import com.hufs.capstone.backend.auth.application.service.TokenLifecycleService;
 import com.hufs.capstone.backend.auth.domain.enums.RevokeReason;
 import com.hufs.capstone.backend.auth.domain.vo.ClientContext;
-import com.hufs.capstone.backend.auth.application.dto.TokenPair;
-import com.hufs.capstone.backend.auth.application.dto.WebLoginTicketPayload;
 import com.hufs.capstone.backend.auth.infrastructure.web.CookieService;
 import com.hufs.capstone.backend.auth.security.SecurityUtils;
 import com.hufs.capstone.backend.global.exception.BusinessException;
@@ -26,7 +26,12 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.web.csrf.CsrfToken;
+import org.springframework.http.CacheControl;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
+import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -40,6 +45,7 @@ public class AuthController implements AuthCommonApi, AuthWebApi, AuthMobileApi 
 	private final AuthQueryService authQueryService;
 	private final TokenLifecycleService tokenLifecycleService;
 	private final CookieService cookieService;
+	private final CsrfTokenRepository csrfTokenRepository;
 
 	@Override
 	public CommonResponse<AuthTokenBootstrapResponse> exchangeWebTicket(
@@ -117,7 +123,10 @@ public class AuthController implements AuthCommonApi, AuthWebApi, AuthMobileApi 
 		String refreshToken = cookieService.getRefreshToken(servletRequest)
 				.orElseThrow(() -> new BusinessException(ErrorCode.E401_UNAUTHORIZED, "Refresh token cookie is required."));
 		tokenLifecycleService.revokeByRawToken(refreshToken, RevokeReason.LOGOUT);
+		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+		new SecurityContextLogoutHandler().logout(servletRequest, servletResponse, authentication);
 		cookieService.clearRefreshToken(servletResponse);
+		rotateCsrfToken(servletRequest, servletResponse);
 		return CommonResponse.okMessage("Logged out.");
 	}
 
@@ -144,10 +153,16 @@ public class AuthController implements AuthCommonApi, AuthWebApi, AuthMobileApi 
 	}
 
 	@Override
-	public CommonResponse<String> csrf(CsrfToken csrfToken) {
-		return CommonResponse.ok(csrfToken.getToken());
+	public ResponseEntity<Void> csrf() {
+		return ResponseEntity.noContent()
+				.cacheControl(CacheControl.noStore())
+				.build();
 	}
 
+	private void rotateCsrfToken(HttpServletRequest request, HttpServletResponse response) {
+		csrfTokenRepository.saveToken(null, request, response);
+		csrfTokenRepository.saveToken(csrfTokenRepository.generateToken(request), request, response);
+	}
 }
 
 
