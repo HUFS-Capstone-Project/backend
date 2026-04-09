@@ -34,6 +34,9 @@ management:
       show-details: never
 
 app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:https://udidura.vercel.app,https://localhost,capacitor://localhost}
+    allow-credentials: true
   fastapi:
     base-url: ${FASTAPI_BASE_URL}
   auth:

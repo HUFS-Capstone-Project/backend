@@ -10,6 +10,7 @@ import com.hufs.capstone.backend.auth.security.RestAuthenticationEntryPoint;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -18,6 +19,10 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.XorCsrfTokenRequestAttributeHandler;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 @Configuration
 @EnableWebSecurity
@@ -33,10 +38,14 @@ public class SecurityConfig {
 	private final RestAccessDeniedHandler restAccessDeniedHandler;
 
 	@Bean
-	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+	public SecurityFilterChain securityFilterChain(HttpSecurity http, CorsConfigurationSource corsConfigurationSource)
+			throws Exception {
+		XorCsrfTokenRequestAttributeHandler xorCsrf = new XorCsrfTokenRequestAttributeHandler();
 		http
+				.cors(cors -> cors.configurationSource(corsConfigurationSource))
 				.csrf(csrf -> csrf
 						.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+						.csrfTokenRequestHandler(xorCsrf::handle)
 						.ignoringRequestMatchers(
 								"/oauth2/**",
 								"/login/oauth2/**",
@@ -55,6 +64,7 @@ public class SecurityConfig {
 						.failureHandler(oauth2AuthenticationFailureHandler)
 				)
 				.authorizeHttpRequests(auth -> auth
+						.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 						.requestMatchers(
 								"/api/v1/health",
 								"/swagger-ui.html",
@@ -82,6 +92,23 @@ public class SecurityConfig {
 				.oauth2Client(Customizer.withDefaults());
 
 		return http.build();
+	}
+
+	@Bean
+	public CorsConfigurationSource corsConfigurationSource(CorsProperties corsProperties) {
+		CorsConfiguration corsConfiguration = new CorsConfiguration();
+		corsConfiguration.setAllowedOrigins(corsProperties.getAllowedOrigins());
+		corsConfiguration.setAllowedMethods(corsProperties.getAllowedMethods());
+		corsConfiguration.setAllowedHeaders(corsProperties.getAllowedHeaders());
+		corsConfiguration.setExposedHeaders(corsProperties.getExposedHeaders());
+		corsConfiguration.setAllowCredentials(corsProperties.isAllowCredentials());
+		corsConfiguration.setMaxAge(corsProperties.getMaxAge());
+
+		UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+		source.registerCorsConfiguration("/api/**", corsConfiguration);
+		source.registerCorsConfiguration("/oauth2/**", corsConfiguration);
+		source.registerCorsConfiguration("/login/oauth2/**", corsConfiguration);
+		return source;
 	}
 }
 

@@ -40,6 +40,23 @@ springdoc:
     tags-sorter: alpha
 
 app:
+  cors:
+    allowed-methods:
+      - GET
+      - POST
+      - PUT
+      - PATCH
+      - DELETE
+      - OPTIONS
+    allowed-headers:
+      - Authorization
+      - Content-Type
+      - X-Requested-With
+      - X-XSRF-TOKEN
+      - X-Client-Platform
+    exposed-headers: []
+    allow-credentials: true
+    max-age: 3600
   fastapi:
     connect-timeout-ms: 3000
     read-timeout-ms: 30000
