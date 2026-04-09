@@ -9,6 +9,7 @@ import com.hufs.capstone.backend.auth.security.RestAccessDeniedHandler;
 import com.hufs.capstone.backend.auth.security.RestAuthenticationEntryPoint;
 import java.util.Arrays;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
@@ -41,14 +42,23 @@ public class SecurityConfig {
 	private final Environment environment;
 
 	@Bean
-	public SecurityFilterChain securityFilterChain(HttpSecurity http, CorsConfigurationSource corsConfigurationSource)
+	public CookieCsrfTokenRepository cookieCsrfTokenRepository(
+			@Value("${app.security.csrf.cookie.same-site:Lax}") String sameSite) {
+		CookieCsrfTokenRepository repository = CookieCsrfTokenRepository.withHttpOnlyFalse();
+		repository.setCookieCustomizer(builder -> builder.sameSite(sameSite));
+		return repository;
+	}
+
+	@Bean
+	public SecurityFilterChain securityFilterChain(HttpSecurity http, CorsConfigurationSource corsConfigurationSource,
+			CookieCsrfTokenRepository cookieCsrfTokenRepository)
 			throws Exception {
 		boolean swaggerExposed = !Arrays.asList(environment.getActiveProfiles()).contains("prod");
 		XorCsrfTokenRequestAttributeHandler xorCsrf = new XorCsrfTokenRequestAttributeHandler();
 		http
 				.cors(cors -> cors.configurationSource(corsConfigurationSource))
 				.csrf(csrf -> csrf
-						.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+						.csrfTokenRepository(cookieCsrfTokenRepository)
 						.csrfTokenRequestHandler(xorCsrf::handle)
 						.ignoringRequestMatchers(
 								"/oauth2/**",

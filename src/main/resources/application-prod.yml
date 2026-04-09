@@ -43,7 +43,18 @@ management:
     health:
       show-details: never
 
+server:
+  servlet:
+    session:
+      cookie:
+        same-site: none
+        secure: true
+
 app:
+  security:
+    csrf:
+      cookie:
+        same-site: None
   cors:
     allowed-origins:
       - https://udidura.vercel.app
@@ -65,6 +76,7 @@ app:
       refresh-cookie-name: __Host-udidura_rt
       oauth-context-cookie-name: __Host-udidura_octx
       secure: true
+      same-site: None
       domain:
     redirect:
       web-base-url: ${WEB_BASE_URL}
