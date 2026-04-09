@@ -24,7 +24,7 @@ spring:
             client-secret: ${GOOGLE_CLIENT_SECRET}
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update
     show-sql: false
 
 logging:
@@ -41,6 +41,8 @@ app:
   cors:
     allowed-origins:
       - https://udidura.vercel.app
+      - http://localhost:5173
+      - http://127.0.0.1:5173
       - https://localhost
       - capacitor://localhost
     allow-credentials: true
