@@ -1,6 +1,6 @@
 package com.hufs.capstone.backend.global.exception;
 
-import com.hufs.capstone.backend.external.fastapi.FastApiClientException;
+import com.hufs.capstone.backend.external.processing.ProcessingClientException;
 import com.hufs.capstone.backend.global.response.FieldErrorDetail;
 import com.hufs.capstone.backend.global.response.ProblemDetailFactory;
 import jakarta.servlet.http.HttpServletRequest;
@@ -86,9 +86,9 @@ public class GlobalExceptionHandler {
 		return ResponseEntity.status(body.getStatus()).body(body);
 	}
 
-	@ExceptionHandler(FastApiClientException.class)
-	public ResponseEntity<ProblemDetail> handleFastApi(FastApiClientException ex, HttpServletRequest request) {
-		log.warn("FastAPI 연동 실패: status={}, body={}", ex.getStatus(), ex.getResponseBody(), ex);
+	@ExceptionHandler(ProcessingClientException.class)
+	public ResponseEntity<ProblemDetail> handleProcessing(ProcessingClientException ex, HttpServletRequest request) {
+		log.warn("Processing(FastAPI private) 연동 실패: status={}", ex.getStatus(), ex);
 		ProblemDetail body = ProblemDetailFactory.create(ErrorCode.E502_EXTERNAL_API, ex.getMessage(), null, requestUri(request));
 		return ResponseEntity.status(body.getStatus()).body(body);
 	}

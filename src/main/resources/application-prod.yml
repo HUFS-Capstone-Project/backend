@@ -62,8 +62,6 @@ app:
     allowed-origins:
       - https://udidura.vercel.app
     allow-credentials: true
-  fastapi:
-    base-url: ${FASTAPI_BASE_URL}
   auth:
     jwt:
       issuer: ${AUTH_JWT_ISSUER:udidura-backend}
@@ -80,3 +78,9 @@ app:
     redirect:
       web-base-url: ${WEB_BASE_URL}
       app-link-base-url: ${APP_LINK_BASE_URL}
+
+processing:
+  base-url: ${PROCESSING_BASE_URL}
+  internal-api-key: ${PROCESSING_INTERNAL_API_KEY}
+  connect-timeout-ms: ${PROCESSING_CONNECT_TIMEOUT_MS:3000}
+  read-timeout-ms: ${PROCESSING_READ_TIMEOUT_MS:30000}

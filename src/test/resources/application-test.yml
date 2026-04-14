@@ -26,8 +26,6 @@ logging:
     root: warn
 
 app:
-  fastapi:
-    base-url: http://localhost:8000
   auth:
     jwt:
       secret-base64: VGhpc0lzQVN0cm9uZ0RlbW9TZWNyZXRLZXlGb3JVZGlkdXJhQmFja2VuZA==
@@ -41,3 +39,7 @@ app:
     redirect:
       web-base-url: http://localhost:3000
       app-link-base-url: http://localhost:3000/callback
+
+processing:
+  base-url: http://localhost:8000
+  internal-api-key: test-processing-internal-key

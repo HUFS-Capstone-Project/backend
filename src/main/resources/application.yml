@@ -39,6 +39,10 @@ springdoc:
     operations-sorter: alpha
     tags-sorter: alpha
 
+processing:
+  connect-timeout-ms: 3000
+  read-timeout-ms: 30000
+
 app:
   security:
     csrf:
@@ -63,9 +67,6 @@ app:
     exposed-headers: []
     allow-credentials: true
     max-age: 3600
-  fastapi:
-    connect-timeout-ms: 3000
-    read-timeout-ms: 30000
   auth:
     jwt:
       issuer: udidura-backend
