@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -46,11 +47,11 @@ public interface AuthWebApi {
 	@Operation(
 			tags = {"Auth Web"},
 			summary = "웹 로그아웃 API",
-			description = "현재 웹 세션을 로그아웃합니다."
+			description = "세션/리프레시 토큰이 있으면 정리하고, 없어도 멱등적으로 성공 처리합니다."
 	)
-	@ApiResponse(responseCode = "200", description = "OK")
+	@ApiResponse(responseCode = "204", description = "No Content")
 	@PostMapping("/logout")
-	CommonResponse<Void> logout(
+	ResponseEntity<Void> logout(
 			HttpServletRequest servletRequest,
 			HttpServletResponse servletResponse,
 			@Parameter(description = "CSRF 토큰 헤더 값(XSRF-TOKEN 쿠키 값과 동일)")

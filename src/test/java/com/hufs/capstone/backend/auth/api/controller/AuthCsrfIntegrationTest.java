@@ -48,4 +48,50 @@ class AuthCsrfIntegrationTest {
 						.header("X-XSRF-TOKEN", "mismatch-token"))
 				.andExpect(status().isForbidden());
 	}
+
+	@Test
+	void logoutReturns204EvenWithoutRefreshTokenWhenCsrfMatches() throws Exception {
+		MvcResult csrfResult = mockMvc.perform(get("/api/v1/auth/csrf"))
+				.andExpect(status().isNoContent())
+				.andReturn();
+
+		Cookie xsrfCookie = csrfResult.getResponse().getCookie("XSRF-TOKEN");
+		assertThat(xsrfCookie).isNotNull();
+
+		mockMvc.perform(post("/api/v1/auth/logout")
+						.cookie(xsrfCookie)
+						.header("X-XSRF-TOKEN", xsrfCookie.getValue()))
+				.andExpect(status().isNoContent());
+	}
+
+	@Test
+	void logoutReturns204EvenWhenAuthorizationBearerIsInvalid() throws Exception {
+		MvcResult csrfResult = mockMvc.perform(get("/api/v1/auth/csrf"))
+				.andExpect(status().isNoContent())
+				.andReturn();
+
+		Cookie xsrfCookie = csrfResult.getResponse().getCookie("XSRF-TOKEN");
+		assertThat(xsrfCookie).isNotNull();
+
+		mockMvc.perform(post("/api/v1/auth/logout")
+						.cookie(xsrfCookie)
+						.header("X-XSRF-TOKEN", xsrfCookie.getValue())
+						.header(HttpHeaders.AUTHORIZATION, "Bearer invalid.jwt.token"))
+				.andExpect(status().isNoContent());
+	}
+
+	@Test
+	void logoutWithTrailingSlashReturns401WhenNoAuth() throws Exception {
+		MvcResult csrfResult = mockMvc.perform(get("/api/v1/auth/csrf"))
+				.andExpect(status().isNoContent())
+				.andReturn();
+
+		Cookie xsrfCookie = csrfResult.getResponse().getCookie("XSRF-TOKEN");
+		assertThat(xsrfCookie).isNotNull();
+
+		mockMvc.perform(post("/api/v1/auth/logout/")
+						.cookie(xsrfCookie)
+						.header("X-XSRF-TOKEN", xsrfCookie.getValue()))
+				.andExpect(status().isUnauthorized());
+	}
 }

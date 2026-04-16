@@ -117,19 +117,20 @@ public class AuthController implements AuthCommonApi, AuthWebApi, AuthMobileApi 
 	}
 
 	@Override
-	public CommonResponse<Void> logout(
+	public ResponseEntity<Void> logout(
 			HttpServletRequest servletRequest,
 			HttpServletResponse servletResponse,
 			@RequestHeader(name = "X-XSRF-TOKEN", required = false) String csrfToken
 	) {
-		String refreshToken = cookieService.getRefreshToken(servletRequest)
-				.orElseThrow(() -> new BusinessException(ErrorCode.E401_UNAUTHORIZED, "Refresh token cookie is required."));
-		tokenLifecycleService.revokeByRawToken(refreshToken, RevokeReason.LOGOUT);
+		cookieService.getRefreshToken(servletRequest)
+				.ifPresent(refreshToken -> tokenLifecycleService.revokeByRawToken(refreshToken, RevokeReason.LOGOUT));
 		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 		new SecurityContextLogoutHandler().logout(servletRequest, servletResponse, authentication);
 		cookieService.clearRefreshToken(servletResponse);
 		rotateCsrfToken(servletRequest, servletResponse);
-		return CommonResponse.okMessage("Logged out.");
+		return ResponseEntity.noContent()
+				.cacheControl(CacheControl.noStore())
+				.build();
 	}
 
 	@Override
