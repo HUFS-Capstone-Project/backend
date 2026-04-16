@@ -83,7 +83,8 @@ public class SecurityConfig {
 								"/api/v1/auth/web/exchange-ticket",
 								"/api/v1/auth/mobile/exchange",
 								"/api/v1/auth/mobile/refresh",
-								"/api/v1/auth/mobile/logout"
+								"/api/v1/auth/mobile/logout",
+								"/api/v1/auth/dev/**"
 						)
 				)
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
@@ -100,7 +101,8 @@ public class SecurityConfig {
 						auth.requestMatchers(
 								"/swagger-ui.html",
 								"/swagger-ui/**",
-								"/v3/api-docs/**"
+								"/v3/api-docs/**",
+								"/api/v1/auth/dev/**"
 						).permitAll();
 					}
 					auth.requestMatchers(
