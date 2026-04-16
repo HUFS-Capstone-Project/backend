@@ -1,12 +1,45 @@
 package com.hufs.capstone.backend.link.domain;
 
-/**
- * 링크에 대한 분석 진행 상태를 나타낸다.
- */
+import java.util.Locale;
+import java.util.Set;
+
 public enum LinkAnalysisStatus {
 
-	/**
-	 * 유스케이스 미구현 placeholder. 실제로는 등록 전/대기/진행/완료/실패 등으로 나뉠 수 있음.
-	 */
-	UNDEFINED
+	REQUESTED,
+	PROCESSING,
+	SUCCEEDED,
+	FAILED;
+
+	private static final Set<String> REQUESTED_VALUES = Set.of("REQUESTED", "CREATED", "PENDING", "QUEUED");
+	private static final Set<String> PROCESSING_VALUES = Set.of("PROCESSING", "RUNNING", "IN_PROGRESS", "STARTED");
+	private static final Set<String> SUCCEEDED_VALUES = Set.of("SUCCEEDED", "SUCCESS", "COMPLETED", "DONE", "FINISHED");
+	private static final Set<String> FAILED_VALUES = Set.of("FAILED", "FAILURE", "ERROR", "CANCELED", "CANCELLED", "ABORTED");
+
+	public boolean isTerminal() {
+		return this == SUCCEEDED || this == FAILED;
+	}
+
+	public static LinkAnalysisStatus fromProcessingStatus(String rawStatus) {
+		if (rawStatus == null || rawStatus.isBlank()) {
+			return PROCESSING;
+		}
+
+		String normalized = rawStatus.trim()
+				.toUpperCase(Locale.ROOT)
+				.replace('-', '_');
+
+		if (REQUESTED_VALUES.contains(normalized)) {
+			return REQUESTED;
+		}
+		if (PROCESSING_VALUES.contains(normalized)) {
+			return PROCESSING;
+		}
+		if (SUCCEEDED_VALUES.contains(normalized)) {
+			return SUCCEEDED;
+		}
+		if (FAILED_VALUES.contains(normalized)) {
+			return FAILED;
+		}
+		return PROCESSING;
+	}
 }

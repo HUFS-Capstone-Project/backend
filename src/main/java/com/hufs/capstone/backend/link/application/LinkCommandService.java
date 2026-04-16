@@ -1,36 +1,172 @@
 package com.hufs.capstone.backend.link.application;
 
+import com.hufs.capstone.backend.external.processing.ProcessingClient;
+import com.hufs.capstone.backend.external.processing.dto.CreateProcessingJobResponse;
+import com.hufs.capstone.backend.global.exception.BusinessException;
+import com.hufs.capstone.backend.global.exception.ErrorCode;
 import com.hufs.capstone.backend.link.application.dto.RegisterLinkCommand;
 import com.hufs.capstone.backend.link.application.dto.RegisterLinkResult;
+import com.hufs.capstone.backend.link.domain.entity.Link;
+import com.hufs.capstone.backend.link.domain.entity.LinkProcessingHistory;
+import com.hufs.capstone.backend.link.domain.entity.RoomLink;
+import com.hufs.capstone.backend.link.domain.repository.LinkProcessingHistoryRepository;
+import com.hufs.capstone.backend.link.domain.repository.LinkRepository;
+import com.hufs.capstone.backend.link.domain.repository.RoomLinkRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionOperations;
 
-/**
- * 링크 등록·분석 요청을 처리하는 application 계층 진입점 (골격).
- * <p>
- * 설계상 열어둘 결정 사항:
- * <ul>
- *   <li><b>트랜잭션 경계</b>: 링크 행 저장과 {@code ProcessingClient#createJob} 호출을 한 트랜잭션에 둘지,
- *       아니면 로컬 커밋 후 비동기 호출로 나눌지. 외부 API는 2PC에 참여하지 않으므로
- *       일반적으로 “등록 성공 + 분석 실패” 상태를 허용할지 정책이 필요하다.</li>
- *   <li><b>실패 의미</b>: processing 호출 실패 시 사용자에게는 “등록 실패”로 보일지,
- *       “등록됐으나 분석 대기 중/재시도”로 보일지.</li>
- *   <li><b>진행 확인</b>: job 상태를 {@code ProcessingClient#getJob} 등으로 polling 할지,
- *       webhook/이벤트로 받을지.</li>
- *   <li><b>DTO 승격</b>: {@code external.processing.dto} 응답을 어느 시점에서 application DTO/도메인 결과로
- *       매핑할지 (보통 이 서비스 내에서 한 번만 수행한다).</li>
- * </ul>
- */
+@Slf4j
 @Service
+@RequiredArgsConstructor
 public class LinkCommandService {
 
-	/**
-	 * 링크를 등록하고 필요 시 processing job을 생성한다. 아직 미구현.
-	 *
-	 * @throws UnsupportedOperationException 구현 전까지 호출 시
-	 */
+	private final LinkRepository linkRepository;
+	private final RoomLinkRepository roomLinkRepository;
+	private final LinkProcessingHistoryRepository linkProcessingHistoryRepository;
+	private final ProcessingClient processingClient;
+	private final TransactionOperations transactionOperations;
+
 	public RegisterLinkResult register(RegisterLinkCommand command) {
-		throw new UnsupportedOperationException(
-				"TODO: LinkCommandService.register — Link 엔티티/저장소, ProcessingClient 연동, "
-						+ "실패 시 정책이 확정되면 구현한다.");
+		String roomId = requireRoomId(command.roomId());
+		String source = trimToNull(command.source());
+		LinkUrlNormalizer.NormalizedUrl normalizedUrl = LinkUrlNormalizer.normalize(command.url());
+
+		String newProcessingJobId = null;
+		if (linkRepository.findByNormalizedUrl(normalizedUrl.normalizedUrl()).isEmpty()) {
+			newProcessingJobId = createJob(normalizedUrl, roomId, source).jobId();
+		}
+		final String processingJobIdForCreate = newProcessingJobId;
+
+		RegisterLinkResult result;
+		try {
+			result = executeWriteTransaction(normalizedUrl, roomId, source, processingJobIdForCreate);
+		} catch (LinkDuplicateRaceException ex) {
+			log.info(
+					"Retrying link registration after normalized URL duplicate race. normalizedUrl={}",
+					ex.normalizedUrl()
+			);
+			result = executeWriteTransaction(normalizedUrl, roomId, source, null);
+		}
+
+		if (result == null) {
+			throw new BusinessException(ErrorCode.E500_INTERNAL, "Failed to register link.");
+		}
+
+		log.info(
+				"Link registered. linkId={}, roomId={}, jobId={}, status={}",
+				result.linkId(),
+				roomId,
+				result.processingJobId(),
+				result.status()
+		);
+		return result;
+	}
+
+	private RegisterLinkResult executeWriteTransaction(
+			LinkUrlNormalizer.NormalizedUrl normalizedUrl,
+			String roomId,
+			String source,
+			String newProcessingJobId
+	) {
+		return transactionOperations.execute(
+				status -> registerWithinWriteTransaction(normalizedUrl, roomId, source, newProcessingJobId)
+		);
+	}
+
+	private CreateProcessingJobResponse createJob(
+			LinkUrlNormalizer.NormalizedUrl normalizedUrl,
+			String roomId,
+			String source
+	) {
+		return processingClient.createJob(normalizedUrl.normalizedUrl(), roomId, source);
+	}
+
+	private RegisterLinkResult registerWithinWriteTransaction(
+			LinkUrlNormalizer.NormalizedUrl normalizedUrl,
+			String roomId,
+			String source,
+			String newProcessingJobId
+	) {
+		Link link = linkRepository.findByNormalizedUrl(normalizedUrl.normalizedUrl())
+				.orElseGet(() -> persistNewLink(normalizedUrl, newProcessingJobId));
+
+		bindRoomLink(link, roomId);
+		saveRegisteredHistory(link, roomId, source);
+		return new RegisterLinkResult(link.getId(), link.getProcessingJobId(), link.getStatus());
+	}
+
+	private Link persistNewLink(LinkUrlNormalizer.NormalizedUrl normalizedUrl, String processingJobId) {
+		if (processingJobId == null || processingJobId.isBlank()) {
+			throw new BusinessException(
+					ErrorCode.E500_INTERNAL,
+					"Processing job id is required for creating a new link."
+			);
+		}
+		return persistLinkWithDuplicateGuard(normalizedUrl, processingJobId);
+	}
+
+	protected Link persistLinkWithDuplicateGuard(LinkUrlNormalizer.NormalizedUrl normalizedUrl, String processingJobId) {
+		Link newLink = Link.register(normalizedUrl.originalUrl(), normalizedUrl.normalizedUrl(), processingJobId);
+		try {
+			return linkRepository.saveAndFlush(newLink);
+		} catch (DataIntegrityViolationException ex) {
+			throw new LinkDuplicateRaceException(normalizedUrl.normalizedUrl(), ex);
+		} catch (DataAccessException ex) {
+			log.error("Failed to persist link. normalizedUrl={}", normalizedUrl.normalizedUrl(), ex);
+			throw new BusinessException(ErrorCode.E500_INTERNAL, "Failed to persist link.", ex);
+		}
+	}
+
+	protected void bindRoomLink(Link link, String roomId) {
+		try {
+			roomLinkRepository.saveAndFlush(RoomLink.bind(roomId, link));
+		} catch (DataIntegrityViolationException ex) {
+			throw new BusinessException(ErrorCode.E409_CONFLICT, "Link is already saved in this room.");
+		} catch (DataAccessException ex) {
+			log.error("Failed to save room link mapping. roomId={}, linkId={}", roomId, link.getId(), ex);
+			throw new BusinessException(ErrorCode.E500_INTERNAL, "Failed to save room link mapping.", ex);
+		}
+	}
+
+	private void saveRegisteredHistory(Link link, String roomId, String source) {
+		try {
+			linkProcessingHistoryRepository.saveAndFlush(LinkProcessingHistory.registered(link, roomId, source));
+		} catch (DataAccessException ex) {
+			log.warn("Failed to save link registered history. linkId={}, roomId={}", link.getId(), roomId, ex);
+		}
+	}
+
+	private static String requireRoomId(String roomId) {
+		String normalized = trimToNull(roomId);
+		if (normalized == null) {
+			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "Room ID is required.");
+		}
+		return normalized;
+	}
+
+	private static String trimToNull(String value) {
+		if (value == null) {
+			return null;
+		}
+		String trimmed = value.trim();
+		return trimmed.isEmpty() ? null : trimmed;
+	}
+
+	private static final class LinkDuplicateRaceException extends RuntimeException {
+
+		private final String normalizedUrl;
+
+		private LinkDuplicateRaceException(String normalizedUrl, Throwable cause) {
+			super("Normalized URL duplicate race detected: " + normalizedUrl, cause);
+			this.normalizedUrl = normalizedUrl;
+		}
+
+		private String normalizedUrl() {
+			return normalizedUrl;
+		}
 	}
 }
