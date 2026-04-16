@@ -8,7 +8,7 @@ import com.hufs.capstone.backend.auth.api.request.MobileExchangeRequest;
 import com.hufs.capstone.backend.auth.api.request.RefreshRequest;
 import com.hufs.capstone.backend.auth.api.request.WebExchangeTicketRequest;
 import com.hufs.capstone.backend.auth.api.response.AuthTokenBootstrapResponse;
-import com.hufs.capstone.backend.auth.api.response.MeResponse;
+import com.hufs.capstone.backend.user.api.response.UserProfileResponse;
 import com.hufs.capstone.backend.auth.api.response.TokenResponse;
 import com.hufs.capstone.backend.auth.application.dto.TokenPair;
 import com.hufs.capstone.backend.auth.application.dto.WebLoginTicketPayload;
@@ -52,9 +52,9 @@ public class AuthController implements AuthCommonApi, AuthWebApi, AuthMobileApi 
 			@Valid @RequestBody WebExchangeTicketRequest request
 	) {
 		WebLoginTicketPayload payload = authLoginService.exchangeWebTicket(request.ticket());
-		MeResponse me = authQueryService.getMe(payload.userId());
+		UserProfileResponse profile = authQueryService.getUserProfile(payload.userId());
 		TokenResponse tokenResponse = TokenResponse.web(payload.accessToken(), payload.accessTokenExpiresAt());
-		return CommonResponse.ok(new AuthTokenBootstrapResponse(tokenResponse, me));
+		return CommonResponse.ok(new AuthTokenBootstrapResponse(tokenResponse, profile));
 	}
 
 	@Override
@@ -81,7 +81,8 @@ public class AuthController implements AuthCommonApi, AuthWebApi, AuthMobileApi 
 	@Override
 	public CommonResponse<TokenResponse> refresh(
 			HttpServletRequest servletRequest,
-			HttpServletResponse servletResponse
+			HttpServletResponse servletResponse,
+			@RequestHeader(name = "X-XSRF-TOKEN", required = false) String csrfToken
 	) {
 		String refreshToken = cookieService.getRefreshToken(servletRequest)
 				.orElseThrow(() -> new BusinessException(ErrorCode.E401_UNAUTHORIZED, "Refresh token cookie is required."));
@@ -118,7 +119,8 @@ public class AuthController implements AuthCommonApi, AuthWebApi, AuthMobileApi 
 	@Override
 	public CommonResponse<Void> logout(
 			HttpServletRequest servletRequest,
-			HttpServletResponse servletResponse
+			HttpServletResponse servletResponse,
+			@RequestHeader(name = "X-XSRF-TOKEN", required = false) String csrfToken
 	) {
 		String refreshToken = cookieService.getRefreshToken(servletRequest)
 				.orElseThrow(() -> new BusinessException(ErrorCode.E401_UNAUTHORIZED, "Refresh token cookie is required."));
@@ -140,16 +142,12 @@ public class AuthController implements AuthCommonApi, AuthWebApi, AuthMobileApi 
 	}
 
 	@Override
-	public CommonResponse<Void> logoutAll() {
+	public CommonResponse<Void> logoutAll(
+			@RequestHeader(name = "X-XSRF-TOKEN", required = false) String csrfToken
+	) {
 		Long userId = SecurityUtils.currentUserIdOrThrow();
 		tokenLifecycleService.revokeAllByUserId(userId, RevokeReason.ADMIN_FORCE);
 		return CommonResponse.okMessage("Logged out from all devices.");
-	}
-
-	@Override
-	public CommonResponse<MeResponse> me() {
-		Long userId = SecurityUtils.currentUserIdOrThrow();
-		return CommonResponse.ok(authQueryService.getMe(userId));
 	}
 
 	@Override

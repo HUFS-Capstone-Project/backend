@@ -95,8 +95,8 @@ public class RoomCommandService {
 			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "방 이름은 필수입니다.");
 		}
 		String normalized = roomName.trim();
-		if (normalized.length() > 100) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "방 이름은 100자를 초과할 수 없습니다.");
+		if (normalized.length() > 20) {
+			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "방 이름은 20자를 초과할 수 없습니다.");
 		}
 		return normalized;
 	}

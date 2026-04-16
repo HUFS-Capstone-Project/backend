@@ -5,12 +5,14 @@ import com.hufs.capstone.backend.auth.api.response.AuthTokenBootstrapResponse;
 import com.hufs.capstone.backend.auth.api.response.TokenResponse;
 import com.hufs.capstone.backend.global.response.CommonResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 @RequestMapping("/api/v1/auth")
@@ -36,7 +38,9 @@ public interface AuthWebApi {
 	@PostMapping("/refresh")
 	CommonResponse<TokenResponse> refresh(
 			HttpServletRequest servletRequest,
-			HttpServletResponse servletResponse
+			HttpServletResponse servletResponse,
+			@Parameter(description = "CSRF 토큰 헤더 값(XSRF-TOKEN 쿠키 값과 동일)")
+			@RequestHeader(name = "X-XSRF-TOKEN", required = false) String csrfToken
 	);
 
 	@Operation(
@@ -48,6 +52,8 @@ public interface AuthWebApi {
 	@PostMapping("/logout")
 	CommonResponse<Void> logout(
 			HttpServletRequest servletRequest,
-			HttpServletResponse servletResponse
+			HttpServletResponse servletResponse,
+			@Parameter(description = "CSRF 토큰 헤더 값(XSRF-TOKEN 쿠키 값과 동일)")
+			@RequestHeader(name = "X-XSRF-TOKEN", required = false) String csrfToken
 	);
 }

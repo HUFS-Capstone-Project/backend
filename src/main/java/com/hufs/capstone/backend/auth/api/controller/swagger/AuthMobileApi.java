@@ -20,7 +20,7 @@ public interface AuthMobileApi {
 	@Operation(
 			tags = {"Auth Mobile"},
 			summary = "모바일 인증 코드 교환 API",
-			description = "모바일 인증 코드를 액세스/리프레시 토큰으로 교환합니다."
+			description = "모바일 인증 코드를 액세스 토큰과 리프레시 토큰으로 교환합니다."
 	)
 	@ApiResponse(responseCode = "200", description = "OK")
 	@PostMapping("/mobile/exchange")

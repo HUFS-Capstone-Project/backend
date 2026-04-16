@@ -1,7 +1,7 @@
 package com.hufs.capstone.backend.auth.application;
 
 import com.hufs.capstone.backend.auth.api.response.DevMasterTokenResponse;
-import com.hufs.capstone.backend.auth.api.response.MeResponse;
+import com.hufs.capstone.backend.user.api.response.UserProfileResponse;
 import com.hufs.capstone.backend.auth.api.response.TokenResponse;
 import com.hufs.capstone.backend.auth.application.dto.TokenPair;
 import com.hufs.capstone.backend.auth.application.service.AuthLoginService;
@@ -35,7 +35,7 @@ public class AuthDevTokenService {
 		ClientContext context = authLoginService.createWebClientContext(userAgent, ipAddress);
 		TokenPair tokenPair = tokenLifecycleService.issueInitial(user, context);
 		return new DevMasterTokenResponse(
-				MeResponse.from(user),
+				UserProfileResponse.from(user),
 				new TokenResponse(
 						tokenPair.accessToken(),
 						tokenPair.accessTokenExpiresAt(),

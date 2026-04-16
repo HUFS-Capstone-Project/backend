@@ -17,7 +17,7 @@ public class Room extends AuditableEntity {
 	@Column(nullable = false, unique = true, length = 36)
 	private String publicId;
 
-	@Column(nullable = false, length = 100)
+	@Column(nullable = false, length = 20)
 	private String name;
 
 	@Column(nullable = false, unique = true, length = 32)

@@ -31,6 +31,18 @@ public class User extends SoftDeletableEntity {
 	@Column(length = 2048)
 	private String profileImageUrl;
 
+	@Column(nullable = false)
+	private boolean serviceTermsAgreed;
+
+	@Column(nullable = false)
+	private boolean privacyPolicyAgreed;
+
+	@Column(nullable = false)
+	private boolean marketingNotificationAgreed;
+
+	@Column
+	private Instant onboardingCompletedAt;
+
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false, length = 20)
 	private UserRole role;
@@ -47,6 +59,10 @@ public class User extends SoftDeletableEntity {
 			boolean emailVerified,
 			String nickname,
 			String profileImageUrl,
+			boolean serviceTermsAgreed,
+			boolean privacyPolicyAgreed,
+			boolean marketingNotificationAgreed,
+			Instant onboardingCompletedAt,
 			UserRole role,
 			UserStatus status,
 			Instant lastLoginAt
@@ -55,6 +71,10 @@ public class User extends SoftDeletableEntity {
 		this.emailVerified = emailVerified;
 		this.nickname = nickname;
 		this.profileImageUrl = profileImageUrl;
+		this.serviceTermsAgreed = serviceTermsAgreed;
+		this.privacyPolicyAgreed = privacyPolicyAgreed;
+		this.marketingNotificationAgreed = marketingNotificationAgreed;
+		this.onboardingCompletedAt = onboardingCompletedAt;
 		this.role = role;
 		this.status = status;
 		this.lastLoginAt = lastLoginAt;
@@ -62,7 +82,19 @@ public class User extends SoftDeletableEntity {
 
 	public static User register(String email, boolean emailVerified, String nickname, String profileImageUrl) {
 		Instant now = Instant.now();
-		return new User(email, emailVerified, nickname, profileImageUrl, UserRole.USER, UserStatus.ACTIVE, now);
+		return new User(
+				email,
+				emailVerified,
+				nickname,
+				profileImageUrl,
+				false,
+				false,
+				false,
+				null,
+				UserRole.USER,
+				UserStatus.ACTIVE,
+				now
+		);
 	}
 
 	public void markLoginSuccess(Instant now) {
@@ -79,6 +111,26 @@ public class User extends SoftDeletableEntity {
 
 	public boolean isActive() {
 		return this.status == UserStatus.ACTIVE;
+	}
+
+	public boolean isOnboardingCompleted() {
+		return this.onboardingCompletedAt != null;
+	}
+
+	public void completeOnboarding(
+			String nickname,
+			boolean serviceTermsAgreed,
+			boolean privacyPolicyAgreed,
+			boolean marketingNotificationAgreed,
+			Instant completedAt
+	) {
+		this.nickname = nickname;
+		this.serviceTermsAgreed = serviceTermsAgreed;
+		this.privacyPolicyAgreed = privacyPolicyAgreed;
+		this.marketingNotificationAgreed = marketingNotificationAgreed;
+		if (this.onboardingCompletedAt == null) {
+			this.onboardingCompletedAt = completedAt;
+		}
 	}
 }
 

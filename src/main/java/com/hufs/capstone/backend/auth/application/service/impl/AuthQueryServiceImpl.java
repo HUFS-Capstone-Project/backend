@@ -1,6 +1,6 @@
 package com.hufs.capstone.backend.auth.application.service.impl;
 
-import com.hufs.capstone.backend.auth.api.response.MeResponse;
+import com.hufs.capstone.backend.user.api.response.UserProfileResponse;
 import com.hufs.capstone.backend.auth.application.service.AuthQueryService;
 import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
@@ -18,10 +18,10 @@ public class AuthQueryServiceImpl implements AuthQueryService {
 
 	@Override
 	@Transactional(readOnly = true)
-	public MeResponse getMe(Long userId) {
+	public UserProfileResponse getUserProfile(Long userId) {
 		User user = userRepository.findByIdAndDeletedAtIsNull(userId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "User not found."));
-		return MeResponse.from(user);
+		return UserProfileResponse.from(user);
 	}
 
 	@Override
