@@ -1,6 +1,7 @@
 package com.hufs.capstone.backend.link.api.controller;
 
 import com.hufs.capstone.backend.global.response.CommonResponse;
+import com.hufs.capstone.backend.auth.security.SecurityUtils;
 import com.hufs.capstone.backend.link.api.controller.swagger.LinkApi;
 import com.hufs.capstone.backend.link.api.request.RegisterLinkRequest;
 import com.hufs.capstone.backend.link.api.response.LinkStatusResponse;
@@ -32,7 +33,9 @@ public class LinkController implements LinkApi {
 			@Valid @RequestBody RegisterLinkRequest request,
 			@RequestHeader(name = "X-XSRF-TOKEN", required = false) String csrfToken
 	) {
+		Long userId = SecurityUtils.currentUserIdOrThrow();
 		RegisterLinkResult result = linkCommandService.register(
+				userId,
 				new RegisterLinkCommand(request.url(), request.roomId(), request.source())
 		);
 		URI location = ServletUriComponentsBuilder.fromCurrentRequest()
@@ -44,7 +47,8 @@ public class LinkController implements LinkApi {
 
 	@Override
 	public CommonResponse<LinkStatusResponse> getLink(@PathVariable Long linkId) {
-		LinkStatusResult result = linkQueryService.getLinkStatus(linkId);
+		Long userId = SecurityUtils.currentUserIdOrThrow();
+		LinkStatusResult result = linkQueryService.getLinkStatus(userId, linkId);
 		return CommonResponse.ok(LinkStatusResponse.from(result));
 	}
 }

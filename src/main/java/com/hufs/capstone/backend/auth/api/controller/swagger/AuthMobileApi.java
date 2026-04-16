@@ -20,9 +20,9 @@ public interface AuthMobileApi {
 	@Operation(
 			tags = {"Auth Mobile"},
 			summary = "모바일 인증 코드 교환 API",
-			description = "모바일 인증 코드를 토큰 쌍으로 교환하는 API"
+			description = "모바일 인증 코드를 액세스/리프레시 토큰으로 교환합니다."
 	)
-	@ApiResponse(responseCode = "200", description = "성공")
+	@ApiResponse(responseCode = "200", description = "OK")
 	@PostMapping("/mobile/exchange")
 	CommonResponse<TokenResponse> exchangeMobile(
 			@Valid @RequestBody MobileExchangeRequest request,
@@ -32,10 +32,10 @@ public interface AuthMobileApi {
 
 	@Operation(
 			tags = {"Auth Mobile"},
-			summary = "모바일 액세스 토큰 재발급 API",
-			description = "요청 본문의 리프레시 토큰으로 액세스 토큰을 재발급하는 API"
+			summary = "모바일 액세스 토큰 갱신 API",
+			description = "요청 본문의 리프레시 토큰으로 액세스 토큰을 갱신합니다."
 	)
-	@ApiResponse(responseCode = "200", description = "성공")
+	@ApiResponse(responseCode = "200", description = "OK")
 	@PostMapping("/mobile/refresh")
 	CommonResponse<TokenResponse> mobileRefresh(
 			@Valid @RequestBody RefreshRequest request,
@@ -46,9 +46,9 @@ public interface AuthMobileApi {
 	@Operation(
 			tags = {"Auth Mobile"},
 			summary = "모바일 로그아웃 API",
-			description = "모바일 현재 세션을 로그아웃하는 API"
+			description = "모바일 리프레시 토큰을 폐기하고 로그아웃합니다."
 	)
-	@ApiResponse(responseCode = "200", description = "성공")
+	@ApiResponse(responseCode = "200", description = "OK")
 	@PostMapping("/mobile/logout")
 	CommonResponse<Void> mobileLogout(@Valid @RequestBody LogoutRequest request);
 }

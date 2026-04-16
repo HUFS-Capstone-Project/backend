@@ -32,7 +32,7 @@ public class LinkStatusWriteService {
 	public LinkStatusResult applySyncSnapshot(Long linkId, LinkAnalysisStatus targetStatus, String captionRaw) {
 		for (int retry = 0; retry < MAX_CAS_RETRY; retry++) {
 			Link current = linkRepository.findById(linkId)
-					.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "Link not found."));
+					.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "링크를 찾을 수 없습니다."));
 
 			if (current.isTerminal()) {
 				return LinkStatusResult.from(current);
@@ -46,7 +46,7 @@ public class LinkStatusWriteService {
 			int updated = executeCasUpdate(current.getId(), current.getVersion(), plan);
 			if (updated == 1) {
 				Link refreshed = linkRepository.findById(linkId)
-						.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "Link not found."));
+						.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "링크를 찾을 수 없습니다."));
 				eventPublisher.publishEvent(new LinkStatusSyncedEvent(refreshed.getId()));
 				return LinkStatusResult.from(refreshed);
 			}
@@ -54,7 +54,7 @@ public class LinkStatusWriteService {
 
 		log.warn("CAS update contention. returning latest snapshot. linkId={}, targetStatus={}", linkId, targetStatus);
 		Link latest = linkRepository.findById(linkId)
-				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "Link not found."));
+				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "링크를 찾을 수 없습니다."));
 		return LinkStatusResult.from(latest);
 	}
 

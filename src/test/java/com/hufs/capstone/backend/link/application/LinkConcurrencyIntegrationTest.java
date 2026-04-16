@@ -20,9 +20,14 @@ import com.hufs.capstone.backend.link.application.dto.RegisterLinkCommand;
 import com.hufs.capstone.backend.link.application.dto.RegisterLinkResult;
 import com.hufs.capstone.backend.link.domain.LinkAnalysisStatus;
 import com.hufs.capstone.backend.link.domain.entity.Link;
+import com.hufs.capstone.backend.link.domain.entity.RoomLink;
 import com.hufs.capstone.backend.link.domain.repository.LinkProcessingHistoryRepository;
 import com.hufs.capstone.backend.link.domain.repository.LinkRepository;
 import com.hufs.capstone.backend.link.domain.repository.RoomLinkRepository;
+import com.hufs.capstone.backend.room.domain.entity.Room;
+import com.hufs.capstone.backend.room.domain.entity.RoomMember;
+import com.hufs.capstone.backend.room.domain.repository.RoomMemberRepository;
+import com.hufs.capstone.backend.room.domain.repository.RoomRepository;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -47,6 +52,13 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 @AutoConfigureTestDatabase
 class LinkConcurrencyIntegrationTest {
 
+	private static final Long MEMBER_USER_ID = 100L;
+	private static final Long OTHER_USER_ID = 200L;
+	private static final String ROOM_A_PUBLIC_ID = "11111111-1111-1111-1111-111111111111";
+	private static final String ROOM_B_PUBLIC_ID = "22222222-2222-2222-2222-222222222222";
+	private static final String INVITE_A = "INVITEAAA1111";
+	private static final String INVITE_B = "INVITEBBB2222";
+
 	@Autowired
 	private LinkCommandService linkCommandService;
 
@@ -62,31 +74,48 @@ class LinkConcurrencyIntegrationTest {
 	@Autowired
 	private LinkProcessingHistoryRepository linkProcessingHistoryRepository;
 
+	@Autowired
+	private RoomRepository roomRepository;
+
+	@Autowired
+	private RoomMemberRepository roomMemberRepository;
+
 	@MockitoBean
 	private ProcessingClient processingClient;
+
+	private Room roomA;
+	private Room roomB;
 
 	@BeforeEach
 	void setUp() {
 		roomLinkRepository.deleteAll();
 		linkProcessingHistoryRepository.deleteAll();
+		roomMemberRepository.deleteAll();
+		roomRepository.deleteAll();
 		linkRepository.deleteAll();
 		reset(processingClient);
+
+		roomA = createRoomWithMember(ROOM_A_PUBLIC_ID, "A Room", INVITE_A, MEMBER_USER_ID);
+		roomB = createRoomWithMember(ROOM_B_PUBLIC_ID, "B Room", INVITE_B, MEMBER_USER_ID);
 	}
 
 	@AfterEach
 	void tearDown() {
 		roomLinkRepository.deleteAll();
 		linkProcessingHistoryRepository.deleteAll();
+		roomMemberRepository.deleteAll();
+		roomRepository.deleteAll();
 		linkRepository.deleteAll();
 	}
 
 	@Test
 	void shouldSaveSingleUrlNormally() {
-		when(processingClient.createJob("https://example.com/post/1", "room-a", null))
+		when(processingClient.createJob("https://example.com/post/1", ROOM_A_PUBLIC_ID, null))
 				.thenReturn(new CreateProcessingJobResponse("job-1"));
 
 		RegisterLinkResult result = linkCommandService.register(
-				new RegisterLinkCommand("https://example.com/post/1", "room-a", null)
+				MEMBER_USER_ID,
+				new RegisterLinkCommand("https://example.com/post/1", ROOM_A_PUBLIC_ID, null)
 		);
 
 		assertThat(result.linkId()).isNotNull();
@@ -97,52 +126,59 @@ class LinkConcurrencyIntegrationTest {
 
 	@Test
 	void shouldNotCreateDuplicateGlobalContentForSameUrl() {
-		when(processingClient.createJob("https://example.com/post/1", "room-a", null))
+		when(processingClient.createJob("https://example.com/post/1", ROOM_A_PUBLIC_ID, null))
 				.thenReturn(new CreateProcessingJobResponse("job-1"));
 
 		RegisterLinkResult first = linkCommandService.register(
-				new RegisterLinkCommand("https://example.com/post/1?utm_source=x", "room-a", null)
+				MEMBER_USER_ID,
+				new RegisterLinkCommand("https://example.com/post/1?utm_source=x", ROOM_A_PUBLIC_ID, null)
 		);
 		RegisterLinkResult second = linkCommandService.register(
-				new RegisterLinkCommand("https://example.com/post/1/", "room-b", null)
+				MEMBER_USER_ID,
+				new RegisterLinkCommand("https://example.com/post/1/", ROOM_B_PUBLIC_ID, null)
 		);
 
 		assertThat(first.linkId()).isEqualTo(second.linkId());
 		assertThat(linkRepository.count()).isEqualTo(1);
 		assertThat(roomLinkRepository.countByLinkId(first.linkId())).isEqualTo(2);
 		assertThat(linkProcessingHistoryRepository.countByLinkId(first.linkId())).isEqualTo(2);
-		verify(processingClient, times(1)).createJob("https://example.com/post/1", "room-a", null);
+		verify(processingClient, times(1)).createJob("https://example.com/post/1", ROOM_A_PUBLIC_ID, null);
 	}
 
 	@Test
 	void shouldPreventDuplicateRoomMappingForSameUrl() {
-		when(processingClient.createJob("https://example.com/post/1", "room-a", null))
+		when(processingClient.createJob("https://example.com/post/1", ROOM_A_PUBLIC_ID, null))
 				.thenReturn(new CreateProcessingJobResponse("job-1"));
 
 		RegisterLinkResult first = linkCommandService.register(
-				new RegisterLinkCommand("https://example.com/post/1", "room-a", null)
+				MEMBER_USER_ID,
+				new RegisterLinkCommand("https://example.com/post/1", ROOM_A_PUBLIC_ID, null)
 		);
 
 		assertThatThrownBy(() -> linkCommandService.register(
-				new RegisterLinkCommand("https://example.com/post/1?x=1", "room-a", null)
+				MEMBER_USER_ID,
+				new RegisterLinkCommand("https://example.com/post/1?x=1", ROOM_A_PUBLIC_ID, null)
 		))
 				.isInstanceOf(BusinessException.class)
 				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.E409_CONFLICT));
 
 		assertThat(linkRepository.count()).isEqualTo(1);
-		assertThat(roomLinkRepository.countByRoomIdAndLinkId("room-a", first.linkId())).isEqualTo(1);
+		assertThat(roomLinkRepository.countByRoomIdAndLinkId(roomA.getId(), first.linkId())).isEqualTo(1);
 	}
 
 	@Test
 	void shouldKeepSingleContentAndSingleRoomMappingUnderConcurrentDuplicateSave() throws Exception {
 		AtomicInteger jobSeq = new AtomicInteger();
-		when(processingClient.createJob(eq("https://example.com/post/1"), eq("room-a"), eq(null)))
+		when(processingClient.createJob(eq("https://example.com/post/1"), eq(ROOM_A_PUBLIC_ID), eq(null)))
 				.thenAnswer(invocation -> new CreateProcessingJobResponse("job-" + jobSeq.incrementAndGet()));
 
 		List<Object> results = runConcurrently(
 				() -> {
 					try {
-						return linkCommandService.register(new RegisterLinkCommand("https://example.com/post/1", "room-a", null));
+						return linkCommandService.register(
+								MEMBER_USER_ID,
+								new RegisterLinkCommand("https://example.com/post/1", ROOM_A_PUBLIC_ID, null)
+						);
 					} catch (BusinessException ex) {
 						return ex;
 					}
@@ -161,19 +197,21 @@ class LinkConcurrencyIntegrationTest {
 		assertThat(conflictCount).isEqualTo(1);
 		assertThat(linkRepository.count()).isEqualTo(1);
 		Link saved = linkRepository.findAll().get(0);
-		assertThat(roomLinkRepository.countByRoomIdAndLinkId("room-a", saved.getId())).isEqualTo(1);
+		assertThat(roomLinkRepository.countByRoomIdAndLinkId(roomA.getId(), saved.getId())).isEqualTo(1);
 	}
 
 	@Test
 	void shouldReuseSingleContentAcrossDifferentRooms() {
-		when(processingClient.createJob("https://example.com/post/1", "room-a", null))
+		when(processingClient.createJob("https://example.com/post/1", ROOM_A_PUBLIC_ID, null))
 				.thenReturn(new CreateProcessingJobResponse("job-1"));
 
 		RegisterLinkResult first = linkCommandService.register(
-				new RegisterLinkCommand("https://example.com/post/1", "room-a", null)
+				MEMBER_USER_ID,
+				new RegisterLinkCommand("https://example.com/post/1", ROOM_A_PUBLIC_ID, null)
 		);
 		RegisterLinkResult second = linkCommandService.register(
-				new RegisterLinkCommand("https://example.com/post/1?ref=abc", "room-b", null)
+				MEMBER_USER_ID,
+				new RegisterLinkCommand("https://example.com/post/1?ref=abc", ROOM_B_PUBLIC_ID, null)
 		);
 
 		assertThat(first.linkId()).isEqualTo(second.linkId());
@@ -182,14 +220,24 @@ class LinkConcurrencyIntegrationTest {
 	}
 
 	@Test
+	void shouldRejectRegisterWhenUserIsNotRoomMember() {
+		assertThatThrownBy(() -> linkCommandService.register(
+				OTHER_USER_ID,
+				new RegisterLinkCommand("https://example.com/post/1", ROOM_A_PUBLIC_ID, null)
+		))
+				.isInstanceOf(BusinessException.class)
+				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.E403_FORBIDDEN));
+	}
+
+	@Test
 	void shouldKeepSucceededAndCaptionWhenTwoConcurrentPollsDetectCompletion() throws Exception {
-		Link link = saveProcessingLink("https://example.com/post/2", "job-2");
+		Link link = saveProcessingLink("https://example.com/post/2", "job-2", roomA);
 		when(processingClient.getJob("job-2"))
-				.thenReturn(new ProcessingJobResponse("job-2", "succeeded", null, "room-a", null, null, null));
+				.thenReturn(new ProcessingJobResponse("job-2", "succeeded", null, ROOM_A_PUBLIC_ID, null, null, null));
 		when(processingClient.getJobResult("job-2"))
 				.thenReturn(new ProcessingJobResultResponse("video", "caption ready", null, null, null, null));
 
-		runConcurrently(() -> linkQueryService.getLinkStatus(link.getId()), 2);
+		runConcurrently(() -> linkQueryService.getLinkStatus(MEMBER_USER_ID, link.getId()), 2);
 
 		Link reloaded = linkRepository.findById(link.getId()).orElseThrow();
 		assertThat(reloaded.getStatus()).isEqualTo(LinkAnalysisStatus.SUCCEEDED);
@@ -198,9 +246,9 @@ class LinkConcurrencyIntegrationTest {
 
 	@Test
 	void shouldNotDowngradeToProcessingWhenConcurrentReadyAndNotReadyResponsesRace() throws Exception {
-		Link link = saveProcessingLink("https://example.com/post/3", "job-3");
+		Link link = saveProcessingLink("https://example.com/post/3", "job-3", roomA);
 		when(processingClient.getJob("job-3"))
-				.thenReturn(new ProcessingJobResponse("job-3", "succeeded", null, "room-a", null, null, null));
+				.thenReturn(new ProcessingJobResponse("job-3", "succeeded", null, ROOM_A_PUBLIC_ID, null, null, null));
 		AtomicInteger resultCalls = new AtomicInteger();
 		when(processingClient.getJobResult("job-3")).thenAnswer(invocation -> {
 			if (resultCalls.incrementAndGet() == 1) {
@@ -209,7 +257,7 @@ class LinkConcurrencyIntegrationTest {
 			throw new ProcessingClientException("not-ready", HttpStatus.NOT_FOUND, "");
 		});
 
-		runConcurrently(() -> linkQueryService.getLinkStatus(link.getId()), 2);
+		runConcurrently(() -> linkQueryService.getLinkStatus(MEMBER_USER_ID, link.getId()), 2);
 
 		Link reloaded = linkRepository.findById(link.getId()).orElseThrow();
 		assertThat(reloaded.getStatus()).isEqualTo(LinkAnalysisStatus.SUCCEEDED);
@@ -218,18 +266,18 @@ class LinkConcurrencyIntegrationTest {
 
 	@Test
 	void shouldKeepTerminalConsistencyUnderFailedSucceededRace() throws Exception {
-		Link link = saveProcessingLink("https://example.com/post/4", "job-4");
+		Link link = saveProcessingLink("https://example.com/post/4", "job-4", roomA);
 		AtomicInteger jobCalls = new AtomicInteger();
 		when(processingClient.getJob("job-4")).thenAnswer(invocation -> {
 			if (jobCalls.incrementAndGet() == 1) {
-				return new ProcessingJobResponse("job-4", "failed", null, "room-a", null, "E001", "failed");
+				return new ProcessingJobResponse("job-4", "failed", null, ROOM_A_PUBLIC_ID, null, "E001", "failed");
 			}
-			return new ProcessingJobResponse("job-4", "succeeded", null, "room-a", null, null, null);
+			return new ProcessingJobResponse("job-4", "succeeded", null, ROOM_A_PUBLIC_ID, null, null, null);
 		});
 		when(processingClient.getJobResult("job-4"))
 				.thenReturn(new ProcessingJobResultResponse("video", "caption from race", null, null, null, null));
 
-		runConcurrently(() -> linkQueryService.getLinkStatus(link.getId()), 2);
+		runConcurrently(() -> linkQueryService.getLinkStatus(MEMBER_USER_ID, link.getId()), 2);
 
 		Link reloaded = linkRepository.findById(link.getId()).orElseThrow();
 		assertThat(reloaded.getStatus().isTerminal()).isTrue();
@@ -240,22 +288,38 @@ class LinkConcurrencyIntegrationTest {
 
 	@Test
 	void shouldNotCallProcessingAfterTerminalStatus() {
-		Link link = saveProcessingLink("https://example.com/post/5", "job-5");
+		Link link = saveProcessingLink("https://example.com/post/5", "job-5", roomA);
 		link.markSucceeded("done caption");
 		linkRepository.saveAndFlush(link);
 
-		linkQueryService.getLinkStatus(link.getId());
-		linkQueryService.getLinkStatus(link.getId());
-		linkQueryService.getLinkStatus(link.getId());
+		linkQueryService.getLinkStatus(MEMBER_USER_ID, link.getId());
+		linkQueryService.getLinkStatus(MEMBER_USER_ID, link.getId());
+		linkQueryService.getLinkStatus(MEMBER_USER_ID, link.getId());
 
 		verify(processingClient, never()).getJob("job-5");
 		verify(processingClient, never()).getJobResult("job-5");
 	}
 
-	private Link saveProcessingLink(String normalizedUrl, String jobId) {
+	@Test
+	void shouldRejectLinkQueryWhenUserHasNoRoomMembership() {
+		Link link = saveProcessingLink("https://example.com/post/6", "job-6", roomA);
+		assertThatThrownBy(() -> linkQueryService.getLinkStatus(OTHER_USER_ID, link.getId()))
+				.isInstanceOf(BusinessException.class)
+				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.E403_FORBIDDEN));
+	}
+
+	private Room createRoomWithMember(String publicId, String name, String inviteCode, Long userId) {
+		Room room = roomRepository.saveAndFlush(Room.create(publicId, name, inviteCode, userId));
+		roomMemberRepository.saveAndFlush(RoomMember.owner(room, userId));
+		return room;
+	}
+
+	private Link saveProcessingLink(String normalizedUrl, String jobId, Room room) {
 		Link link = Link.register(normalizedUrl, normalizedUrl, jobId);
 		link.markProcessing();
-		return linkRepository.saveAndFlush(link);
+		Link savedLink = linkRepository.saveAndFlush(link);
+		roomLinkRepository.saveAndFlush(RoomLink.bind(room, savedLink));
+		return savedLink;
 	}
 
 	private static <T> List<T> runConcurrently(Callable<T> task, int threadCount) throws Exception {
@@ -288,3 +352,4 @@ class LinkConcurrencyIntegrationTest {
 		}
 	}
 }
+

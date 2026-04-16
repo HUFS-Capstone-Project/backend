@@ -45,12 +45,14 @@ public class ProcessingClientImpl implements ProcessingClient {
 						.bodyValue(body)
 						.retrieve(),
 				CreateProcessingJobResponse.class,
-				"Processing job 생성에 실패했습니다.");
+				"Processing job 생성에 실패했습니다."
+		);
 		if (response == null || response.jobId() == null || response.jobId().isBlank()) {
 			throw new ProcessingClientException(
-					"Processing job 생성 응답에 job 식별자가 없습니다.",
+					"Processing job 생성 응답에 job_id가 없습니다.",
 					HttpStatus.BAD_GATEWAY,
-					"");
+					""
+			);
 		}
 		return response;
 	}
@@ -62,7 +64,8 @@ public class ProcessingClientImpl implements ProcessingClient {
 						.uri(JOBS_SEGMENT + "/{jobId}", jobId)
 						.retrieve(),
 				ProcessingJobResponse.class,
-				"Processing job 조회에 실패했습니다.");
+				"Processing job 조회에 실패했습니다."
+		);
 	}
 
 	@Override
@@ -72,7 +75,8 @@ public class ProcessingClientImpl implements ProcessingClient {
 						.uri(JOBS_SEGMENT + "/{jobId}/result", jobId)
 						.retrieve(),
 				ProcessingJobResultResponse.class,
-				"Processing job 결과 조회에 실패했습니다.");
+				"Processing job 결과 조회에 실패했습니다."
+		);
 	}
 
 	private static <T> T readBody(

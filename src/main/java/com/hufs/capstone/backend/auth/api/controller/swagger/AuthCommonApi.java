@@ -15,7 +15,7 @@ public interface AuthCommonApi {
 	@Operation(
 			tags = {"Auth Common"},
 			summary = "CSRF 쿠키 초기화 API",
-			description = "토큰 본문을 반환하지 않고 CSRF 쿠키 발급·갱신을 처리합니다"
+			description = "응답 본문 없이 CSRF 쿠키를 발급하거나 갱신합니다."
 	)
 	@ApiResponse(responseCode = "204", description = "No Content")
 	@GetMapping("/csrf")
@@ -23,19 +23,19 @@ public interface AuthCommonApi {
 
 	@Operation(
 			tags = {"Auth Common"},
-			summary = "현재 로그인 사용자 조회 API",
-			description = "현재 인증된 사용자 정보를 조회하는 API"
+			summary = "내 정보 조회 API",
+			description = "현재 인증된 사용자의 기본 정보를 조회합니다."
 	)
-	@ApiResponse(responseCode = "200", description = "성공")
+	@ApiResponse(responseCode = "200", description = "OK")
 	@GetMapping("/me")
 	CommonResponse<MeResponse> me();
 
 	@Operation(
 			tags = {"Auth Common"},
-			summary = "모든 기기 로그아웃 API",
-			description = "현재 사용자의 모든 세션을 로그아웃하는 API"
+			summary = "전체 기기 로그아웃 API",
+			description = "현재 계정의 모든 활성 세션을 로그아웃 처리합니다."
 	)
-	@ApiResponse(responseCode = "200", description = "성공")
+	@ApiResponse(responseCode = "200", description = "OK")
 	@PostMapping("/logout-all")
 	CommonResponse<Void> logoutAll();
 }

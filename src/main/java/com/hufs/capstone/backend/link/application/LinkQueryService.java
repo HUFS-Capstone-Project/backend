@@ -10,6 +10,7 @@ import com.hufs.capstone.backend.link.application.dto.LinkStatusResult;
 import com.hufs.capstone.backend.link.domain.LinkAnalysisStatus;
 import com.hufs.capstone.backend.link.domain.entity.Link;
 import com.hufs.capstone.backend.link.domain.repository.LinkRepository;
+import com.hufs.capstone.backend.room.application.RoomAccessService;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
@@ -31,11 +32,14 @@ public class LinkQueryService {
 	private final LinkRepository linkRepository;
 	private final ProcessingClient processingClient;
 	private final LinkStatusWriteService linkStatusWriteService;
+	private final RoomAccessService roomAccessService;
 
 	private final ConcurrentHashMap<Long, CachedStatusEntry> statusCache = new ConcurrentHashMap<>();
 	private final ConcurrentHashMap<Long, CompletableFuture<LinkStatusResult>> inFlight = new ConcurrentHashMap<>();
 
-	public LinkStatusResult getLinkStatus(Long linkId) {
+	public LinkStatusResult getLinkStatus(Long userId, Long linkId) {
+		roomAccessService.assertLinkReadable(linkId, userId);
+
 		LinkStatusResult cached = readCache(linkId);
 		if (cached != null) {
 			return cached;
@@ -62,7 +66,7 @@ public class LinkQueryService {
 
 	private LinkStatusResult fetchAndSync(Long linkId) {
 		Link snapshot = linkRepository.findById(linkId)
-				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "Link not found."));
+				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "링크를 찾을 수 없습니다."));
 
 		if (snapshot.isTerminal()) {
 			return LinkStatusResult.from(snapshot);

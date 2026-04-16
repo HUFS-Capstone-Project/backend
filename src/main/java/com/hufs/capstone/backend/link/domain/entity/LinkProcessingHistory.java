@@ -8,6 +8,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
@@ -17,7 +18,12 @@ import lombok.NoArgsConstructor;
 
 @Getter
 @Entity
-@Table(name = "link_processing_history")
+@Table(
+		name = "link_processing_history",
+		indexes = {
+			@Index(name = "idx_link_processing_history_link_id_created_at", columnList = "link_id, created_at")
+		}
+)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class LinkProcessingHistory extends AuditableEntity {
 
@@ -39,7 +45,7 @@ public class LinkProcessingHistory extends AuditableEntity {
 	@Column(nullable = false, length = 30)
 	private LinkProcessingEventType eventType;
 
-	@Column(length = 100)
+	@Column(length = 36)
 	private String roomId;
 
 	@Column(length = 100)

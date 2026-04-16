@@ -15,6 +15,7 @@ import com.hufs.capstone.backend.link.application.dto.LinkStatusResult;
 import com.hufs.capstone.backend.link.domain.LinkAnalysisStatus;
 import com.hufs.capstone.backend.link.domain.entity.Link;
 import com.hufs.capstone.backend.link.domain.repository.LinkRepository;
+import com.hufs.capstone.backend.room.application.RoomAccessService;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
@@ -22,6 +23,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -33,6 +35,8 @@ import org.springframework.test.util.ReflectionTestUtils;
 @ExtendWith(MockitoExtension.class)
 class LinkQueryServiceTest {
 
+	private static final Long USER_ID = 100L;
+
 	@Mock
 	private LinkRepository linkRepository;
 
@@ -42,15 +46,23 @@ class LinkQueryServiceTest {
 	@Mock
 	private LinkStatusWriteService linkStatusWriteService;
 
+	@Mock
+	private RoomAccessService roomAccessService;
+
 	@InjectMocks
 	private LinkQueryService linkQueryService;
+
+	@BeforeEach
+	void setUp() {
+		org.mockito.Mockito.lenient().doNothing().when(roomAccessService).assertLinkReadable(anyLong(), anyLong());
+	}
 
 	@Test
 	void getLinkStatusShouldReturnImmediatelyWhenTerminal() {
 		Link terminal = newLink(1L, LinkAnalysisStatus.SUCCEEDED, "caption");
 		when(linkRepository.findById(1L)).thenReturn(Optional.of(terminal));
 
-		LinkStatusResult result = linkQueryService.getLinkStatus(1L);
+		LinkStatusResult result = linkQueryService.getLinkStatus(USER_ID, 1L);
 
 		assertThat(result.status()).isEqualTo(LinkAnalysisStatus.SUCCEEDED);
 		assertThat(result.captionRaw()).isEqualTo("caption");
@@ -78,7 +90,7 @@ class LinkQueryServiceTest {
 		);
 		when(linkStatusWriteService.applySyncSnapshot(2L, LinkAnalysisStatus.SUCCEEDED, "caption")).thenReturn(synced);
 
-		LinkStatusResult result = linkQueryService.getLinkStatus(2L);
+		LinkStatusResult result = linkQueryService.getLinkStatus(USER_ID, 2L);
 
 		assertThat(result.status()).isEqualTo(LinkAnalysisStatus.SUCCEEDED);
 		assertThat(result.captionRaw()).isEqualTo("caption");
@@ -105,7 +117,7 @@ class LinkQueryServiceTest {
 		);
 		when(linkStatusWriteService.applySyncSnapshot(3L, LinkAnalysisStatus.PROCESSING, null)).thenReturn(synced);
 
-		LinkStatusResult result = linkQueryService.getLinkStatus(3L);
+		LinkStatusResult result = linkQueryService.getLinkStatus(USER_ID, 3L);
 
 		assertThat(result.status()).isEqualTo(LinkAnalysisStatus.PROCESSING);
 		verify(linkStatusWriteService).applySyncSnapshot(3L, LinkAnalysisStatus.PROCESSING, null);
@@ -129,8 +141,8 @@ class LinkQueryServiceTest {
 		);
 		when(linkStatusWriteService.applySyncSnapshot(8L, LinkAnalysisStatus.PROCESSING, null)).thenReturn(synced);
 
-		LinkStatusResult first = linkQueryService.getLinkStatus(8L);
-		LinkStatusResult second = linkQueryService.getLinkStatus(8L);
+		LinkStatusResult first = linkQueryService.getLinkStatus(USER_ID, 8L);
+		LinkStatusResult second = linkQueryService.getLinkStatus(USER_ID, 8L);
 
 		assertThat(first.status()).isEqualTo(LinkAnalysisStatus.PROCESSING);
 		assertThat(second.status()).isEqualTo(LinkAnalysisStatus.PROCESSING);
@@ -164,9 +176,9 @@ class LinkQueryServiceTest {
 
 		ExecutorService executor = Executors.newFixedThreadPool(2);
 		try {
-			Future<LinkStatusResult> f1 = executor.submit(() -> linkQueryService.getLinkStatus(9L));
+			Future<LinkStatusResult> f1 = executor.submit(() -> linkQueryService.getLinkStatus(USER_ID, 9L));
 			assertThat(started.await(2, TimeUnit.SECONDS)).isTrue();
-			Future<LinkStatusResult> f2 = executor.submit(() -> linkQueryService.getLinkStatus(9L));
+			Future<LinkStatusResult> f2 = executor.submit(() -> linkQueryService.getLinkStatus(USER_ID, 9L));
 			release.countDown();
 
 			assertThat(f1.get(2, TimeUnit.SECONDS).status()).isEqualTo(LinkAnalysisStatus.PROCESSING);
@@ -194,3 +206,4 @@ class LinkQueryServiceTest {
 		return link;
 	}
 }
+

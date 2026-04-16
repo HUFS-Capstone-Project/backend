@@ -44,6 +44,10 @@ processing:
   read-timeout-ms: 30000
 
 app:
+  room:
+    join-rate-limit:
+      max-attempts: 5
+      window: 1m
   security:
     csrf:
       cookie:

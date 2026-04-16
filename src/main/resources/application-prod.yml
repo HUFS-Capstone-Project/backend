@@ -24,7 +24,7 @@ spring:
             client-secret: ${GOOGLE_CLIENT_SECRET}
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: create
     show-sql: false
 
 logging:

@@ -3,7 +3,10 @@ package com.hufs.capstone.backend.link.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -14,90 +17,80 @@ import com.hufs.capstone.backend.global.exception.ErrorCode;
 import com.hufs.capstone.backend.link.application.dto.RegisterLinkCommand;
 import com.hufs.capstone.backend.link.application.dto.RegisterLinkResult;
 import com.hufs.capstone.backend.link.domain.LinkAnalysisStatus;
+import com.hufs.capstone.backend.link.domain.LinkSource;
 import com.hufs.capstone.backend.link.domain.entity.Link;
-import com.hufs.capstone.backend.link.domain.entity.LinkProcessingHistory;
-import com.hufs.capstone.backend.link.domain.entity.RoomLink;
-import com.hufs.capstone.backend.link.domain.repository.LinkProcessingHistoryRepository;
 import com.hufs.capstone.backend.link.domain.repository.LinkRepository;
-import com.hufs.capstone.backend.link.domain.repository.RoomLinkRepository;
+import com.hufs.capstone.backend.room.application.RoomAccessService;
+import com.hufs.capstone.backend.room.domain.entity.Room;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.transaction.support.SimpleTransactionStatus;
-import org.springframework.transaction.support.TransactionCallback;
-import org.springframework.transaction.support.TransactionOperations;
-import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class LinkCommandServiceTest {
+
+	private static final Long USER_ID = 100L;
+	private static final String ROOM_PUBLIC_ID = "11111111-1111-1111-1111-111111111111";
 
 	@Mock
 	private LinkRepository linkRepository;
 
 	@Mock
-	private RoomLinkRepository roomLinkRepository;
-
-	@Mock
-	private LinkProcessingHistoryRepository linkProcessingHistoryRepository;
-
-	@Mock
 	private ProcessingClient processingClient;
 
 	@Mock
-	private TransactionOperations transactionOperations;
+	private RoomAccessService roomAccessService;
+
+	@Mock
+	private LinkRegistrationWriteService linkRegistrationWriteService;
 
 	@InjectMocks
 	private LinkCommandService linkCommandService;
 
 	@BeforeEach
 	void setUp() {
-		org.mockito.Mockito.lenient()
-				.when(transactionOperations.execute(org.mockito.ArgumentMatchers.<TransactionCallback<Object>>any()))
-				.thenAnswer(invocation -> {
-					TransactionCallback<Object> callback = invocation.getArgument(0);
-					return callback.doInTransaction(new SimpleTransactionStatus());
-				});
+		Mockito.lenient()
+				.when(roomAccessService.requireMemberRoom(any(), anyLong()))
+				.thenReturn(room(ROOM_PUBLIC_ID));
 	}
 
 	@Test
-	void registerShouldCreateNewGlobalLinkAndRoomMapping() {
-		when(linkRepository.findByNormalizedUrl("https://www.instagram.com/p/ABC123"))
-				.thenReturn(Optional.empty());
-		when(processingClient.createJob("https://www.instagram.com/p/ABC123", "room-1", "instagram"))
+	void registerShouldCreateProcessingJobWhenGlobalLinkDoesNotExist() {
+		when(linkRepository.findByNormalizedUrl("https://www.instagram.com/p/ABC123")).thenReturn(Optional.empty());
+		when(processingClient.createJob("https://www.instagram.com/p/ABC123", ROOM_PUBLIC_ID, "WEB"))
 				.thenReturn(new CreateProcessingJobResponse("job-123"));
-		when(linkRepository.saveAndFlush(any(Link.class))).thenAnswer(invocation -> {
-			Link saved = invocation.getArgument(0);
-			ReflectionTestUtils.setField(saved, "id", 10L);
-			return saved;
-		});
-		when(roomLinkRepository.saveAndFlush(any(RoomLink.class))).thenAnswer(invocation -> invocation.getArgument(0));
-		when(linkProcessingHistoryRepository.saveAndFlush(any(LinkProcessingHistory.class))).thenAnswer(invocation -> invocation.getArgument(0));
+		RegisterLinkResult persisted = new RegisterLinkResult(10L, "job-123", LinkAnalysisStatus.REQUESTED);
+		when(linkRegistrationWriteService.registerWithinWriteTransaction(
+				any(), eq(ROOM_PUBLIC_ID), eq(USER_ID), eq("WEB"), eq("job-123")
+		)).thenReturn(persisted);
 
 		RegisterLinkResult result = linkCommandService.register(
-				new RegisterLinkCommand("https://instagram.com/p/ABC123/?utm_source=test", "room-1", "instagram")
+				USER_ID,
+				new RegisterLinkCommand("https://instagram.com/p/ABC123/?utm_source=test", ROOM_PUBLIC_ID, LinkSource.WEB)
 		);
 
 		assertThat(result.linkId()).isEqualTo(10L);
 		assertThat(result.processingJobId()).isEqualTo("job-123");
-		assertThat(result.status()).isEqualTo(LinkAnalysisStatus.REQUESTED);
+		verify(processingClient).createJob("https://www.instagram.com/p/ABC123", ROOM_PUBLIC_ID, "WEB");
 	}
 
 	@Test
-	void registerShouldReuseExistingGlobalLinkWithoutCreatingNewJob() {
+	void registerShouldReuseExistingGlobalLinkWithoutCreatingJob() {
 		Link existing = Link.register("https://www.instagram.com/p/ABC123", "https://www.instagram.com/p/ABC123", "job-existing");
-		ReflectionTestUtils.setField(existing, "id", 11L);
-		when(linkRepository.findByNormalizedUrl("https://www.instagram.com/p/ABC123"))
-				.thenReturn(Optional.of(existing));
-		when(roomLinkRepository.saveAndFlush(any(RoomLink.class))).thenAnswer(invocation -> invocation.getArgument(0));
-		when(linkProcessingHistoryRepository.saveAndFlush(any(LinkProcessingHistory.class))).thenAnswer(invocation -> invocation.getArgument(0));
+		when(linkRepository.findByNormalizedUrl("https://www.instagram.com/p/ABC123")).thenReturn(Optional.of(existing));
+		RegisterLinkResult persisted = new RegisterLinkResult(11L, "job-existing", LinkAnalysisStatus.PROCESSING);
+		when(linkRegistrationWriteService.registerWithinWriteTransaction(
+				any(), eq(ROOM_PUBLIC_ID), eq(USER_ID), eq("APP"), eq(null)
+		)).thenReturn(persisted);
 
 		RegisterLinkResult result = linkCommandService.register(
-				new RegisterLinkCommand("https://www.instagram.com/p/ABC123?igsh=xx", "room-2", "instagram")
+				USER_ID,
+				new RegisterLinkCommand("https://www.instagram.com/p/ABC123?igsh=xx", ROOM_PUBLIC_ID, LinkSource.APP)
 		);
 
 		assertThat(result.linkId()).isEqualTo(11L);
@@ -106,49 +99,37 @@ class LinkCommandServiceTest {
 	}
 
 	@Test
-	void registerShouldThrowConflictWhenSameRoomAlreadyHasSameLink() {
-		Link existing = Link.register("https://example.com/x", "https://example.com/x", "job-existing");
-		ReflectionTestUtils.setField(existing, "id", 12L);
+	void registerShouldRetryWhenNormalizedUrlDuplicateRaceOccurs() {
+		when(linkRepository.findByNormalizedUrl("https://example.com/x")).thenReturn(Optional.empty());
+		when(processingClient.createJob("https://example.com/x", ROOM_PUBLIC_ID, null))
+				.thenReturn(new CreateProcessingJobResponse("job-new"));
 
-		when(linkRepository.findByNormalizedUrl("https://example.com/x"))
-				.thenReturn(Optional.of(existing));
-		when(roomLinkRepository.saveAndFlush(any(RoomLink.class)))
-				.thenThrow(new DataIntegrityViolationException("duplicate"));
+		when(linkRegistrationWriteService.registerWithinWriteTransaction(any(), eq(ROOM_PUBLIC_ID), eq(USER_ID), eq(null), eq("job-new")))
+				.thenThrow(new LinkRegistrationWriteService.LinkDuplicateRaceException("https://example.com/x", new RuntimeException("dup")));
+		when(linkRegistrationWriteService.registerWithinWriteTransaction(any(), eq(ROOM_PUBLIC_ID), eq(USER_ID), eq(null), eq(null)))
+				.thenReturn(new RegisterLinkResult(20L, "job-existing", LinkAnalysisStatus.REQUESTED));
 
-		assertThatThrownBy(() -> linkCommandService.register(
-				new RegisterLinkCommand("https://example.com/x", "room-1", null)
-		))
-				.isInstanceOf(BusinessException.class)
-				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.E409_CONFLICT));
+		RegisterLinkResult result = linkCommandService.register(
+				USER_ID,
+				new RegisterLinkCommand("https://example.com/x", ROOM_PUBLIC_ID, null)
+		);
+
+		assertThat(result.linkId()).isEqualTo(20L);
+		assertThat(result.processingJobId()).isEqualTo("job-existing");
+		verify(linkRegistrationWriteService, times(2)).registerWithinWriteTransaction(any(), eq(ROOM_PUBLIC_ID), eq(USER_ID), eq(null), any());
 	}
 
 	@Test
-	void registerShouldFailWhenRoomIdIsMissing() {
+	void registerShouldFailWhenRoomIdIsBlank() {
 		assertThatThrownBy(() -> linkCommandService.register(
-				new RegisterLinkCommand("https://example.com/x", "   ", null)
+				USER_ID,
+				new RegisterLinkCommand("https://example.com/x", "  ", null)
 		))
 				.isInstanceOf(BusinessException.class)
 				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.E400_ILLEGAL_ARGUMENT));
 	}
 
-	@Test
-	void registerShouldRecoverWhenGlobalInsertRaceOccurs() {
-		Link existing = Link.register("https://example.com/x", "https://example.com/x", "job-existing");
-		ReflectionTestUtils.setField(existing, "id", 20L);
-
-		when(linkRepository.findByNormalizedUrl("https://example.com/x"))
-				.thenReturn(Optional.empty())
-				.thenReturn(Optional.of(existing));
-		when(processingClient.createJob("https://example.com/x", "room-1", null))
-				.thenReturn(new CreateProcessingJobResponse("job-new"));
-		when(roomLinkRepository.saveAndFlush(any(RoomLink.class))).thenAnswer(invocation -> invocation.getArgument(0));
-		when(linkProcessingHistoryRepository.saveAndFlush(any(LinkProcessingHistory.class))).thenAnswer(invocation -> invocation.getArgument(0));
-
-		RegisterLinkResult result = linkCommandService.register(
-				new RegisterLinkCommand("https://example.com/x", "room-1", null)
-		);
-
-		assertThat(result.linkId()).isEqualTo(20L);
-		assertThat(result.processingJobId()).isEqualTo("job-existing");
+	private static Room room(String publicId) {
+		return Room.create(publicId, "테스트 방", "INVITE123456", USER_ID);
 	}
 }

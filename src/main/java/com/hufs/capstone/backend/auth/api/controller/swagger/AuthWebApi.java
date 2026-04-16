@@ -19,9 +19,9 @@ public interface AuthWebApi {
 	@Operation(
 			tags = {"Auth Web"},
 			summary = "웹 로그인 티켓 교환 API",
-			description = "웹 로그인 티켓을 액세스 토큰으로 교환하는 API"
+			description = "웹 로그인 티켓을 액세스 토큰으로 교환합니다."
 	)
-	@ApiResponse(responseCode = "200", description = "성공")
+	@ApiResponse(responseCode = "200", description = "OK")
 	@PostMapping("/web/exchange-ticket")
 	CommonResponse<AuthTokenBootstrapResponse> exchangeWebTicket(
 			@Valid @RequestBody WebExchangeTicketRequest request
@@ -29,10 +29,10 @@ public interface AuthWebApi {
 
 	@Operation(
 			tags = {"Auth Web"},
-			summary = "액세스 토큰 재발급 API",
-			description = "쿠키 기반 리프레시 토큰으로 액세스 토큰을 재발급하는 API"
+			summary = "웹 액세스 토큰 갱신 API",
+			description = "쿠키 기반 리프레시 토큰으로 액세스 토큰을 갱신합니다."
 	)
-	@ApiResponse(responseCode = "200", description = "성공")
+	@ApiResponse(responseCode = "200", description = "OK")
 	@PostMapping("/refresh")
 	CommonResponse<TokenResponse> refresh(
 			HttpServletRequest servletRequest,
@@ -41,10 +41,10 @@ public interface AuthWebApi {
 
 	@Operation(
 			tags = {"Auth Web"},
-			summary = "로그아웃 API",
-			description = "웹 현재 세션을 로그아웃하는 API"
+			summary = "웹 로그아웃 API",
+			description = "현재 웹 세션을 로그아웃합니다."
 	)
-	@ApiResponse(responseCode = "200", description = "성공")
+	@ApiResponse(responseCode = "200", description = "OK")
 	@PostMapping("/logout")
 	CommonResponse<Void> logout(
 			HttpServletRequest servletRequest,

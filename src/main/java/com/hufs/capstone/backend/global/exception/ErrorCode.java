@@ -12,6 +12,7 @@ public enum ErrorCode {
 	E401_UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "Authentication is required."),
 	E401_INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "Invalid token."),
 	E401_TOKEN_EXPIRED(HttpStatus.UNAUTHORIZED, "Token has expired."),
+	E429_TOO_MANY_REQUESTS(HttpStatus.TOO_MANY_REQUESTS, "Too many requests."),
 	E403_FORBIDDEN(HttpStatus.FORBIDDEN, "Access is denied."),
 	E404_NOT_FOUND(HttpStatus.NOT_FOUND, "Resource not found."),
 	E409_CONFLICT(HttpStatus.CONFLICT, "Business conflict occurred."),

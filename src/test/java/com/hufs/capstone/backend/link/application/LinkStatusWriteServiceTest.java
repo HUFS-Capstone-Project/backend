@@ -2,6 +2,7 @@ package com.hufs.capstone.backend.link.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -25,7 +26,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
-@SuppressWarnings("unchecked")
+@SuppressWarnings({"unchecked", "rawtypes"})
 class LinkStatusWriteServiceTest {
 
 	private static final Set<LinkAnalysisStatus> UPDATABLE_STATUSES =
@@ -51,16 +52,16 @@ class LinkStatusWriteServiceTest {
 		verify(linkRepository, never()).compareAndSetStatus(
 				anyLong(),
 				anyLong(),
-				eq(UPDATABLE_STATUSES),
-				any(LinkAnalysisStatus.class),
+				org.mockito.ArgumentMatchers.<java.util.Collection<LinkAnalysisStatus>>any(),
+				any(),
 				any(Instant.class)
 		);
 		verify(linkRepository, never()).compareAndSetStatusAndCaption(
 				anyLong(),
 				anyLong(),
-				eq(UPDATABLE_STATUSES),
-				any(LinkAnalysisStatus.class),
-				any(String.class),
+				org.mockito.ArgumentMatchers.<java.util.Collection<LinkAnalysisStatus>>any(),
+				any(),
+				any(),
 				any(Instant.class)
 		);
 		verify(eventPublisher, never()).publishEvent(any(LinkStatusSyncedEvent.class));
@@ -74,7 +75,7 @@ class LinkStatusWriteServiceTest {
 		when(linkRepository.compareAndSetStatusAndCaption(
 				eq(2L),
 				eq(5L),
-				eq(UPDATABLE_STATUSES),
+				argThat(UPDATABLE_STATUSES::equals),
 				eq(LinkAnalysisStatus.SUCCEEDED),
 				eq("done"),
 				any(Instant.class)
@@ -95,7 +96,7 @@ class LinkStatusWriteServiceTest {
 		when(linkRepository.compareAndSetStatusAndCaption(
 				eq(3L),
 				eq(1L),
-				eq(UPDATABLE_STATUSES),
+				argThat(UPDATABLE_STATUSES::equals),
 				eq(LinkAnalysisStatus.SUCCEEDED),
 				eq("done"),
 				any(Instant.class)

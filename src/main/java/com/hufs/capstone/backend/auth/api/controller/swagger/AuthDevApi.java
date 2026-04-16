@@ -15,9 +15,9 @@ public interface AuthDevApi {
 	@Operation(
 			tags = {"Auth Dev"},
 			summary = "Swagger 테스트용 마스터 JWT 발급 API",
-			description = "개발/스테이징 환경 전용입니다. userId를 넘기면 해당 사용자 토큰을 발급하고, 없으면 테스트 사용자를 생성한 뒤 토큰을 발급합니다."
+			description = "개발/스테이징 환경 전용입니다. userId를 전달하면 해당 사용자의 토큰을 발급하고, 없으면 테스트 사용자를 생성해 토큰을 발급합니다."
 	)
-	@ApiResponse(responseCode = "200", description = "성공")
+	@ApiResponse(responseCode = "200", description = "OK")
 	@GetMapping("/master-token")
 	CommonResponse<DevMasterTokenResponse> issueMasterToken(
 			HttpServletRequest servletRequest,
