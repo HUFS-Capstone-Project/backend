@@ -74,6 +74,8 @@ app:
       oauth-context-cookie-name: __Host-udidura_octx
       secure: true
       same-site: None
+      refresh-path: /
+      oauth-context-path: /
       domain:
     redirect:
       web-base-url: ${WEB_BASE_URL}
