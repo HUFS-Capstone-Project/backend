@@ -1,29 +1,39 @@
-# VCS & IDE
+# VCS
 .git
 .gitignore
 .gitattributes
-.github
-.idea
-.vscode
+.github/
 
-# Build outputs and local caches
-build
-.gradle
-out
-bin
+# IDE
+.idea/
+.vscode/
+*.iml
 
-# Environment & local-only files
+# Build outputs and caches
+build/
+.gradle/
+out/
+bin/
+target/
+
+# Test sources and reports
+src/test/
+coverage/
+test-results/
+reports/
+
+# Environment and logs
 .env
 .env.*
 *.log
+logs/
+*.pid
 
-# Docs and misc not needed for image build context
-docs
+# Docs and local compose
+docs/
 README.md
+docker-compose*.yml
 
-# Docker / compose local files
-docker-compose.yml
-
-# OS files
+# OS artifacts
 .DS_Store
 Thumbs.db
