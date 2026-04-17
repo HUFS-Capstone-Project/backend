@@ -44,6 +44,7 @@ class RoomQueryServiceTest {
 		Room room = room("11111111-1111-1111-1111-111111111111", "테스트 방");
 		RoomMember member = RoomMember.owner(room, USER_ID);
 		when(roomMemberRepository.findByUserIdOrderByCreatedAtDesc(USER_ID)).thenReturn(List.of(member));
+		when(roomMemberRepository.countByRoomId(room.getId())).thenReturn(3L);
 		when(roomLinkRepository.countByRoomId(room.getId())).thenReturn(2L);
 
 		List<RoomSummaryResult> result = roomQueryService.getMyRooms(USER_ID);
@@ -51,6 +52,7 @@ class RoomQueryServiceTest {
 		assertThat(result).hasSize(1);
 		assertThat(result.get(0).roomId()).isEqualTo(room.getPublicId());
 		assertThat(result.get(0).roomName()).isEqualTo("테스트 방");
+		assertThat(result.get(0).memberCount()).isEqualTo(3L);
 		assertThat(result.get(0).linkCount()).isEqualTo(2L);
 	}
 
@@ -85,6 +87,7 @@ class RoomQueryServiceTest {
 
 		assertThat(result.role()).isEqualTo(RoomMemberRole.MEMBER);
 		assertThat(result.inviteCode()).isEqualTo("INVITE123456");
+		assertThat(result.memberCount()).isEqualTo(3L);
 	}
 
 	@Test

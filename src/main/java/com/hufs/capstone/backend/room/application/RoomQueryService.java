@@ -45,12 +45,14 @@ public class RoomQueryService {
 
 	private RoomSummaryResult toRoomSummary(RoomMember membership) {
 		Room room = membership.getRoom();
+		long memberCount = roomMemberRepository.countByRoomId(room.getId());
 		long linkCount = roomLinkRepository.countByRoomId(room.getId());
 		return new RoomSummaryResult(
 				room.getPublicId(),
 				room.getName(),
 				membership.getRole(),
 				room.getCreatedAt(),
+				memberCount,
 				linkCount
 		);
 	}

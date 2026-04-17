@@ -9,6 +9,7 @@ public record RoomSummaryResponse(
 		String roomName,
 		RoomMemberRole role,
 		Instant createdAt,
+		long memberCount,
 		long linkCount
 ) {
 
@@ -18,6 +19,7 @@ public record RoomSummaryResponse(
 				result.roomName(),
 				result.role(),
 				result.createdAt(),
+				result.memberCount(),
 				result.linkCount()
 		);
 	}

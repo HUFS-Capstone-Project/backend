@@ -8,6 +8,7 @@ public record RoomSummaryResult(
 		String roomName,
 		RoomMemberRole role,
 		Instant createdAt,
+		long memberCount,
 		long linkCount
 ) {
 }
