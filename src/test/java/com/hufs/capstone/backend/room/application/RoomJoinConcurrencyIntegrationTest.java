@@ -31,7 +31,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 @AutoConfigureTestDatabase
 class RoomJoinConcurrencyIntegrationTest {
 
-	private static final Long OWNER_USER_ID = 1L;
+	private static final Long INITIAL_MEMBER_USER_ID = 1L;
 
 	@Autowired
 	private RoomCommandService roomCommandService;
@@ -52,7 +52,7 @@ class RoomJoinConcurrencyIntegrationTest {
 		roomMemberRepository.deleteAll();
 		roomRepository.deleteAll();
 		when(roomJoinRateLimiter.allow(anyLong(), anyString())).thenReturn(true);
-		createdRoom = roomCommandService.createRoom(OWNER_USER_ID, "동시성 테스트 방");
+		createdRoom = roomCommandService.createRoom(INITIAL_MEMBER_USER_ID, "동시성 테스트 방");
 	}
 
 	@AfterEach
