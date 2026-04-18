@@ -19,6 +19,8 @@ public interface RoomLinkRepository extends JpaRepository<RoomLink, Long> {
 
 	long countByRoomId(Long roomId);
 
+	long deleteByRoomId(Long roomId);
+
 	@Query("""
 			select (count(rl) > 0)
 			from RoomLink rl, RoomMember rm

@@ -310,7 +310,7 @@ class LinkConcurrencyIntegrationTest {
 
 	private Room createRoomWithMember(String publicId, String name, String inviteCode, Long userId) {
 		Room room = roomRepository.saveAndFlush(Room.create(publicId, name, inviteCode, userId));
-		roomMemberRepository.saveAndFlush(RoomMember.owner(room, userId));
+		roomMemberRepository.saveAndFlush(RoomMember.join(room, userId));
 		return room;
 	}
 

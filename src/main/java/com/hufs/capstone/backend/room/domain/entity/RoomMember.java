@@ -1,11 +1,8 @@
 package com.hufs.capstone.backend.room.domain.entity;
 
 import com.hufs.capstone.backend.global.common.entity.AuditableEntity;
-import com.hufs.capstone.backend.room.domain.RoomMemberRole;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
@@ -37,21 +34,20 @@ public class RoomMember extends AuditableEntity {
 	@Column(name = "user_id", nullable = false)
 	private Long userId;
 
-	@Enumerated(EnumType.STRING)
-	@Column(nullable = false, length = 20)
-	private RoomMemberRole role;
+	@Column(nullable = false)
+	private boolean pinned;
 
-	private RoomMember(Room room, Long userId, RoomMemberRole role) {
+	private RoomMember(Room room, Long userId) {
 		this.room = room;
 		this.userId = userId;
-		this.role = role;
+		this.pinned = false;
 	}
 
-	public static RoomMember owner(Room room, Long userId) {
-		return new RoomMember(room, userId, RoomMemberRole.OWNER);
+	public static RoomMember join(Room room, Long userId) {
+		return new RoomMember(room, userId);
 	}
 
-	public static RoomMember member(Room room, Long userId) {
-		return new RoomMember(room, userId, RoomMemberRole.MEMBER);
+	public void updatePinned(boolean pinned) {
+		this.pinned = pinned;
 	}
 }

@@ -36,5 +36,9 @@ public class Room extends AuditableEntity {
 	public static Room create(String publicId, String name, String inviteCode, Long createdByUserId) {
 		return new Room(publicId, name, inviteCode, createdByUserId);
 	}
+
+	public void rename(String name) {
+		this.name = name;
+	}
 }
 

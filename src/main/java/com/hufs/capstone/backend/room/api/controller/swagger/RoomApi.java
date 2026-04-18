@@ -3,6 +3,8 @@ package com.hufs.capstone.backend.room.api.controller.swagger;
 import com.hufs.capstone.backend.global.response.CommonResponse;
 import com.hufs.capstone.backend.room.api.request.CreateRoomRequest;
 import com.hufs.capstone.backend.room.api.request.JoinRoomRequest;
+import com.hufs.capstone.backend.room.api.request.UpdateRoomNameRequest;
+import com.hufs.capstone.backend.room.api.request.UpdateRoomPinRequest;
 import com.hufs.capstone.backend.room.api.response.CreateRoomResponse;
 import com.hufs.capstone.backend.room.api.response.JoinRoomResponse;
 import com.hufs.capstone.backend.room.api.response.RoomDetailResponse;
@@ -14,7 +16,9 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -28,7 +32,7 @@ public interface RoomApi {
 	@Operation(
 			tags = {"Room"},
 			summary = "방 생성 API",
-			description = "현재 로그인한 사용자를 OWNER로 포함해 방을 생성합니다."
+			description = "현재 로그인한 사용자를 멤버로 포함해 방을 생성합니다."
 	)
 	@ApiResponse(responseCode = "201", description = "Created")
 	@PostMapping
@@ -50,7 +54,7 @@ public interface RoomApi {
 	@Operation(
 			tags = {"Room"},
 			summary = "방 상세 조회 API",
-			description = "방 상세 정보와 내 역할 정보를 조회합니다. 초대코드는 방 멤버에게 반환합니다."
+			description = "방 상세 정보를 조회합니다. 초대코드는 방 멤버에게 반환합니다."
 	)
 	@ApiResponse(responseCode = "200", description = "OK")
 	@GetMapping("/{roomId}")
@@ -65,6 +69,47 @@ public interface RoomApi {
 	@PostMapping("/join")
 	ResponseEntity<CommonResponse<JoinRoomResponse>> joinRoom(
 			@Valid @RequestBody JoinRoomRequest request,
+			@Parameter(description = "CSRF 토큰 헤더 값(XSRF-TOKEN 쿠키 값)")
+			@RequestHeader(name = "X-XSRF-TOKEN", required = false) String csrfToken
+	);
+
+	@Operation(
+			tags = {"Room"},
+			summary = "방 이름 변경 API",
+			description = "현재 사용자가 멤버인 방의 이름을 변경합니다."
+	)
+	@ApiResponse(responseCode = "200", description = "OK")
+	@PatchMapping("/{roomId}")
+	CommonResponse<Void> renameRoom(
+			@PathVariable String roomId,
+			@Valid @RequestBody UpdateRoomNameRequest request,
+			@Parameter(description = "CSRF 토큰 헤더 값(XSRF-TOKEN 쿠키 값)")
+			@RequestHeader(name = "X-XSRF-TOKEN", required = false) String csrfToken
+	);
+
+	@Operation(
+			tags = {"Room"},
+			summary = "방 상단 고정 API",
+			description = "현재 사용자 기준으로 방 상단 고정 여부를 변경합니다."
+	)
+	@ApiResponse(responseCode = "200", description = "OK")
+	@PatchMapping("/{roomId}/pin")
+	CommonResponse<Void> updatePin(
+			@PathVariable String roomId,
+			@Valid @RequestBody UpdateRoomPinRequest request,
+			@Parameter(description = "CSRF 토큰 헤더 값(XSRF-TOKEN 쿠키 값)")
+			@RequestHeader(name = "X-XSRF-TOKEN", required = false) String csrfToken
+	);
+
+	@Operation(
+			tags = {"Room"},
+			summary = "방 나가기 API",
+			description = "현재 사용자를 방 멤버에서 제거합니다. 마지막 멤버가 나가면 방을 정리합니다."
+	)
+	@ApiResponse(responseCode = "200", description = "OK")
+	@DeleteMapping("/{roomId}/leave")
+	CommonResponse<Void> leaveRoom(
+			@PathVariable String roomId,
 			@Parameter(description = "CSRF 토큰 헤더 값(XSRF-TOKEN 쿠키 값)")
 			@RequestHeader(name = "X-XSRF-TOKEN", required = false) String csrfToken
 	);

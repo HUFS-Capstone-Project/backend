@@ -5,6 +5,8 @@ import com.hufs.capstone.backend.global.response.CommonResponse;
 import com.hufs.capstone.backend.room.api.controller.swagger.RoomApi;
 import com.hufs.capstone.backend.room.api.request.CreateRoomRequest;
 import com.hufs.capstone.backend.room.api.request.JoinRoomRequest;
+import com.hufs.capstone.backend.room.api.request.UpdateRoomNameRequest;
+import com.hufs.capstone.backend.room.api.request.UpdateRoomPinRequest;
 import com.hufs.capstone.backend.room.api.response.CreateRoomResponse;
 import com.hufs.capstone.backend.room.api.response.JoinRoomResponse;
 import com.hufs.capstone.backend.room.api.response.RoomDetailResponse;
@@ -77,6 +79,38 @@ public class RoomController implements RoomApi {
 				.buildAndExpand(result.roomId())
 				.toUri();
 		return ResponseEntity.created(location).body(CommonResponse.ok(JoinRoomResponse.from(result)));
+	}
+
+	@Override
+	public CommonResponse<Void> renameRoom(
+			@PathVariable String roomId,
+			@Valid @RequestBody UpdateRoomNameRequest request,
+			@RequestHeader(name = "X-XSRF-TOKEN", required = false) String csrfToken
+	) {
+		Long userId = SecurityUtils.currentUserIdOrThrow();
+		roomCommandService.renameRoom(userId, roomId, request.name());
+		return CommonResponse.okMessage("방 이름이 변경되었습니다.");
+	}
+
+	@Override
+	public CommonResponse<Void> updatePin(
+			@PathVariable String roomId,
+			@Valid @RequestBody UpdateRoomPinRequest request,
+			@RequestHeader(name = "X-XSRF-TOKEN", required = false) String csrfToken
+	) {
+		Long userId = SecurityUtils.currentUserIdOrThrow();
+		roomCommandService.updateRoomPin(userId, roomId, request.pinned());
+		return CommonResponse.okMessage(request.pinned() ? "방을 상단 고정했습니다." : "방 상단 고정을 해제했습니다.");
+	}
+
+	@Override
+	public CommonResponse<Void> leaveRoom(
+			@PathVariable String roomId,
+			@RequestHeader(name = "X-XSRF-TOKEN", required = false) String csrfToken
+	) {
+		Long userId = SecurityUtils.currentUserIdOrThrow();
+		roomCommandService.leaveRoom(userId, roomId);
+		return CommonResponse.okMessage("방에서 나갔습니다.");
 	}
 
 	private static String extractClientIp(HttpServletRequest request) {

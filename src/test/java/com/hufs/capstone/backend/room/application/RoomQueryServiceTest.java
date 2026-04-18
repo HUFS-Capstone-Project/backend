@@ -9,7 +9,7 @@ import com.hufs.capstone.backend.global.exception.ErrorCode;
 import com.hufs.capstone.backend.link.domain.repository.RoomLinkRepository;
 import com.hufs.capstone.backend.room.application.dto.RoomDetailResult;
 import com.hufs.capstone.backend.room.application.dto.RoomSummaryResult;
-import com.hufs.capstone.backend.room.domain.RoomMemberRole;
+import com.hufs.capstone.backend.room.application.impl.RoomQueryServiceImpl;
 import com.hufs.capstone.backend.room.domain.entity.Room;
 import com.hufs.capstone.backend.room.domain.entity.RoomMember;
 import com.hufs.capstone.backend.room.domain.repository.RoomMemberRepository;
@@ -37,13 +37,14 @@ class RoomQueryServiceTest {
 	private RoomLinkRepository roomLinkRepository;
 
 	@InjectMocks
-	private RoomQueryService roomQueryService;
+	private RoomQueryServiceImpl roomQueryService;
 
 	@Test
 	void getMyRoomsShouldReturnJoinedRooms() {
 		Room room = room("11111111-1111-1111-1111-111111111111", "테스트 방");
-		RoomMember member = RoomMember.owner(room, USER_ID);
-		when(roomMemberRepository.findByUserIdOrderByCreatedAtDesc(USER_ID)).thenReturn(List.of(member));
+		RoomMember member = RoomMember.join(room, USER_ID);
+		member.updatePinned(true);
+		when(roomMemberRepository.findMyRooms(USER_ID)).thenReturn(List.of(member));
 		when(roomMemberRepository.countByRoomId(room.getId())).thenReturn(3L);
 		when(roomLinkRepository.countByRoomId(room.getId())).thenReturn(2L);
 
@@ -52,32 +53,16 @@ class RoomQueryServiceTest {
 		assertThat(result).hasSize(1);
 		assertThat(result.get(0).roomId()).isEqualTo(room.getPublicId());
 		assertThat(result.get(0).roomName()).isEqualTo("테스트 방");
+		assertThat(result.get(0).pinned()).isTrue();
 		assertThat(result.get(0).memberCount()).isEqualTo(3L);
 		assertThat(result.get(0).linkCount()).isEqualTo(2L);
 	}
 
 	@Test
-	void getRoomDetailShouldExposeInviteCodeForOwner() {
+	void getRoomDetailShouldReturnPinnedStatus() {
 		Room room = room("11111111-1111-1111-1111-111111111111", "테스트 방");
-		RoomMember owner = RoomMember.owner(room, USER_ID);
-		when(roomAccessService.getRoomOrThrow(room.getPublicId())).thenReturn(room);
-		when(roomAccessService.getMembershipOrThrow(room, USER_ID)).thenReturn(owner);
-		when(roomMemberRepository.countByRoomId(room.getId())).thenReturn(3L);
-		when(roomLinkRepository.countByRoomId(room.getId())).thenReturn(5L);
-
-		RoomDetailResult result = roomQueryService.getRoomDetail(USER_ID, room.getPublicId());
-
-		assertThat(result.roomId()).isEqualTo(room.getPublicId());
-		assertThat(result.role()).isEqualTo(RoomMemberRole.OWNER);
-		assertThat(result.inviteCode()).isEqualTo("INVITE123456");
-		assertThat(result.memberCount()).isEqualTo(3L);
-		assertThat(result.linkCount()).isEqualTo(5L);
-	}
-
-	@Test
-	void getRoomDetailShouldExposeInviteCodeForMember() {
-		Room room = room("11111111-1111-1111-1111-111111111111", "테스트 방");
-		RoomMember member = RoomMember.member(room, USER_ID);
+		RoomMember member = RoomMember.join(room, USER_ID);
+		member.updatePinned(true);
 		when(roomAccessService.getRoomOrThrow(room.getPublicId())).thenReturn(room);
 		when(roomAccessService.getMembershipOrThrow(room, USER_ID)).thenReturn(member);
 		when(roomMemberRepository.countByRoomId(room.getId())).thenReturn(3L);
@@ -85,9 +70,11 @@ class RoomQueryServiceTest {
 
 		RoomDetailResult result = roomQueryService.getRoomDetail(USER_ID, room.getPublicId());
 
-		assertThat(result.role()).isEqualTo(RoomMemberRole.MEMBER);
+		assertThat(result.roomId()).isEqualTo(room.getPublicId());
+		assertThat(result.pinned()).isTrue();
 		assertThat(result.inviteCode()).isEqualTo("INVITE123456");
 		assertThat(result.memberCount()).isEqualTo(3L);
+		assertThat(result.linkCount()).isEqualTo(5L);
 	}
 
 	@Test

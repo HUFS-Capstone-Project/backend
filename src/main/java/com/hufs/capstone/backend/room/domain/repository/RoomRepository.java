@@ -12,6 +12,13 @@ public interface RoomRepository extends JpaRepository<Room, Long> {
 
 	Optional<Room> findByPublicId(String publicId);
 
+	/**
+	 * 동일 room aggregate에 대한 leave 요청을 row lock 하에서 순차 처리하기 위한 조회.
+	 */
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	@Query("select r from Room r where r.publicId = :publicId")
+	Optional<Room> findByPublicIdForUpdate(@Param("publicId") String publicId);
+
 	Optional<Room> findByInviteCode(String inviteCode);
 
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
