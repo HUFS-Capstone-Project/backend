@@ -89,7 +89,7 @@ public abstract class AbstractRedisOneTimeCodeStore<T> implements ExpiringCodeSt
 		try {
 			return objectMapper.writeValueAsString(payload);
 		} catch (JsonProcessingException ex) {
-			log.error("Failed to serialize one-time code payload. type={}", codeType, ex);
+			log.error("일회용 코드 페이로드 직렬화에 실패했습니다. type={}", codeType, ex);
 			throw new IllegalStateException("Failed to serialize one-time code payload.", ex);
 		}
 	}
@@ -98,7 +98,7 @@ public abstract class AbstractRedisOneTimeCodeStore<T> implements ExpiringCodeSt
 		try {
 			return objectMapper.readValue(serialized, payloadType);
 		} catch (JsonProcessingException ex) {
-			log.error("Failed to deserialize one-time code payload. type={}", codeType, ex);
+			log.error("일회용 코드 페이로드 역직렬화에 실패했습니다. type={}", codeType, ex);
 			throw new IllegalStateException("Failed to deserialize one-time code payload.", ex);
 		}
 	}
@@ -117,4 +117,5 @@ public abstract class AbstractRedisOneTimeCodeStore<T> implements ExpiringCodeSt
 		return authProperties.getRedis().getKeyPrefix() + ":otc:" + codeType + ":consumed:" + code;
 	}
 }
+
 

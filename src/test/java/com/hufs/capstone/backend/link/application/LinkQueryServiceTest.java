@@ -1,35 +1,24 @@
 package com.hufs.capstone.backend.link.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.hufs.capstone.backend.external.processing.ProcessingClient;
-import com.hufs.capstone.backend.external.processing.ProcessingClientException;
-import com.hufs.capstone.backend.external.processing.dto.ProcessingJobResponse;
-import com.hufs.capstone.backend.external.processing.dto.ProcessingJobResultResponse;
 import com.hufs.capstone.backend.link.application.dto.LinkStatusResult;
 import com.hufs.capstone.backend.link.domain.LinkAnalysisStatus;
 import com.hufs.capstone.backend.link.domain.entity.Link;
 import com.hufs.capstone.backend.link.domain.repository.LinkRepository;
-import com.hufs.capstone.backend.room.application.RoomAccessService;
 import java.time.Instant;
 import java.util.Optional;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import org.junit.jupiter.api.BeforeEach;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.HttpStatus;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -38,161 +27,109 @@ class LinkQueryServiceTest {
 	private static final Long USER_ID = 100L;
 
 	@Mock
+	private LinkAuthorizationService linkAuthorizationService;
+
+	@Mock
+	private LinkCacheCoordinator linkCacheCoordinator;
+
+	@Mock
 	private LinkRepository linkRepository;
 
 	@Mock
-	private ProcessingClient processingClient;
+	private LinkSyncOrchestrator linkSyncOrchestrator;
+
+	@Mock
+	private LinkStatusResolver linkStatusResolver;
 
 	@Mock
 	private LinkStatusWriteService linkStatusWriteService;
 
-	@Mock
-	private RoomAccessService roomAccessService;
-
 	@InjectMocks
 	private LinkQueryService linkQueryService;
 
-	@BeforeEach
-	void setUp() {
-		org.mockito.Mockito.lenient().doNothing().when(roomAccessService).assertLinkReadable(anyLong(), anyLong());
-	}
-
 	@Test
-	void getLinkStatusShouldReturnImmediatelyWhenTerminal() {
-		Link terminal = newLink(1L, LinkAnalysisStatus.SUCCEEDED, "caption");
-		when(linkRepository.findById(1L)).thenReturn(Optional.of(terminal));
-
-		LinkStatusResult result = linkQueryService.getLinkStatus(USER_ID, 1L);
-
-		assertThat(result.status()).isEqualTo(LinkAnalysisStatus.SUCCEEDED);
-		assertThat(result.captionRaw()).isEqualTo("caption");
-		verify(processingClient, never()).getJob("job-1");
-		verify(linkStatusWriteService, never()).applySyncSnapshot(anyLong(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
-	}
-
-	@Test
-	void getLinkStatusShouldResolveSucceededWithCaptionAndApplySnapshot() {
-		Link processing = newLink(2L, LinkAnalysisStatus.PROCESSING, null);
-		when(linkRepository.findById(2L)).thenReturn(Optional.of(processing));
-		when(processingClient.getJob("job-1"))
-				.thenReturn(new ProcessingJobResponse("job-1", "succeeded", null, null, null, null, null));
-		when(processingClient.getJobResult("job-1"))
-				.thenReturn(new ProcessingJobResultResponse("video", " caption ", null, null, null, null));
-
+	void getLinkStatusShouldSyncAndWriteOnCacheMissWhenResolverRequiresWrite() {
+		Link snapshot = link(10L, "job-1", LinkAnalysisStatus.PROCESSING);
+		LinkSyncOrchestrator.ProcessingSyncSnapshot syncSnapshot =
+				new LinkSyncOrchestrator.ProcessingSyncSnapshot(LinkAnalysisStatus.SUCCEEDED, "caption");
+		LinkStatusResolver.Resolution resolution = LinkStatusResolver.Resolution.write(
+				LinkAnalysisStatus.SUCCEEDED,
+				"caption"
+		);
 		LinkStatusResult synced = new LinkStatusResult(
-				2L,
-				"https://example.com/p/1",
+				10L,
+				"https://example.com/p/10",
 				"job-1",
 				LinkAnalysisStatus.SUCCEEDED,
 				"caption",
 				Instant.now(),
 				Instant.now()
 		);
-		when(linkStatusWriteService.applySyncSnapshot(2L, LinkAnalysisStatus.SUCCEEDED, "caption")).thenReturn(synced);
 
-		LinkStatusResult result = linkQueryService.getLinkStatus(USER_ID, 2L);
-
-		assertThat(result.status()).isEqualTo(LinkAnalysisStatus.SUCCEEDED);
-		assertThat(result.captionRaw()).isEqualTo("caption");
-		verify(linkStatusWriteService).applySyncSnapshot(2L, LinkAnalysisStatus.SUCCEEDED, "caption");
-	}
-
-	@Test
-	void getLinkStatusShouldKeepProcessingWhenResultNotReady() {
-		Link processing = newLink(3L, LinkAnalysisStatus.PROCESSING, null);
-		when(linkRepository.findById(3L)).thenReturn(Optional.of(processing));
-		when(processingClient.getJob("job-1"))
-				.thenReturn(new ProcessingJobResponse("job-1", "succeeded", null, null, null, null, null));
-		when(processingClient.getJobResult("job-1"))
-				.thenThrow(new ProcessingClientException("not-ready", HttpStatus.NOT_FOUND, ""));
-
-		LinkStatusResult synced = new LinkStatusResult(
-				3L,
-				"https://example.com/p/1",
-				"job-1",
-				LinkAnalysisStatus.PROCESSING,
-				null,
-				Instant.now(),
-				Instant.now()
-		);
-		when(linkStatusWriteService.applySyncSnapshot(3L, LinkAnalysisStatus.PROCESSING, null)).thenReturn(synced);
-
-		LinkStatusResult result = linkQueryService.getLinkStatus(USER_ID, 3L);
-
-		assertThat(result.status()).isEqualTo(LinkAnalysisStatus.PROCESSING);
-		verify(linkStatusWriteService).applySyncSnapshot(3L, LinkAnalysisStatus.PROCESSING, null);
-	}
-
-	@Test
-	void getLinkStatusShouldUseShortTtlCacheForBurstRequests() {
-		Link processing = newLink(8L, LinkAnalysisStatus.PROCESSING, null);
-		when(linkRepository.findById(8L)).thenReturn(Optional.of(processing));
-		when(processingClient.getJob("job-1"))
-				.thenReturn(new ProcessingJobResponse("job-1", "processing", null, null, null, null, null));
-
-		LinkStatusResult synced = new LinkStatusResult(
-				8L,
-				"https://example.com/p/1",
-				"job-1",
-				LinkAnalysisStatus.PROCESSING,
-				null,
-				Instant.now(),
-				Instant.now()
-		);
-		when(linkStatusWriteService.applySyncSnapshot(8L, LinkAnalysisStatus.PROCESSING, null)).thenReturn(synced);
-
-		LinkStatusResult first = linkQueryService.getLinkStatus(USER_ID, 8L);
-		LinkStatusResult second = linkQueryService.getLinkStatus(USER_ID, 8L);
-
-		assertThat(first.status()).isEqualTo(LinkAnalysisStatus.PROCESSING);
-		assertThat(second.status()).isEqualTo(LinkAnalysisStatus.PROCESSING);
-		verify(processingClient, times(1)).getJob("job-1");
-		verify(linkStatusWriteService, times(1)).applySyncSnapshot(8L, LinkAnalysisStatus.PROCESSING, null);
-	}
-
-	@Test
-	void getLinkStatusShouldCoalesceInFlightRequests() throws Exception {
-		Link processing = newLink(9L, LinkAnalysisStatus.PROCESSING, null);
-		when(linkRepository.findById(9L)).thenReturn(Optional.of(processing));
-
-		CountDownLatch started = new CountDownLatch(1);
-		CountDownLatch release = new CountDownLatch(1);
-		when(processingClient.getJob("job-1")).thenAnswer(invocation -> {
-			started.countDown();
-			release.await(2, TimeUnit.SECONDS);
-			return new ProcessingJobResponse("job-1", "processing", null, null, null, null, null);
+		when(linkRepository.findById(10L)).thenReturn(Optional.of(snapshot));
+		when(linkSyncOrchestrator.resolve(snapshot)).thenReturn(syncSnapshot);
+		when(linkStatusResolver.resolve(snapshot, syncSnapshot)).thenReturn(resolution);
+		when(linkStatusWriteService.applySyncSnapshot(10L, LinkAnalysisStatus.SUCCEEDED, "caption")).thenReturn(synced);
+		when(linkCacheCoordinator.getOrLoad(eq(10L), any())).thenAnswer(invocation -> {
+			@SuppressWarnings("unchecked")
+			Supplier<LinkStatusResult> loader = invocation.getArgument(1, Supplier.class);
+			return loader.get();
 		});
 
-		LinkStatusResult synced = new LinkStatusResult(
-				9L,
-				"https://example.com/p/1",
-				"job-1",
+		LinkStatusResult result = linkQueryService.getLinkStatus(USER_ID, 10L);
+
+		assertThat(result).isEqualTo(synced);
+		verify(linkAuthorizationService).assertReadable(USER_ID, 10L);
+		verify(linkSyncOrchestrator).resolve(snapshot);
+		verify(linkStatusWriteService).applySyncSnapshot(10L, LinkAnalysisStatus.SUCCEEDED, "caption");
+	}
+
+	@Test
+	void getLinkStatusShouldReturnSnapshotWithoutExternalCallWhenResolverDoesNotRequireWrite() {
+		Link terminal = link(11L, "job-2", LinkAnalysisStatus.SUCCEEDED);
+		terminal.markSucceeded("caption done");
+		LinkStatusResolver.Resolution resolution = LinkStatusResolver.Resolution.noWrite();
+		when(linkRepository.findById(11L)).thenReturn(Optional.of(terminal));
+		when(linkStatusResolver.resolve(terminal, null)).thenReturn(resolution);
+		when(linkCacheCoordinator.getOrLoad(eq(11L), any())).thenAnswer(invocation -> {
+			@SuppressWarnings("unchecked")
+			Supplier<LinkStatusResult> loader = invocation.getArgument(1, Supplier.class);
+			return loader.get();
+		});
+
+		LinkStatusResult result = linkQueryService.getLinkStatus(USER_ID, 11L);
+
+		assertThat(result.linkId()).isEqualTo(11L);
+		assertThat(result.status()).isEqualTo(LinkAnalysisStatus.SUCCEEDED);
+		verify(linkAuthorizationService).assertReadable(USER_ID, 11L);
+		verify(linkSyncOrchestrator, never()).resolve(any());
+		verify(linkStatusWriteService, never()).applySyncSnapshot(any(), any(), any());
+	}
+
+	@Test
+	void getLinkStatusShouldReturnCachedValueWithoutLoadingAgain() {
+		LinkStatusResult cached = new LinkStatusResult(
+				12L,
+				"https://example.com/p/12",
+				"job-12",
 				LinkAnalysisStatus.PROCESSING,
 				null,
 				Instant.now(),
 				Instant.now()
 		);
-		when(linkStatusWriteService.applySyncSnapshot(9L, LinkAnalysisStatus.PROCESSING, null)).thenReturn(synced);
+		when(linkCacheCoordinator.getOrLoad(eq(12L), any())).thenReturn(cached);
 
-		ExecutorService executor = Executors.newFixedThreadPool(2);
-		try {
-			Future<LinkStatusResult> f1 = executor.submit(() -> linkQueryService.getLinkStatus(USER_ID, 9L));
-			assertThat(started.await(2, TimeUnit.SECONDS)).isTrue();
-			Future<LinkStatusResult> f2 = executor.submit(() -> linkQueryService.getLinkStatus(USER_ID, 9L));
-			release.countDown();
+		LinkStatusResult result = linkQueryService.getLinkStatus(USER_ID, 12L);
 
-			assertThat(f1.get(2, TimeUnit.SECONDS).status()).isEqualTo(LinkAnalysisStatus.PROCESSING);
-			assertThat(f2.get(2, TimeUnit.SECONDS).status()).isEqualTo(LinkAnalysisStatus.PROCESSING);
-		} finally {
-			executor.shutdownNow();
-		}
-
-		verify(processingClient, times(1)).getJob("job-1");
-		verify(linkStatusWriteService, times(1)).applySyncSnapshot(9L, LinkAnalysisStatus.PROCESSING, null);
+		assertThat(result).isEqualTo(cached);
+		verify(linkAuthorizationService).assertReadable(USER_ID, 12L);
+		verify(linkRepository, never()).findById(any());
+		verify(linkSyncOrchestrator, never()).resolve(any());
+		verify(linkStatusWriteService, never()).applySyncSnapshot(any(), any(), any());
 	}
 
-	private static Link newLink(Long id, LinkAnalysisStatus status, String caption) {
-		Link link = Link.register("https://example.com/p/1", "https://example.com/p/1", "job-1");
+	private static Link link(Long id, String processingJobId, LinkAnalysisStatus status) {
+		Link link = Link.register("https://example.com/p/" + id, "https://example.com/p/" + id, processingJobId);
 		ReflectionTestUtils.setField(link, "id", id);
 		if (status == LinkAnalysisStatus.PROCESSING) {
 			link.markProcessing();
@@ -201,9 +138,8 @@ class LinkQueryServiceTest {
 			link.markFailed();
 		}
 		if (status == LinkAnalysisStatus.SUCCEEDED) {
-			link.markSucceeded(caption);
+			link.markSucceeded("caption");
 		}
 		return link;
 	}
 }
-

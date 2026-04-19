@@ -52,7 +52,7 @@ public class LinkStatusWriteService {
 			}
 		}
 
-		log.warn("CAS update contention. returning latest snapshot. linkId={}, targetStatus={}", linkId, targetStatus);
+		log.warn("CAS 업데이트 경합이 발생해 최신 스냅샷을 반환합니다. linkId={}, targetStatus={}", linkId, targetStatus);
 		Link latest = linkRepository.findById(linkId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "링크를 찾을 수 없습니다."));
 		return LinkStatusResult.from(latest);
@@ -134,3 +134,4 @@ public class LinkStatusWriteService {
 		}
 	}
 }
+

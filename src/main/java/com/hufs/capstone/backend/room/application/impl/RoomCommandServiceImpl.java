@@ -2,13 +2,13 @@ package com.hufs.capstone.backend.room.application.impl;
 
 import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
-import com.hufs.capstone.backend.link.domain.repository.RoomLinkRepository;
 import com.hufs.capstone.backend.room.application.RoomAccessService;
 import com.hufs.capstone.backend.room.application.RoomCommandService;
 import com.hufs.capstone.backend.room.application.RoomInviteCodeGenerator;
 import com.hufs.capstone.backend.room.application.RoomJoinRateLimiter;
 import com.hufs.capstone.backend.room.application.dto.CreateRoomResult;
 import com.hufs.capstone.backend.room.application.dto.JoinRoomResult;
+import com.hufs.capstone.backend.room.application.event.RoomDeletedEvent;
 import com.hufs.capstone.backend.room.domain.RoomNamePolicy;
 import com.hufs.capstone.backend.room.domain.entity.Room;
 import com.hufs.capstone.backend.room.domain.entity.RoomMember;
@@ -16,6 +16,7 @@ import com.hufs.capstone.backend.room.domain.repository.RoomMemberRepository;
 import com.hufs.capstone.backend.room.domain.repository.RoomRepository;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,10 +30,10 @@ public class RoomCommandServiceImpl implements RoomCommandService {
 
 	private final RoomRepository roomRepository;
 	private final RoomMemberRepository roomMemberRepository;
-	private final RoomLinkRepository roomLinkRepository;
 	private final RoomInviteCodeGenerator inviteCodeGenerator;
 	private final RoomJoinRateLimiter roomJoinRateLimiter;
 	private final RoomAccessService roomAccessService;
+	private final ApplicationEventPublisher eventPublisher;
 
 	@Override
 	@Transactional
@@ -103,7 +104,7 @@ public class RoomCommandServiceImpl implements RoomCommandService {
 	@Override
 	@Transactional
 	public void leaveRoom(Long userId, String roomId) {
-		// 동일 room aggregate leave 요청은 room row lock으로 순차 처리한다.
+		// 동일한 방에 대한 나가기 요청은 방 행 잠금으로 순차 처리한다.
 		Room room = roomAccessService.getRoomForUpdateOrThrow(roomId);
 		RoomMember membership = roomMemberRepository.findByRoomAndUserId(room, userId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.E403_FORBIDDEN, "이미 나갔거나 방 멤버가 아닙니다."));
@@ -112,7 +113,7 @@ public class RoomCommandServiceImpl implements RoomCommandService {
 
 		long remainingMemberCount = roomMemberRepository.countByRoomId(room.getId());
 		if (remainingMemberCount == 0) {
-			roomLinkRepository.deleteByRoomId(room.getId());
+			eventPublisher.publishEvent(new RoomDeletedEvent(room.getId(), room.getPublicId()));
 			roomRepository.delete(room);
 		}
 	}
@@ -127,7 +128,7 @@ public class RoomCommandServiceImpl implements RoomCommandService {
 			try {
 				return roomRepository.saveAndFlush(room);
 			} catch (DataIntegrityViolationException ignored) {
-				// retry with a new invite code
+				// 새로운 초대코드로 재시도
 			}
 		}
 		throw new BusinessException(ErrorCode.E500_INTERNAL, "초대코드 생성에 실패했습니다.");

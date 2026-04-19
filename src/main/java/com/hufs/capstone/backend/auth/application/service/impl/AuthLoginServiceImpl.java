@@ -36,7 +36,7 @@ public class AuthLoginServiceImpl implements AuthLoginService {
 	public User upsertSocialUser(SocialIdentity socialIdentity) {
 		User user = userSocialAccountService.getOrCreateBySocialIdentity(socialIdentity);
 		if (!user.isActive()) {
-			throw new BusinessException(ErrorCode.E403_FORBIDDEN, "User account is not active.");
+			throw new BusinessException(ErrorCode.E403_FORBIDDEN, "비활성화된 사용자 계정입니다.");
 		}
 		return user;
 	}
@@ -57,7 +57,7 @@ public class AuthLoginServiceImpl implements AuthLoginService {
 	@Transactional
 	public String issueMobileAuthCode(User user, String codeChallenge, String codeChallengeMethod) {
 		if (!StringUtils.hasText(codeChallenge) || !"S256".equalsIgnoreCase(codeChallengeMethod)) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "Mobile login requires PKCE(S256).");
+			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "모바일 로그인에는 PKCE(S256)가 필요합니다.");
 		}
 		MobileAuthCodePayload payload = new MobileAuthCodePayload(user.getId(), codeChallenge, codeChallengeMethod, Instant.now());
 		return oneTimeCodeService.issueMobileAuthCode(payload);
@@ -75,7 +75,7 @@ public class AuthLoginServiceImpl implements AuthLoginService {
 		MobileAuthCodePayload payload = oneTimeCodeService.consumeMobileAuthCode(code);
 		pkceService.verify(payload.codeChallenge(), payload.codeChallengeMethod(), codeVerifier);
 		User user = userRepository.findByIdAndDeletedAtIsNull(payload.userId())
-				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "User not found."));
+				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "사용자를 찾을 수 없습니다."));
 		return tokenLifecycleService.issueInitial(user, context);
 	}
 
@@ -92,3 +92,4 @@ public class AuthLoginServiceImpl implements AuthLoginService {
 		return new ClientContext(DeviceType.ANDROID, ClientPlatform.CAPACITOR_ANDROID, userAgent, ipAddress);
 	}
 }
+

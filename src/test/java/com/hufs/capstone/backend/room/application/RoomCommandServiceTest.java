@@ -11,9 +11,9 @@ import static org.mockito.Mockito.when;
 
 import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
-import com.hufs.capstone.backend.link.domain.repository.RoomLinkRepository;
 import com.hufs.capstone.backend.room.application.dto.CreateRoomResult;
 import com.hufs.capstone.backend.room.application.dto.JoinRoomResult;
+import com.hufs.capstone.backend.room.application.event.RoomDeletedEvent;
 import com.hufs.capstone.backend.room.application.impl.RoomCommandServiceImpl;
 import com.hufs.capstone.backend.room.domain.entity.Room;
 import com.hufs.capstone.backend.room.domain.entity.RoomMember;
@@ -26,6 +26,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -40,9 +41,6 @@ class RoomCommandServiceTest {
 	private RoomMemberRepository roomMemberRepository;
 
 	@Mock
-	private RoomLinkRepository roomLinkRepository;
-
-	@Mock
 	private RoomInviteCodeGenerator inviteCodeGenerator;
 
 	@Mock
@@ -50,6 +48,9 @@ class RoomCommandServiceTest {
 
 	@Mock
 	private RoomAccessService roomAccessService;
+
+	@Mock
+	private ApplicationEventPublisher eventPublisher;
 
 	@InjectMocks
 	private RoomCommandServiceImpl roomCommandService;
@@ -140,9 +141,9 @@ class RoomCommandServiceTest {
 		when(roomAccessService.getRoomOrThrow(room.getPublicId())).thenReturn(room);
 		when(roomAccessService.getMembershipOrThrow(room, USER_ID)).thenReturn(member);
 
-		roomCommandService.renameRoom(USER_ID, room.getPublicId(), "  새 방 이름  ");
+		roomCommandService.renameRoom(USER_ID, room.getPublicId(), "  New Room Name  ");
 
-		assertThat(room.getName()).isEqualTo("새 방 이름");
+		assertThat(room.getName()).isEqualTo("New Room Name");
 	}
 
 	@Test
@@ -166,9 +167,9 @@ class RoomCommandServiceTest {
 		Room room = room("11111111-1111-1111-1111-111111111111");
 		when(roomAccessService.getRoomOrThrow(room.getPublicId())).thenReturn(room);
 		when(roomAccessService.getMembershipOrThrow(room, USER_ID))
-				.thenThrow(new BusinessException(ErrorCode.E403_FORBIDDEN, "방 접근 권한이 없습니다."));
+				.thenThrow(new BusinessException(ErrorCode.E403_FORBIDDEN, "Room access denied."));
 
-		assertThatThrownBy(() -> roomCommandService.renameRoom(USER_ID, room.getPublicId(), "새 방 이름"))
+		assertThatThrownBy(() -> roomCommandService.renameRoom(USER_ID, room.getPublicId(), "New Name"))
 				.isInstanceOf(BusinessException.class)
 				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.E403_FORBIDDEN));
 	}
@@ -190,7 +191,7 @@ class RoomCommandServiceTest {
 		Room room = room("11111111-1111-1111-1111-111111111111");
 		when(roomAccessService.getRoomOrThrow(room.getPublicId())).thenReturn(room);
 		when(roomAccessService.getMembershipOrThrow(room, USER_ID))
-				.thenThrow(new BusinessException(ErrorCode.E403_FORBIDDEN, "방 접근 권한이 없습니다."));
+				.thenThrow(new BusinessException(ErrorCode.E403_FORBIDDEN, "Room access denied."));
 
 		assertThatThrownBy(() -> roomCommandService.updateRoomPin(USER_ID, room.getPublicId(), true))
 				.isInstanceOf(BusinessException.class)
@@ -209,11 +210,11 @@ class RoomCommandServiceTest {
 
 		verify(roomMemberRepository).delete(member);
 		verify(roomRepository, never()).delete(room);
-		verify(roomLinkRepository, never()).deleteByRoomId(room.getId());
+		verify(eventPublisher, never()).publishEvent(any(RoomDeletedEvent.class));
 	}
 
 	@Test
-	void leaveRoomShouldDeleteRoomAndRoomLinksWhenLastMember() {
+	void leaveRoomShouldPublishRoomDeletedEventWhenLastMemberLeaves() {
 		Room room = room("11111111-1111-1111-1111-111111111111");
 		RoomMember member = RoomMember.join(room, USER_ID);
 		when(roomAccessService.getRoomForUpdateOrThrow(room.getPublicId())).thenReturn(room);
@@ -222,7 +223,7 @@ class RoomCommandServiceTest {
 
 		roomCommandService.leaveRoom(USER_ID, room.getPublicId());
 
-		verify(roomLinkRepository).deleteByRoomId(room.getId());
+		verify(eventPublisher).publishEvent(new RoomDeletedEvent(room.getId(), room.getPublicId()));
 		verify(roomRepository).delete(room);
 	}
 

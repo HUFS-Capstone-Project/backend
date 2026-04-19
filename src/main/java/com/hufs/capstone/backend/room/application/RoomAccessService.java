@@ -12,6 +12,4 @@ public interface RoomAccessService {
 	RoomMember getMembershipOrThrow(Room room, Long userId);
 
 	Room requireMemberRoom(String roomPublicId, Long userId);
-
-	void assertLinkReadable(Long linkId, Long userId);
 }

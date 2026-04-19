@@ -3,6 +3,7 @@ package com.hufs.capstone.backend.link.application;
 import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
 import com.hufs.capstone.backend.link.application.dto.RegisterLinkResult;
+import com.hufs.capstone.backend.link.application.event.LinkProcessingRequestedEvent;
 import com.hufs.capstone.backend.link.domain.entity.Link;
 import com.hufs.capstone.backend.link.domain.entity.LinkProcessingHistory;
 import com.hufs.capstone.backend.link.domain.entity.RoomLink;
@@ -13,6 +14,7 @@ import com.hufs.capstone.backend.room.application.RoomAccessService;
 import com.hufs.capstone.backend.room.domain.entity.Room;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -27,35 +29,42 @@ public class LinkRegistrationWriteService {
 	private final RoomLinkRepository roomLinkRepository;
 	private final LinkProcessingHistoryRepository linkProcessingHistoryRepository;
 	private final RoomAccessService roomAccessService;
+	private final ApplicationEventPublisher eventPublisher;
 
 	@Transactional
 	public RegisterLinkResult registerWithinWriteTransaction(
 			LinkUrlNormalizer.NormalizedUrl normalizedUrl,
 			String roomId,
 			Long userId,
-			String source,
-			String newProcessingJobId
+			String source
 	) {
 		Room room = roomAccessService.requireMemberRoom(roomId, userId);
-		Link link = linkRepository.findByNormalizedUrl(normalizedUrl.normalizedUrl())
-				.orElseGet(() -> persistNewLink(normalizedUrl, newProcessingJobId));
+		RegistrationTarget target = findOrCreateLink(normalizedUrl);
 
-		bindRoomLink(link, room);
-		saveRegisteredHistory(link, room.getPublicId(), source);
-		return new RegisterLinkResult(link.getId(), link.getProcessingJobId(), link.getStatus());
+		bindRoomLink(target.link(), room);
+		saveRegisteredHistory(target.link(), room.getPublicId(), source);
+		publishProcessingRequestedEventIfNeeded(target, normalizedUrl.normalizedUrl(), room.getPublicId(), source);
+
+		return RegisterLinkResult.from(target.link());
 	}
 
-	private Link persistNewLink(LinkUrlNormalizer.NormalizedUrl normalizedUrl, String processingJobId) {
-		if (processingJobId == null || processingJobId.isBlank()) {
-			throw new BusinessException(ErrorCode.E500_INTERNAL, "신규 링크 생성에는 processing jobId가 필요합니다.");
+	private RegistrationTarget findOrCreateLink(LinkUrlNormalizer.NormalizedUrl normalizedUrl) {
+		Link existing = linkRepository.findByNormalizedUrl(normalizedUrl.normalizedUrl()).orElse(null);
+		if (existing != null) {
+			return new RegistrationTarget(existing, false);
 		}
-		Link newLink = Link.register(normalizedUrl.originalUrl(), normalizedUrl.normalizedUrl(), processingJobId);
+		Link created = persistNewLink(normalizedUrl);
+		return new RegistrationTarget(created, true);
+	}
+
+	private Link persistNewLink(LinkUrlNormalizer.NormalizedUrl normalizedUrl) {
+		Link newLink = Link.registerPending(normalizedUrl.originalUrl(), normalizedUrl.normalizedUrl());
 		try {
 			return linkRepository.saveAndFlush(newLink);
 		} catch (DataIntegrityViolationException ex) {
 			throw new LinkDuplicateRaceException(normalizedUrl.normalizedUrl(), ex);
 		} catch (DataAccessException ex) {
-			log.error("Failed to persist link. normalizedUrl={}", normalizedUrl.normalizedUrl(), ex);
+			log.error("링크 저장에 실패했습니다. normalizedUrl={}", normalizedUrl.normalizedUrl(), ex);
 			throw new BusinessException(ErrorCode.E500_INTERNAL, "링크 저장에 실패했습니다.", ex);
 		}
 	}
@@ -66,8 +75,8 @@ public class LinkRegistrationWriteService {
 		} catch (DataIntegrityViolationException ex) {
 			throw new BusinessException(ErrorCode.E409_CONFLICT, "이미 이 방에 등록된 링크입니다.");
 		} catch (DataAccessException ex) {
-			log.error("Failed to save room link mapping. roomId={}, linkId={}", room.getPublicId(), link.getId(), ex);
-			throw new BusinessException(ErrorCode.E500_INTERNAL, "방 링크 매핑 저장에 실패했습니다.", ex);
+			log.error("방-링크 매핑 저장에 실패했습니다. roomId={}, linkId={}", room.getPublicId(), link.getId(), ex);
+			throw new BusinessException(ErrorCode.E500_INTERNAL, "방-링크 매핑 저장에 실패했습니다.", ex);
 		}
 	}
 
@@ -75,8 +84,23 @@ public class LinkRegistrationWriteService {
 		try {
 			linkProcessingHistoryRepository.saveAndFlush(LinkProcessingHistory.registered(link, roomId, source));
 		} catch (DataAccessException ex) {
-			log.warn("Failed to save link registered history. linkId={}, roomId={}", link.getId(), roomId, ex);
+			log.warn("링크 등록 이력 저장에 실패했습니다. linkId={}, roomId={}", link.getId(), roomId, ex);
 		}
+	}
+
+	private void publishProcessingRequestedEventIfNeeded(
+			RegistrationTarget target,
+			String normalizedUrl,
+			String roomId,
+			String source
+	) {
+		if (!target.createdNewLink()) {
+			return;
+		}
+		eventPublisher.publishEvent(new LinkProcessingRequestedEvent(target.link().getId(), normalizedUrl, roomId, source));
+	}
+
+	private record RegistrationTarget(Link link, boolean createdNewLink) {
 	}
 
 	public static final class LinkDuplicateRaceException extends RuntimeException {
@@ -93,3 +117,4 @@ public class LinkRegistrationWriteService {
 		}
 	}
 }
+

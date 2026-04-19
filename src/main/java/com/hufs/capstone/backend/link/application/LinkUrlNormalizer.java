@@ -18,18 +18,18 @@ final class LinkUrlNormalizer {
 
 	static NormalizedUrl normalize(String rawUrl) {
 		if (rawUrl == null || rawUrl.isBlank()) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "URL is required.");
+			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "URL은 필수입니다.");
 		}
 		String candidate = rawUrl.trim();
 		if (candidate.length() > MAX_URL_LENGTH) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "URL is too long.");
+			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "URL 길이가 너무 깁니다.");
 		}
 
 		URI parsed;
 		try {
 			parsed = URI.create(candidate);
 		} catch (IllegalArgumentException ex) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "Invalid URL format.", ex);
+			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "URL 형식이 올바르지 않습니다.", ex);
 		}
 
 		String scheme = normalizedScheme(parsed.getScheme());
@@ -49,18 +49,18 @@ final class LinkUrlNormalizer {
 
 	private static String normalizedScheme(String scheme) {
 		if (scheme == null || scheme.isBlank()) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "URL scheme is required.");
+			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "URL 스킴은 필수입니다.");
 		}
 		String normalized = scheme.toLowerCase(Locale.ROOT);
 		if (!ALLOWED_SCHEMES.contains(normalized)) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "Only http/https URL is allowed.");
+			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "http/https URL만 허용됩니다.");
 		}
 		return normalized;
 	}
 
 	private static String normalizedHost(String host) {
 		if (host == null || host.isBlank()) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "URL host is required.");
+			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "URL 호스트는 필수입니다.");
 		}
 		String normalized = host.toLowerCase(Locale.ROOT).trim();
 		if (normalized.startsWith("www.")) {
@@ -109,3 +109,4 @@ final class LinkUrlNormalizer {
 	record NormalizedUrl(String originalUrl, String normalizedUrl) {
 	}
 }
+

@@ -36,7 +36,7 @@ public class OneTimeCodeServiceImpl implements OneTimeCodeService {
 	public WebLoginTicketPayload consumeWebLoginTicket(String ticket) {
 		WebLoginTicketPayload payload = webTicketStore.consume(ticket);
 		if (payload == null) {
-			throw new BusinessException(ErrorCode.E401_INVALID_TOKEN, "Login ticket is invalid or expired.");
+			throw new BusinessException(ErrorCode.E401_INVALID_TOKEN, "로그인 티켓이 유효하지 않거나 만료되었습니다.");
 		}
 		authSecurityEventLogger.logOneTimeCodeConsumed("WEB_LOGIN_TICKET", payload.userId());
 		return payload;
@@ -51,11 +51,12 @@ public class OneTimeCodeServiceImpl implements OneTimeCodeService {
 	public MobileAuthCodePayload consumeMobileAuthCode(String code) {
 		MobileAuthCodePayload payload = mobileCodeStore.consume(code);
 		if (payload == null) {
-			throw new BusinessException(ErrorCode.E401_INVALID_TOKEN, "Mobile auth code is invalid or expired.");
+			throw new BusinessException(ErrorCode.E401_INVALID_TOKEN, "모바일 인증 코드가 유효하지 않거나 만료되었습니다.");
 		}
 		authSecurityEventLogger.logOneTimeCodeConsumed("MOBILE_AUTH_CODE", payload.userId());
 		return payload;
 	}
 }
+
 
 

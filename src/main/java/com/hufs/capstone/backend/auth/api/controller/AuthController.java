@@ -22,6 +22,7 @@ import com.hufs.capstone.backend.auth.security.SecurityUtils;
 import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
 import com.hufs.capstone.backend.global.response.CommonResponse;
+import com.hufs.capstone.backend.user.application.dto.UserProfileResult;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -52,9 +53,9 @@ public class AuthController implements AuthCommonApi, AuthWebApi, AuthMobileApi 
 			@Valid @RequestBody WebExchangeTicketRequest request
 	) {
 		WebLoginTicketPayload payload = authLoginService.exchangeWebTicket(request.ticket());
-		UserProfileResponse profile = authQueryService.getUserProfile(payload.userId());
+		UserProfileResult profile = authQueryService.getUserProfile(payload.userId());
 		TokenResponse tokenResponse = TokenResponse.web(payload.accessToken(), payload.accessTokenExpiresAt());
-		return CommonResponse.ok(new AuthTokenBootstrapResponse(tokenResponse, profile));
+		return CommonResponse.ok(new AuthTokenBootstrapResponse(tokenResponse, UserProfileResponse.from(profile)));
 	}
 
 	@Override
@@ -85,7 +86,7 @@ public class AuthController implements AuthCommonApi, AuthWebApi, AuthMobileApi 
 			@RequestHeader(name = "X-XSRF-TOKEN", required = false) String csrfToken
 	) {
 		String refreshToken = cookieService.getRefreshToken(servletRequest)
-				.orElseThrow(() -> new BusinessException(ErrorCode.E401_UNAUTHORIZED, "Refresh token cookie is required."));
+				.orElseThrow(() -> new BusinessException(ErrorCode.E401_UNAUTHORIZED, "리프레시 토큰 쿠키가 필요합니다."));
 		TokenPair rotated = tokenLifecycleService.rotate(
 				refreshToken,
 				authLoginService.createWebClientContext(servletRequest.getHeader("User-Agent"), servletRequest.getRemoteAddr())
@@ -101,7 +102,7 @@ public class AuthController implements AuthCommonApi, AuthWebApi, AuthMobileApi 
 			@RequestHeader(name = "X-Client-Platform", required = false) String clientPlatform
 	) {
 		if (!StringUtils.hasText(request.refreshToken())) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "Refresh token is required.");
+			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "리프레시 토큰이 필요합니다.");
 		}
 		TokenPair rotated = tokenLifecycleService.rotate(
 				request.refreshToken(),
@@ -136,10 +137,10 @@ public class AuthController implements AuthCommonApi, AuthWebApi, AuthMobileApi 
 	@Override
 	public CommonResponse<Void> mobileLogout(@Valid @RequestBody LogoutRequest request) {
 		if (!StringUtils.hasText(request.refreshToken())) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "Refresh token is required.");
+			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "리프레시 토큰이 필요합니다.");
 		}
 		tokenLifecycleService.revokeByRawToken(request.refreshToken(), RevokeReason.LOGOUT);
-		return CommonResponse.okMessage("Logged out.");
+		return CommonResponse.okMessage("로그아웃되었습니다.");
 	}
 
 	@Override
@@ -148,7 +149,7 @@ public class AuthController implements AuthCommonApi, AuthWebApi, AuthMobileApi 
 	) {
 		Long userId = SecurityUtils.currentUserIdOrThrow();
 		tokenLifecycleService.revokeAllByUserId(userId, RevokeReason.ADMIN_FORCE);
-		return CommonResponse.okMessage("Logged out from all devices.");
+		return CommonResponse.okMessage("모든 기기에서 로그아웃되었습니다.");
 	}
 
 	@Override
@@ -163,5 +164,6 @@ public class AuthController implements AuthCommonApi, AuthWebApi, AuthMobileApi 
 		csrfTokenRepository.saveToken(csrfTokenRepository.generateToken(request), request, response);
 	}
 }
+
 
 

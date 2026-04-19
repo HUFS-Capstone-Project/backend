@@ -1,5 +1,6 @@
 package com.hufs.capstone.backend.user.api.response;
 
+import com.hufs.capstone.backend.user.application.dto.UserProfileResult;
 import com.hufs.capstone.backend.user.domain.entity.User;
 
 public record UserProfileResponse(
@@ -13,14 +14,18 @@ public record UserProfileResponse(
 ) {
 
 	public static UserProfileResponse from(User user) {
+		return from(UserProfileResult.from(user));
+	}
+
+	public static UserProfileResponse from(UserProfileResult result) {
 		return new UserProfileResponse(
-				user.getId(),
-				user.getEmail(),
-				user.getNickname(),
-				user.getProfileImageUrl(),
-				user.getRole().name(),
-				user.getStatus().name(),
-				user.isOnboardingCompleted()
+				result.id(),
+				result.email(),
+				result.nickname(),
+				result.profileImageUrl(),
+				result.role(),
+				result.status(),
+				result.onboardingCompleted()
 		);
 	}
 }

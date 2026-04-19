@@ -59,7 +59,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
 			}
 			handleWebLogin(request, response, context, user);
 		} catch (Exception ex) {
-			log.error("OAuth2 success handler failed", ex);
+			log.error("OAuth2 성공 처리 중 오류가 발생했습니다", ex);
 			String redirect = context.clientType().isWeb()
 					? webRedirectService.failure(context.returnPath(), "oauth_failed")
 					: deepLinkRedirectService.failure("oauth_failed");
@@ -93,5 +93,6 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
 		csrfTokenRepository.saveToken(csrfTokenRepository.generateToken(request), request, response);
 	}
 }
+
 
 

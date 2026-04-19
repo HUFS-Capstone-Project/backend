@@ -7,8 +7,8 @@ import static org.mockito.Mockito.when;
 
 import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
-import com.hufs.capstone.backend.user.api.response.UserProfileResponse;
 import com.hufs.capstone.backend.user.application.dto.CompleteOnboardingCommand;
+import com.hufs.capstone.backend.user.application.dto.UserProfileResult;
 import com.hufs.capstone.backend.user.domain.entity.User;
 import com.hufs.capstone.backend.user.domain.repository.UserRepository;
 import java.time.Instant;
@@ -34,7 +34,7 @@ class UserProfileServiceTest {
 		User user = registeredUser(1L);
 		when(userRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.of(user));
 
-		UserProfileResponse response = userProfileService.completeOnboarding(
+		UserProfileResult response = userProfileService.completeOnboarding(
 				1L,
 				new CompleteOnboardingCommand("nickname", true, true, false)
 		);
@@ -83,7 +83,7 @@ class UserProfileServiceTest {
 		User user = registeredUser(1L);
 		when(userRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.of(user));
 
-		UserProfileResponse response = userProfileService.getProfile(1L);
+		UserProfileResult response = userProfileService.getProfile(1L);
 
 		assertThat(response.id()).isEqualTo(1L);
 		assertThat(response.email()).isEqualTo("test@example.com");

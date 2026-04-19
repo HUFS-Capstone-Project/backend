@@ -31,7 +31,7 @@ public class LinkProcessingHistory extends AuditableEntity {
 	@JoinColumn(name = "link_id", nullable = false)
 	private Link link;
 
-	@Column(nullable = false, length = 100)
+	@Column(length = 100)
 	private String processingJobId;
 
 	@Enumerated(EnumType.STRING)

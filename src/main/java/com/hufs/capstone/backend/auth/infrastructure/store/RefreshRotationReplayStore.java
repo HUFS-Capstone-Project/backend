@@ -26,9 +26,9 @@ public class RefreshRotationReplayStore {
 			String serialized = objectMapper.writeValueAsString(entry);
 			redisTemplate.opsForValue().set(replayKey(oldTokenHash), serialized, ttl);
 		} catch (JsonProcessingException ex) {
-			log.error("Failed to serialize refresh replay entry.", ex);
+			log.error("리프레시 재사용 응답 직렬화에 실패했습니다.", ex);
 		} catch (RuntimeException ex) {
-			log.warn("Redis write failed for refresh replay store.", ex);
+			log.warn("리프레시 재사용 응답 저장소 Redis 쓰기에 실패했습니다.", ex);
 		}
 	}
 
@@ -44,10 +44,10 @@ public class RefreshRotationReplayStore {
 			}
 			return entry.tokenPair();
 		} catch (JsonProcessingException ex) {
-			log.error("Failed to deserialize refresh replay entry.", ex);
+			log.error("리프레시 재사용 응답 역직렬화에 실패했습니다.", ex);
 			return null;
 		} catch (RuntimeException ex) {
-			log.warn("Redis read failed for refresh replay store.", ex);
+			log.warn("리프레시 재사용 응답 저장소 Redis 읽기에 실패했습니다.", ex);
 			return null;
 		}
 	}
@@ -65,4 +65,5 @@ public class RefreshRotationReplayStore {
 	private record ReplayEntry(TokenPair tokenPair, String contextFingerprint) {
 	}
 }
+
 

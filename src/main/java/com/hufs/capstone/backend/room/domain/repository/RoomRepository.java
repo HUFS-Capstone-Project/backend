@@ -1,8 +1,8 @@
 package com.hufs.capstone.backend.room.domain.repository;
 
 import com.hufs.capstone.backend.room.domain.entity.Room;
-import java.util.Optional;
 import jakarta.persistence.LockModeType;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -13,7 +13,7 @@ public interface RoomRepository extends JpaRepository<Room, Long> {
 	Optional<Room> findByPublicId(String publicId);
 
 	/**
-	 * 동일 room aggregate에 대한 leave 요청을 row lock 하에서 순차 처리하기 위한 조회.
+	 * 동일한 방에 대한 나가기 요청을 행 잠금 하에서 순차 처리하기 위한 조회.
 	 */
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
 	@Query("select r from Room r where r.publicId = :publicId")

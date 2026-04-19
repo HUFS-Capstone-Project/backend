@@ -27,10 +27,10 @@ public class LinkStatusHistoryEventListener {
 		try {
 			linkRepository.findById(event.linkId()).ifPresentOrElse(
 					this::saveStatusSyncedHistory,
-					() -> log.warn("Skip status history save because link does not exist. linkId={}", event.linkId())
+					() -> log.warn("링크가 없어 상태 이력 저장을 건너뜁니다. linkId={}", event.linkId())
 			);
 		} catch (DataAccessException ex) {
-			log.warn("Failed to save status synced history. linkId={}", event.linkId(), ex);
+			log.warn("상태 동기화 이력 저장에 실패했습니다. linkId={}", event.linkId(), ex);
 		}
 	}
 
@@ -38,3 +38,4 @@ public class LinkStatusHistoryEventListener {
 		linkProcessingHistoryRepository.save(LinkProcessingHistory.statusSynced(link));
 	}
 }
+

@@ -16,7 +16,7 @@ public enum ErrorCode {
 	E403_FORBIDDEN(HttpStatus.FORBIDDEN, "Access is denied."),
 	E404_NOT_FOUND(HttpStatus.NOT_FOUND, "Resource not found."),
 	E409_CONFLICT(HttpStatus.CONFLICT, "Business conflict occurred."),
-	E409_TOKEN_REUSE_DETECTED(HttpStatus.CONFLICT, "Refresh token reuse detected."),
+	E409_TOKEN_REUSE_DETECTED(HttpStatus.CONFLICT, "리프레시 토큰 재사용이 감지되었습니다."),
 	E502_EXTERNAL_API(HttpStatus.BAD_GATEWAY, "External API call failed."),
 	E500_INTERNAL(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error.");
 
@@ -28,6 +28,7 @@ public enum ErrorCode {
 		this.defaultMessage = defaultMessage;
 	}
 }
+
 
 
 

@@ -50,7 +50,7 @@ public class RoomJoinRateLimiter {
 			}
 			return attempts <= maxAttempts;
 		} catch (DataAccessException ex) {
-			log.warn("Join rate limit fallback(open). userId={}, ip={}", userId, ipAddress, ex);
+			log.warn("방 참여 속도 제한 예외로 차단 대신 허용 처리합니다. userId={}, ip={}", userId, ipAddress, ex);
 			return true;
 		}
 	}
@@ -62,3 +62,4 @@ public class RoomJoinRateLimiter {
 		return ipAddress.trim().replace(':', '_');
 	}
 }
+

@@ -2,7 +2,6 @@ package com.hufs.capstone.backend.room.application.impl;
 
 import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
-import com.hufs.capstone.backend.link.domain.repository.RoomLinkRepository;
 import com.hufs.capstone.backend.room.application.RoomAccessService;
 import com.hufs.capstone.backend.room.domain.entity.Room;
 import com.hufs.capstone.backend.room.domain.entity.RoomMember;
@@ -17,7 +16,6 @@ public class RoomAccessServiceImpl implements RoomAccessService {
 
 	private final RoomRepository roomRepository;
 	private final RoomMemberRepository roomMemberRepository;
-	private final RoomLinkRepository roomLinkRepository;
 
 	@Override
 	public Room getRoomOrThrow(String roomPublicId) {
@@ -43,12 +41,5 @@ public class RoomAccessServiceImpl implements RoomAccessService {
 		getMembershipOrThrow(room, userId);
 		return room;
 	}
-
-	@Override
-	public void assertLinkReadable(Long linkId, Long userId) {
-		boolean accessible = roomLinkRepository.existsAccessibleLinkForUser(linkId, userId);
-		if (!accessible) {
-			throw new BusinessException(ErrorCode.E403_FORBIDDEN, "링크 접근 권한이 없습니다.");
-		}
-	}
 }
+

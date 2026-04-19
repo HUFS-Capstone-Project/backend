@@ -24,10 +24,11 @@ public class RefreshTokenCleanupScheduler {
 		Instant threshold = Instant.now().minus(authProperties.getRefresh().getCleanupRetentionDays(), ChronoUnit.DAYS);
 		int deleted = refreshTokenRepository.deleteRevokedExpiredBefore(threshold);
 		if (deleted > 0) {
-			log.info("Deleted {} revoked & expired refresh tokens.", deleted);
+			log.info("철회되었거나 만료된 리프레시 토큰 {}건을 삭제했습니다.", deleted);
 		}
 	}
 }
+
 
 
 

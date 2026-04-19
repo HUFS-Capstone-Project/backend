@@ -9,6 +9,7 @@ import com.hufs.capstone.backend.user.api.request.CompleteOnboardingRequest;
 import com.hufs.capstone.backend.user.api.response.UserProfileResponse;
 import com.hufs.capstone.backend.user.application.UserProfileService;
 import com.hufs.capstone.backend.user.application.dto.CompleteOnboardingCommand;
+import com.hufs.capstone.backend.user.application.dto.UserProfileResult;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -23,7 +24,8 @@ public class UserProfileController implements UserProfileApi {
 
 	@Override
 	public CommonResponse<UserProfileResponse> getProfile(@AuthenticationPrincipal AuthUserPrincipal principal) {
-		return CommonResponse.ok(userProfileService.getProfile(extractUserId(principal)));
+		UserProfileResult result = userProfileService.getProfile(extractUserId(principal));
+		return CommonResponse.ok(UserProfileResponse.from(result));
 	}
 
 	@Override
@@ -32,7 +34,7 @@ public class UserProfileController implements UserProfileApi {
 			String csrfToken,
 			@AuthenticationPrincipal AuthUserPrincipal principal
 	) {
-		UserProfileResponse response = userProfileService.completeOnboarding(
+		UserProfileResult result = userProfileService.completeOnboarding(
 				extractUserId(principal),
 				new CompleteOnboardingCommand(
 						request.nickname(),
@@ -41,13 +43,14 @@ public class UserProfileController implements UserProfileApi {
 						request.marketingNotificationAgreed()
 				)
 		);
-		return CommonResponse.ok(response);
+		return CommonResponse.ok(UserProfileResponse.from(result));
 	}
 
 	private static Long extractUserId(AuthUserPrincipal principal) {
 		if (principal == null) {
-			throw new BusinessException(ErrorCode.E401_UNAUTHORIZED, "Authenticated user not found.");
+			throw new BusinessException(ErrorCode.E401_UNAUTHORIZED, "인증된 사용자를 찾을 수 없습니다.");
 		}
 		return principal.userId();
 	}
 }
+

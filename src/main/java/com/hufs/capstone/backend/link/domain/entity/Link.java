@@ -2,6 +2,7 @@ package com.hufs.capstone.backend.link.domain.entity;
 
 import com.hufs.capstone.backend.global.common.entity.AuditableEntity;
 import com.hufs.capstone.backend.link.domain.LinkAnalysisStatus;
+import com.hufs.capstone.backend.link.domain.ProcessingDispatchStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -25,8 +26,12 @@ public class Link extends AuditableEntity {
 	@Column(nullable = false, unique = true, length = 2048)
 	private String normalizedUrl;
 
-	@Column(nullable = false, unique = true, length = 100)
+	@Column(unique = true, length = 100)
 	private String processingJobId;
+
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false, length = 20)
+	private ProcessingDispatchStatus dispatchStatus;
 
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false, length = 20)
@@ -43,18 +48,42 @@ public class Link extends AuditableEntity {
 			String originalUrl,
 			String normalizedUrl,
 			String processingJobId,
+			ProcessingDispatchStatus dispatchStatus,
 			LinkAnalysisStatus status,
 			String captionRaw
 	) {
 		this.originalUrl = originalUrl;
 		this.normalizedUrl = normalizedUrl;
 		this.processingJobId = processingJobId;
+		this.dispatchStatus = dispatchStatus;
 		this.status = status;
 		this.captionRaw = captionRaw;
 	}
 
 	public static Link register(String originalUrl, String normalizedUrl, String processingJobId) {
-		return new Link(originalUrl, normalizedUrl, processingJobId, LinkAnalysisStatus.REQUESTED, null);
+		String normalizedProcessingJobId = (processingJobId == null || processingJobId.isBlank()) ? null : processingJobId;
+		ProcessingDispatchStatus dispatchStatus = normalizedProcessingJobId == null
+				? ProcessingDispatchStatus.PENDING
+				: ProcessingDispatchStatus.DISPATCHED;
+		return new Link(
+				originalUrl,
+				normalizedUrl,
+				normalizedProcessingJobId,
+				dispatchStatus,
+				LinkAnalysisStatus.REQUESTED,
+				null
+		);
+	}
+
+	public static Link registerPending(String originalUrl, String normalizedUrl) {
+		return new Link(
+				originalUrl,
+				normalizedUrl,
+				null,
+				ProcessingDispatchStatus.PENDING,
+				LinkAnalysisStatus.REQUESTED,
+				null
+		);
 	}
 
 	public boolean isTerminal() {
@@ -90,6 +119,14 @@ public class Link extends AuditableEntity {
 			changed = true;
 		}
 		return changed;
+	}
+
+	public boolean isDispatchPending() {
+		return dispatchStatus == ProcessingDispatchStatus.PENDING;
+	}
+
+	public boolean isDispatchReady() {
+		return dispatchStatus != null && dispatchStatus.canPoll() && processingJobId != null && !processingJobId.isBlank();
 	}
 
 	private boolean setStatusIfChanged(LinkAnalysisStatus nextStatus) {
