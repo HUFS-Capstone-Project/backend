@@ -13,9 +13,7 @@ import lombok.NoArgsConstructor;
 @Entity
 @Table(
 		name = "place_category",
-		uniqueConstraints = {
-				@UniqueConstraint(name = "uk_place_category_code", columnNames = "code")
-		}
+		uniqueConstraints = @UniqueConstraint(name = "uk_place_category_code", columnNames = "code")
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class PlaceCategory extends AuditableEntity {

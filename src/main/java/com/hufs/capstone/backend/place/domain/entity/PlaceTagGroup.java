@@ -16,9 +16,10 @@ import lombok.NoArgsConstructor;
 @Entity
 @Table(
 		name = "place_tag_group",
-		uniqueConstraints = {
-				@UniqueConstraint(name = "uk_place_tag_group_category_code", columnNames = {"category_id", "code"})
-		}
+		uniqueConstraints = @UniqueConstraint(
+				name = "uk_place_tag_group_category_code",
+				columnNames = {"category_id", "code"}
+		)
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class PlaceTagGroup extends AuditableEntity {
