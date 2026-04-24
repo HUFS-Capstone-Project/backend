@@ -84,10 +84,7 @@ public class LinkAnalysisRequestWriteService {
 			linkAnalysisRequestRepository.saveAndFlush(LinkAnalysisRequest.create(link, room, userId, source));
 			return true;
 		} catch (DataIntegrityViolationException ex) {
-			if (linkAnalysisRequestRepository.findByRoomAndLinkId(room, link.getId()).isPresent()) {
-				return false;
-			}
-			throw new BusinessException(ErrorCode.E409_CONFLICT, "이미 이 방에서 분석 요청한 링크입니다.", ex);
+			throw new LinkAnalysisRequestDuplicateRaceException(room.getPublicId(), link.getId(), ex);
 		} catch (DataAccessException ex) {
 			log.error("링크 분석 요청 이력 저장에 실패했습니다. roomId={}, linkId={}", room.getPublicId(), link.getId(), ex);
 			throw new BusinessException(ErrorCode.E500_INTERNAL, "링크 분석 요청 이력 저장에 실패했습니다.", ex);
@@ -144,6 +141,26 @@ public class LinkAnalysisRequestWriteService {
 
 		public String normalizedUrl() {
 			return normalizedUrl;
+		}
+	}
+
+	public static final class LinkAnalysisRequestDuplicateRaceException extends RuntimeException {
+
+		private final String roomId;
+		private final Long linkId;
+
+		LinkAnalysisRequestDuplicateRaceException(String roomId, Long linkId, Throwable cause) {
+			super("Room link analysis request duplicate race detected: roomId=" + roomId + ", linkId=" + linkId, cause);
+			this.roomId = roomId;
+			this.linkId = linkId;
+		}
+
+		public String roomId() {
+			return roomId;
+		}
+
+		public Long linkId() {
+			return linkId;
 		}
 	}
 }

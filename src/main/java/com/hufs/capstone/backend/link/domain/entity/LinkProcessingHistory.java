@@ -41,6 +41,12 @@ public class LinkProcessingHistory extends AuditableEntity {
 	@Column(columnDefinition = "text")
 	private String captionRaw;
 
+	@Column(length = 100)
+	private String errorCode;
+
+	@Column(length = 500)
+	private String errorMessage;
+
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false, length = 30)
 	private LinkProcessingEventType eventType;
@@ -56,6 +62,8 @@ public class LinkProcessingHistory extends AuditableEntity {
 			String processingJobId,
 			LinkAnalysisStatus status,
 			String captionRaw,
+			String errorCode,
+			String errorMessage,
 			LinkProcessingEventType eventType,
 			String roomId,
 			String source
@@ -64,6 +72,8 @@ public class LinkProcessingHistory extends AuditableEntity {
 		this.processingJobId = processingJobId;
 		this.status = status;
 		this.captionRaw = captionRaw;
+		this.errorCode = errorCode;
+		this.errorMessage = errorMessage;
 		this.eventType = eventType;
 		this.roomId = roomId;
 		this.source = source;
@@ -75,6 +85,8 @@ public class LinkProcessingHistory extends AuditableEntity {
 				link.getProcessingJobId(),
 				link.getStatus(),
 				link.getCaptionRaw(),
+				link.getErrorCode(),
+				link.getErrorMessage(),
 				LinkProcessingEventType.REGISTERED,
 				roomId,
 				source
@@ -87,7 +99,23 @@ public class LinkProcessingHistory extends AuditableEntity {
 				link.getProcessingJobId(),
 				link.getStatus(),
 				link.getCaptionRaw(),
+				link.getErrorCode(),
+				link.getErrorMessage(),
 				LinkProcessingEventType.STATUS_SYNCED,
+				null,
+				null
+		);
+	}
+
+	public static LinkProcessingHistory dispatchFailed(Link link, String errorCode, String errorMessage) {
+		return new LinkProcessingHistory(
+				link,
+				link.getProcessingJobId(),
+				link.getStatus(),
+				link.getCaptionRaw(),
+				errorCode,
+				errorMessage,
+				LinkProcessingEventType.DISPATCH_FAILED,
 				null,
 				null
 		);

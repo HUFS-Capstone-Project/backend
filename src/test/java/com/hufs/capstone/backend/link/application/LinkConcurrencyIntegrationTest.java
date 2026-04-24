@@ -17,8 +17,9 @@ import com.hufs.capstone.backend.external.processing.dto.ProcessingJobResultResp
 import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
 import com.hufs.capstone.backend.link.application.dto.AnalyzeLinkCommand;
-import com.hufs.capstone.backend.link.application.dto.LinkAnalysisRequestResult;
 import com.hufs.capstone.backend.link.application.dto.LinkAnalysisResult;
+import com.hufs.capstone.backend.link.application.dto.LinkAnalysisRequestResult;
+import com.hufs.capstone.backend.link.application.event.LinkProcessingRequestedEvent;
 import com.hufs.capstone.backend.link.domain.LinkAnalysisStatus;
 import com.hufs.capstone.backend.link.domain.ProcessingDispatchStatus;
 import com.hufs.capstone.backend.link.domain.entity.Link;
@@ -32,6 +33,7 @@ import com.hufs.capstone.backend.room.domain.entity.RoomMember;
 import com.hufs.capstone.backend.room.domain.repository.RoomMemberRepository;
 import com.hufs.capstone.backend.room.domain.repository.RoomRepository;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -41,6 +43,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -72,6 +76,12 @@ class LinkConcurrencyIntegrationTest {
 
 	@Autowired
 	private LinkProcessingDispatchPolicy linkProcessingDispatchPolicy;
+
+	@Autowired
+	private LinkProcessingDispatchRecoveryService linkProcessingDispatchRecoveryService;
+
+	@Autowired
+	private LinkProcessingDispatchService linkProcessingDispatchService;
 
 	@Autowired
 	private LinkRepository linkRepository;
@@ -107,6 +117,9 @@ class LinkConcurrencyIntegrationTest {
 		linkRepository.deleteAll();
 		reset(processingClient);
 		linkProcessingDispatchPolicy.setRetryBackoff(Duration.ZERO);
+		linkProcessingDispatchPolicy.setRecoveryEnabled(false);
+		linkProcessingDispatchPolicy.setStaleThreshold(Duration.ofMinutes(1));
+		linkProcessingDispatchPolicy.setRecoveryBatchSize(50);
 
 		roomA = createRoomWithMember(ROOM_A_PUBLIC_ID, "A Room", INVITE_A, MEMBER_USER_ID);
 		roomB = createRoomWithMember(ROOM_B_PUBLIC_ID, "B Room", INVITE_B, MEMBER_USER_ID);
@@ -123,7 +136,7 @@ class LinkConcurrencyIntegrationTest {
 	}
 
 	@Test
-	void shouldCreateAnalysisRequestWithoutRoomLinkForNewUrl() {
+	void shouldCreateAnalysisRequestWithoutRoomLinkForNewUrl() throws Exception {
 		when(processingClient.createJob("https://example.com/post/1", ROOM_A_PUBLIC_ID, null))
 				.thenReturn(new CreateProcessingJobResponse("job-1"));
 
@@ -138,11 +151,15 @@ class LinkConcurrencyIntegrationTest {
 		assertThat(linkRepository.count()).isEqualTo(1);
 		assertThat(linkAnalysisRequestRepository.count()).isEqualTo(1);
 		assertThat(roomLinkRepository.count()).isZero();
+		awaitValue(
+				() -> linkRepository.findById(result.linkId()).orElseThrow(),
+				link -> link.getDispatchStatus() == ProcessingDispatchStatus.DISPATCHED
+		);
 		verify(processingClient, times(1)).createJob("https://example.com/post/1", ROOM_A_PUBLIC_ID, null);
 	}
 
 	@Test
-	void shouldReuseExistingAnalysisRequestInSameRoom() {
+	void shouldReuseExistingAnalysisRequestInSameRoom() throws Exception {
 		when(processingClient.createJob("https://example.com/post/1", ROOM_A_PUBLIC_ID, null))
 				.thenReturn(new CreateProcessingJobResponse("job-1"));
 
@@ -150,6 +167,10 @@ class LinkConcurrencyIntegrationTest {
 				MEMBER_USER_ID,
 				ROOM_A_PUBLIC_ID,
 				new AnalyzeLinkCommand("https://example.com/post/1", null)
+		);
+		awaitValue(
+				() -> linkRepository.findById(first.linkId()).orElseThrow(),
+				link -> link.getDispatchStatus() == ProcessingDispatchStatus.DISPATCHED
 		);
 		LinkAnalysisRequestResult second = linkAnalysisRequestService.requestLinkAnalysis(
 				MEMBER_USER_ID,
@@ -167,7 +188,7 @@ class LinkConcurrencyIntegrationTest {
 	}
 
 	@Test
-	void shouldReuseSingleLinkAcrossDifferentRoomsWithoutNewJob() {
+	void shouldReuseSingleLinkAcrossDifferentRoomsWithoutNewJob() throws Exception {
 		when(processingClient.createJob("https://example.com/post/1", ROOM_A_PUBLIC_ID, null))
 				.thenReturn(new CreateProcessingJobResponse("job-1"));
 
@@ -175,6 +196,10 @@ class LinkConcurrencyIntegrationTest {
 				MEMBER_USER_ID,
 				ROOM_A_PUBLIC_ID,
 				new AnalyzeLinkCommand("https://example.com/post/1", null)
+		);
+		awaitValue(
+				() -> linkRepository.findById(first.linkId()).orElseThrow(),
+				link -> link.getDispatchStatus() == ProcessingDispatchStatus.DISPATCHED
 		);
 		LinkAnalysisRequestResult second = linkAnalysisRequestService.requestLinkAnalysis(
 				MEMBER_USER_ID,
@@ -238,6 +263,10 @@ class LinkConcurrencyIntegrationTest {
 		assertThat(linkRepository.count()).isEqualTo(1);
 		assertThat(linkAnalysisRequestRepository.count()).isEqualTo(1);
 		assertThat(roomLinkRepository.count()).isZero();
+		awaitValue(
+				() -> linkRepository.findById(results.get(0).linkId()).orElseThrow(),
+				link -> link.getDispatchStatus() == ProcessingDispatchStatus.DISPATCHED
+		);
 		verify(processingClient, times(1)).createJob("https://example.com/post/1", ROOM_A_PUBLIC_ID, null);
 	}
 
@@ -296,7 +325,7 @@ class LinkConcurrencyIntegrationTest {
 	}
 
 	@Test
-	void shouldReturnDispatchFailedWhenDispatchRetriesExhausted() {
+	void shouldReturnDispatchFailedWhenDispatchRetriesExhausted() throws Exception {
 		when(processingClient.createJob("https://example.com/post/10", ROOM_A_PUBLIC_ID, null))
 				.thenThrow(new RuntimeException("processing server down"));
 
@@ -304,6 +333,10 @@ class LinkConcurrencyIntegrationTest {
 				MEMBER_USER_ID,
 				ROOM_A_PUBLIC_ID,
 				new AnalyzeLinkCommand("https://example.com/post/10", null)
+		);
+		awaitValue(
+				() -> linkRepository.findById(request.linkId()).orElseThrow(),
+				link -> link.getStatus() == LinkAnalysisStatus.DISPATCH_FAILED
 		);
 		LinkAnalysisResult result = linkAnalysisStatusService.getLinkAnalysisResult(
 				MEMBER_USER_ID,
@@ -315,11 +348,12 @@ class LinkConcurrencyIntegrationTest {
 		assertThat(result.status()).isEqualTo(LinkAnalysisStatus.DISPATCH_FAILED);
 		assertThat(result.errorCode()).isEqualTo("PROCESSING_DISPATCH_FAILED");
 		assertThat(reloaded.getDispatchStatus()).isEqualTo(ProcessingDispatchStatus.DISPATCH_FAILED);
+		assertThat(linkProcessingHistoryRepository.countByLinkId(request.linkId())).isEqualTo(1);
 		verify(processingClient, times(3)).createJob("https://example.com/post/10", ROOM_A_PUBLIC_ID, null);
 	}
 
 	@Test
-	void shouldManuallyRetryDispatchFailedWhenSameUrlIsRequestedAgain() {
+	void shouldManuallyRetryDispatchFailedWhenSameUrlIsRequestedAgain() throws Exception {
 		when(processingClient.createJob("https://example.com/post/11", ROOM_A_PUBLIC_ID, null))
 				.thenThrow(new RuntimeException("processing server down"))
 				.thenThrow(new RuntimeException("processing server down"))
@@ -331,7 +365,10 @@ class LinkConcurrencyIntegrationTest {
 				ROOM_A_PUBLIC_ID,
 				new AnalyzeLinkCommand("https://example.com/post/11", null)
 		);
-		Link afterFailure = linkRepository.findById(failed.linkId()).orElseThrow();
+		Link afterFailure = awaitValue(
+				() -> linkRepository.findById(failed.linkId()).orElseThrow(),
+				link -> link.getStatus() == LinkAnalysisStatus.DISPATCH_FAILED
+		);
 		assertThat(afterFailure.getStatus()).isEqualTo(LinkAnalysisStatus.DISPATCH_FAILED);
 		assertThat(afterFailure.getDispatchStatus()).isEqualTo(ProcessingDispatchStatus.DISPATCH_FAILED);
 
@@ -340,15 +377,67 @@ class LinkConcurrencyIntegrationTest {
 				ROOM_A_PUBLIC_ID,
 				new AnalyzeLinkCommand("https://example.com/post/11?utm_source=retry", null)
 		);
-		Link afterRetry = linkRepository.findById(retried.linkId()).orElseThrow();
+		Link afterRetry = awaitValue(
+				() -> linkRepository.findById(retried.linkId()).orElseThrow(),
+				link -> link.getDispatchStatus() == ProcessingDispatchStatus.DISPATCHED
+		);
 
 		assertThat(retried.linkId()).isEqualTo(failed.linkId());
 		assertThat(retried.createdRequest()).isFalse();
-		assertThat(retried.processingJobId()).isEqualTo("job-retry");
+		assertThat(retried.processingJobId()).isIn(null, "job-retry");
 		assertThat(retried.status()).isEqualTo(LinkAnalysisStatus.REQUESTED);
+		assertThat(afterRetry.getProcessingJobId()).isEqualTo("job-retry");
 		assertThat(afterRetry.getDispatchStatus()).isEqualTo(ProcessingDispatchStatus.DISPATCHED);
 		assertThat(afterRetry.getErrorCode()).isNull();
 		verify(processingClient, times(4)).createJob("https://example.com/post/11", ROOM_A_PUBLIC_ID, null);
+	}
+
+	@Test
+	void shouldRecoverStalePendingDispatchWithoutJobId() throws Exception {
+		linkProcessingDispatchPolicy.setStaleThreshold(Duration.ZERO);
+		when(processingClient.createJob("https://example.com/post/12", ROOM_A_PUBLIC_ID, null))
+				.thenReturn(new CreateProcessingJobResponse("job-recovered"));
+		Link link = linkRepository.saveAndFlush(
+				Link.registerPending("https://example.com/post/12", "https://example.com/post/12")
+		);
+		linkAnalysisRequestRepository.saveAndFlush(LinkAnalysisRequest.create(link, roomA, MEMBER_USER_ID, null));
+
+		List<LinkProcessingRequestedEvent> events =
+				linkProcessingDispatchRecoveryService.findRecoverableEvents(Instant.now());
+		assertThat(events).hasSize(1);
+
+		linkProcessingDispatchService.dispatch(events.get(0));
+
+		Link recovered = linkRepository.findById(link.getId()).orElseThrow();
+		assertThat(recovered.getProcessingJobId()).isEqualTo("job-recovered");
+		assertThat(recovered.getDispatchStatus()).isEqualTo(ProcessingDispatchStatus.DISPATCHED);
+		verify(processingClient, times(1)).createJob("https://example.com/post/12", ROOM_A_PUBLIC_ID, null);
+	}
+
+	@Test
+	void shouldCreateOnlyOneProcessingJobWhenDuplicateDispatchEventsRunConcurrently() throws Exception {
+		AtomicInteger jobSeq = new AtomicInteger();
+		when(processingClient.createJob("https://example.com/post/13", ROOM_A_PUBLIC_ID, null))
+				.thenAnswer(invocation -> {
+					Thread.sleep(100);
+					return new CreateProcessingJobResponse("job-" + jobSeq.incrementAndGet());
+				});
+		Link link = linkRepository.saveAndFlush(
+				Link.registerPending("https://example.com/post/13", "https://example.com/post/13")
+		);
+		linkAnalysisRequestRepository.saveAndFlush(LinkAnalysisRequest.create(link, roomA, MEMBER_USER_ID, null));
+		LinkProcessingRequestedEvent event =
+				new LinkProcessingRequestedEvent(link.getId(), link.getNormalizedUrl(), ROOM_A_PUBLIC_ID, null);
+
+		runConcurrently(() -> {
+			linkProcessingDispatchService.dispatch(event);
+			return null;
+		}, 2);
+
+		Link dispatched = linkRepository.findById(link.getId()).orElseThrow();
+		assertThat(dispatched.getDispatchStatus()).isEqualTo(ProcessingDispatchStatus.DISPATCHED);
+		assertThat(dispatched.getProcessingJobId()).isEqualTo("job-1");
+		verify(processingClient, times(1)).createJob("https://example.com/post/13", ROOM_A_PUBLIC_ID, null);
 	}
 
 	@Test
@@ -446,5 +535,18 @@ class LinkConcurrencyIntegrationTest {
 		} finally {
 			executor.shutdownNow();
 		}
+	}
+
+	private static <T> T awaitValue(Supplier<T> supplier, Predicate<T> predicate) throws Exception {
+		long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+		T value;
+		do {
+			value = supplier.get();
+			if (predicate.test(value)) {
+				return value;
+			}
+			Thread.sleep(50);
+		} while (System.nanoTime() < deadline);
+		throw new AssertionError("condition was not met within timeout");
 	}
 }

@@ -91,6 +91,53 @@ class LinkAnalysisRequestServiceTest {
 	}
 
 	@Test
+	void requestLinkAnalysisShouldRetryWhenAnalysisRequestDuplicateRaceOccurs() {
+		when(linkAnalysisRequestWriteService.requestWithinWriteTransaction(any(), eq(ROOM_PUBLIC_ID), eq(USER_ID), eq(null)))
+				.thenThrow(new LinkAnalysisRequestWriteService.LinkAnalysisRequestDuplicateRaceException(
+						ROOM_PUBLIC_ID,
+						40L,
+						new RuntimeException("dup")
+				))
+				.thenReturn(new LinkAnalysisRequestResult(
+						40L,
+						"job-existing",
+						LinkAnalysisStatus.REQUESTED,
+						false
+				));
+		when(linkRepository.findById(40L)).thenReturn(Optional.of(link(40L, "job-existing", LinkAnalysisStatus.REQUESTED)));
+
+		LinkAnalysisRequestResult result = linkAnalysisRequestService.requestLinkAnalysis(
+				USER_ID,
+				ROOM_PUBLIC_ID,
+				new AnalyzeLinkCommand("https://example.com/x", null)
+		);
+
+		assertThat(result.linkId()).isEqualTo(40L);
+		assertThat(result.createdRequest()).isFalse();
+		verify(linkAnalysisRequestWriteService, times(2))
+				.requestWithinWriteTransaction(any(), eq(ROOM_PUBLIC_ID), eq(USER_ID), eq(null));
+	}
+
+	@Test
+	void requestLinkAnalysisShouldStopWhenDuplicateRaceRetryIsExhausted() {
+		when(linkAnalysisRequestWriteService.requestWithinWriteTransaction(any(), eq(ROOM_PUBLIC_ID), eq(USER_ID), eq(null)))
+				.thenThrow(new LinkAnalysisRequestWriteService.LinkAnalysisRequestDuplicateRaceException(
+						ROOM_PUBLIC_ID,
+						50L,
+						new RuntimeException("dup")
+				));
+
+		assertThatThrownBy(() -> linkAnalysisRequestService.requestLinkAnalysis(
+				USER_ID,
+				ROOM_PUBLIC_ID,
+				new AnalyzeLinkCommand("https://example.com/x", null)
+		))
+				.isInstanceOf(LinkAnalysisRequestWriteService.LinkAnalysisRequestDuplicateRaceException.class);
+		verify(linkAnalysisRequestWriteService, times(3))
+				.requestWithinWriteTransaction(any(), eq(ROOM_PUBLIC_ID), eq(USER_ID), eq(null));
+	}
+
+	@Test
 	void requestLinkAnalysisShouldFailWhenRoomIdIsBlank() {
 		assertThatThrownBy(() -> linkAnalysisRequestService.requestLinkAnalysis(
 				USER_ID,

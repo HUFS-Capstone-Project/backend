@@ -14,6 +14,8 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class LinkAnalysisRequestService {
 
+	private static final int MAX_DUPLICATE_RACE_RETRY = 3;
+
 	private final LinkAnalysisRequestWriteService linkAnalysisRequestWriteService;
 	private final LinkRepository linkRepository;
 
@@ -22,26 +24,12 @@ public class LinkAnalysisRequestService {
 		String source = command.source() == null ? null : command.source().name();
 		LinkUrlNormalizer.NormalizedUrl normalizedUrl = LinkUrlNormalizer.normalize(command.url());
 
-		LinkAnalysisRequestResult requested;
-		try {
-			requested = linkAnalysisRequestWriteService.requestWithinWriteTransaction(
-					normalizedUrl,
-					requiredRoomId,
-					userId,
-					source
-			);
-		} catch (LinkAnalysisRequestWriteService.LinkDuplicateRaceException ex) {
-			log.info(
-					"정규화 URL 중복 경합 이후 링크 분석 요청을 재시도합니다. normalizedUrl={}",
-					ex.normalizedUrl()
-			);
-			requested = linkAnalysisRequestWriteService.requestWithinWriteTransaction(
-					normalizedUrl,
-					requiredRoomId,
-					userId,
-					source
-			);
-		}
+		LinkAnalysisRequestResult requested = requestWithDuplicateRaceRetry(
+				normalizedUrl,
+				requiredRoomId,
+				userId,
+				source
+		);
 
 		LinkAnalysisRequestResult resolved = refreshLatest(requested);
 		log.info(
@@ -53,6 +41,43 @@ public class LinkAnalysisRequestService {
 				resolved.createdRequest()
 		);
 		return resolved;
+	}
+
+	private LinkAnalysisRequestResult requestWithDuplicateRaceRetry(
+			LinkUrlNormalizer.NormalizedUrl normalizedUrl,
+			String roomId,
+			Long userId,
+			String source
+	) {
+		RuntimeException lastRace = null;
+		for (int attempt = 1; attempt <= MAX_DUPLICATE_RACE_RETRY; attempt++) {
+			try {
+				return linkAnalysisRequestWriteService.requestWithinWriteTransaction(
+						normalizedUrl,
+						roomId,
+						userId,
+						source
+				);
+			} catch (LinkAnalysisRequestWriteService.LinkDuplicateRaceException ex) {
+				lastRace = ex;
+				log.info(
+						"정규화 URL 중복 경합 이후 링크 분석 요청을 재시도합니다. normalizedUrl={}, attempt={}/{}",
+						ex.normalizedUrl(),
+						attempt,
+						MAX_DUPLICATE_RACE_RETRY
+				);
+			} catch (LinkAnalysisRequestWriteService.LinkAnalysisRequestDuplicateRaceException ex) {
+				lastRace = ex;
+				log.info(
+						"방 링크 분석 요청 중복 경합 이후 링크 분석 요청을 재시도합니다. roomId={}, linkId={}, attempt={}/{}",
+						roomId,
+						ex.linkId(),
+						attempt,
+						MAX_DUPLICATE_RACE_RETRY
+				);
+			}
+		}
+		throw lastRace == null ? new IllegalStateException("Duplicate race retry exhausted.") : lastRace;
 	}
 
 	private LinkAnalysisRequestResult refreshLatest(LinkAnalysisRequestResult requested) {

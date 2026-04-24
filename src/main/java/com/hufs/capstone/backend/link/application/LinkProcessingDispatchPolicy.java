@@ -8,10 +8,10 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
 /**
- * 참고:
- * - 트랜잭션 커밋 후(AFTER_COMMIT) 동기 디스패치
- * - 재시도 소진 시 DISPATCH_FAILED로 전환하고, 이후 사용자 수동 재시도만 허용
- * 위 정책은 임시 운영 타협안이며 이 클래스에서 중앙 관리한다.
+ * Processing 디스패치 정책.
+ *
+ * <p>디스패치는 트랜잭션 커밋 이후 전용 비동기 executor에서 실행한다. 서버 종료나 executor 거절로 인메모리 이벤트가
+ * 유실될 수 있으므로 stale 상태의 링크는 스케줄러가 다시 회수한다.
  */
 @Getter
 @Setter
@@ -23,4 +23,11 @@ public class LinkProcessingDispatchPolicy {
 	private int maxAttempts = 3;
 
 	private Duration retryBackoff = Duration.ofMillis(300);
+
+	private boolean recoveryEnabled = true;
+
+	private Duration staleThreshold = Duration.ofMinutes(1);
+
+	@Min(1)
+	private int recoveryBatchSize = 50;
 }
