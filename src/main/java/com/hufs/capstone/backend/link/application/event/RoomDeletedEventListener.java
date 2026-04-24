@@ -17,7 +17,7 @@ public class RoomDeletedEventListener {
 	@EventListener
 	public void onRoomDeleted(RoomDeletedEvent event) {
 		roomLinkCleanupWriteService.deleteAllByRoomId(event.roomId());
-		log.info("방 링크 매핑 정리를 완료했습니다. roomId={}, roomPublicId={}", event.roomId(), event.roomPublicId());
+		log.info("방 링크 관련 데이터 정리를 완료했습니다. roomId={}, roomPublicId={}", event.roomId(), event.roomPublicId());
 	}
 }
 

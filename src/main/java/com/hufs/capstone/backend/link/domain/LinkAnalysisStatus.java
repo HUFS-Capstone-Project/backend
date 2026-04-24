@@ -8,7 +8,8 @@ public enum LinkAnalysisStatus {
 	REQUESTED,
 	PROCESSING,
 	SUCCEEDED,
-	FAILED;
+	FAILED,
+	DISPATCH_FAILED;
 
 	private static final Set<String> REQUESTED_VALUES = Set.of("REQUESTED", "CREATED", "PENDING", "QUEUED");
 	private static final Set<String> PROCESSING_VALUES = Set.of("PROCESSING", "RUNNING", "IN_PROGRESS", "STARTED");
@@ -16,7 +17,7 @@ public enum LinkAnalysisStatus {
 	private static final Set<String> FAILED_VALUES = Set.of("FAILED", "FAILURE", "ERROR", "CANCELED", "CANCELLED", "ABORTED");
 
 	public boolean isTerminal() {
-		return this == SUCCEEDED || this == FAILED;
+		return this == SUCCEEDED || this == FAILED || this == DISPATCH_FAILED;
 	}
 
 	public static LinkAnalysisStatus fromProcessingStatus(String rawStatus) {

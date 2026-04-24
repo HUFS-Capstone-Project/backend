@@ -1,22 +1,21 @@
 package com.hufs.capstone.backend.link.application.dto;
 
 import com.hufs.capstone.backend.link.domain.LinkAnalysisStatus;
-import com.hufs.capstone.backend.link.domain.ProcessingDispatchStatus;
 import com.hufs.capstone.backend.link.domain.entity.Link;
 
-public record RegisterLinkResult(
+public record LinkAnalysisRequestResult(
 		Long linkId,
 		String processingJobId,
 		LinkAnalysisStatus status,
-		ProcessingDispatchStatus dispatchStatus
+		boolean createdRequest
 ) {
 
-	public static RegisterLinkResult from(Link link) {
-		return new RegisterLinkResult(
+	public static LinkAnalysisRequestResult from(Link link, boolean createdRequest) {
+		return new LinkAnalysisRequestResult(
 				link.getId(),
 				link.getProcessingJobId(),
 				link.getStatus(),
-				link.getDispatchStatus()
+				createdRequest
 		);
 	}
 }

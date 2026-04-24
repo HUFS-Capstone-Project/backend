@@ -10,7 +10,7 @@ import org.springframework.validation.annotation.Validated;
 /**
  * 참고:
  * - 트랜잭션 커밋 후(AFTER_COMMIT) 동기 디스패치
- * - 재시도 소진 시 대체 처리
+ * - 재시도 소진 시 DISPATCH_FAILED로 전환하고, 이후 사용자 수동 재시도만 허용
  * 위 정책은 임시 운영 타협안이며 이 클래스에서 중앙 관리한다.
  */
 @Getter
@@ -23,11 +23,4 @@ public class LinkProcessingDispatchPolicy {
 	private int maxAttempts = 3;
 
 	private Duration retryBackoff = Duration.ofMillis(300);
-
-	private ExhaustedRetryAction exhaustedRetryAction = ExhaustedRetryAction.MARK_FAILED;
-
-	public enum ExhaustedRetryAction {
-		MARK_FAILED,
-		KEEP_REQUESTED
-	}
 }

@@ -3,8 +3,8 @@ package com.hufs.capstone.backend.link.application;
 import com.hufs.capstone.backend.external.processing.ProcessingClient;
 import com.hufs.capstone.backend.external.processing.dto.CreateProcessingJobResponse;
 import com.hufs.capstone.backend.link.application.event.LinkProcessingRequestedEvent;
-import com.hufs.capstone.backend.link.domain.LinkAnalysisStatus;
 import com.hufs.capstone.backend.link.domain.ProcessingDispatchStatus;
+import com.hufs.capstone.backend.link.domain.LinkAnalysisStatus;
 import com.hufs.capstone.backend.link.domain.entity.Link;
 import com.hufs.capstone.backend.link.domain.repository.LinkRepository;
 import java.time.Instant;
@@ -22,7 +22,6 @@ public class LinkProcessingDispatchService {
 
 	private final ProcessingClient processingClient;
 	private final LinkRepository linkRepository;
-	private final LinkStatusWriteService linkStatusWriteService;
 	private final LinkProcessingDispatchPolicy dispatchPolicy;
 	private final PlatformTransactionManager transactionManager;
 
@@ -99,30 +98,23 @@ public class LinkProcessingDispatchService {
 			return;
 		}
 
-		LinkProcessingDispatchPolicy.ExhaustedRetryAction action = dispatchPolicy.getExhaustedRetryAction();
-		if (action == LinkProcessingDispatchPolicy.ExhaustedRetryAction.KEEP_REQUESTED) {
-			log.error(
-					"처리 디스패치 재시도가 모두 소진되어 REQUESTED 상태를 유지합니다. linkId={}",
-					linkId,
-					lastException
-			);
-			return;
-		}
 		log.error(
-				"처리 디스패치 재시도가 모두 소진되어 FAILED 상태로 전환합니다. linkId={}",
+				"처리 디스패치 재시도가 모두 소진되어 DISPATCH_FAILED 상태로 전환합니다. linkId={}",
 				linkId,
 				lastException
 		);
-		linkStatusWriteService.applySyncSnapshot(linkId, LinkAnalysisStatus.FAILED, null);
 	}
 
 	private boolean markDispatchFailedIfPending(Long linkId) {
 		TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 		transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
-		Integer updated = transactionTemplate.execute(status -> linkRepository.transitionDispatchStatusIfNoJob(
+		Integer updated = transactionTemplate.execute(status -> linkRepository.markDispatchFailedIfNoJob(
 				linkId,
 				ProcessingDispatchStatus.PENDING,
 				ProcessingDispatchStatus.DISPATCH_FAILED,
+				LinkAnalysisStatus.DISPATCH_FAILED,
+				"PROCESSING_DISPATCH_FAILED",
+				"처리 디스패치 재시도가 모두 소진되었습니다.",
 				Instant.now()
 		));
 		int updatedCount = updated == null ? 0 : updated;

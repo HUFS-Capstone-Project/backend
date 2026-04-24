@@ -40,6 +40,12 @@ public class Link extends AuditableEntity {
 	@Column(columnDefinition = "text")
 	private String captionRaw;
 
+	@Column(length = 100)
+	private String errorCode;
+
+	@Column(length = 500)
+	private String errorMessage;
+
 	@Version
 	@Column(nullable = false)
 	private Long version;

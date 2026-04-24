@@ -15,6 +15,7 @@ import lombok.NoArgsConstructor;
 
 @Getter
 @Entity
+// TODO: 장소 최종 저장 단계에서 RoomLinkPlace(room_link + place) 매핑의 기준 엔티티로 사용한다.
 @Table(
 		name = "room_links",
 		indexes = {
