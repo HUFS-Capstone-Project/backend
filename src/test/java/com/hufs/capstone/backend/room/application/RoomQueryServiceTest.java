@@ -9,6 +9,7 @@ import com.hufs.capstone.backend.global.exception.ErrorCode;
 import com.hufs.capstone.backend.room.application.dto.RoomDetailResult;
 import com.hufs.capstone.backend.room.application.dto.RoomSummaryResult;
 import com.hufs.capstone.backend.room.application.port.RoomLinkCountPort;
+import com.hufs.capstone.backend.room.application.port.RoomPlaceCountPort;
 import com.hufs.capstone.backend.room.domain.entity.Room;
 import com.hufs.capstone.backend.room.domain.entity.RoomMember;
 import com.hufs.capstone.backend.room.domain.repository.RoomMemberRepository;
@@ -35,6 +36,9 @@ class RoomQueryServiceTest {
 	@Mock
 	private RoomLinkCountPort roomLinkCountPort;
 
+	@Mock
+	private RoomPlaceCountPort roomPlaceCountPort;
+
 	@InjectMocks
 	private RoomQueryService roomQueryService;
 
@@ -46,6 +50,7 @@ class RoomQueryServiceTest {
 		when(roomMemberRepository.findMyRooms(USER_ID)).thenReturn(List.of(member));
 		when(roomMemberRepository.countByRoomId(room.getId())).thenReturn(3L);
 		when(roomLinkCountPort.countLinksInRoom(room.getId())).thenReturn(2L);
+		when(roomPlaceCountPort.countPlacesInRoom(room.getId())).thenReturn(7L);
 
 		List<RoomSummaryResult> result = roomQueryService.getMyRooms(USER_ID);
 
@@ -55,6 +60,7 @@ class RoomQueryServiceTest {
 		assertThat(result.get(0).pinned()).isTrue();
 		assertThat(result.get(0).memberCount()).isEqualTo(3L);
 		assertThat(result.get(0).linkCount()).isEqualTo(2L);
+		assertThat(result.get(0).placeCount()).isEqualTo(7L);
 	}
 
 	@Test
@@ -66,6 +72,7 @@ class RoomQueryServiceTest {
 		when(roomAccessService.getMembershipOrThrow(room, USER_ID)).thenReturn(member);
 		when(roomMemberRepository.countByRoomId(room.getId())).thenReturn(3L);
 		when(roomLinkCountPort.countLinksInRoom(room.getId())).thenReturn(5L);
+		when(roomPlaceCountPort.countPlacesInRoom(room.getId())).thenReturn(9L);
 
 		RoomDetailResult result = roomQueryService.getRoomDetail(USER_ID, room.getPublicId());
 
@@ -74,6 +81,7 @@ class RoomQueryServiceTest {
 		assertThat(result.inviteCode()).isEqualTo("INVITE123456");
 		assertThat(result.memberCount()).isEqualTo(3L);
 		assertThat(result.linkCount()).isEqualTo(5L);
+		assertThat(result.placeCount()).isEqualTo(9L);
 	}
 
 	@Test

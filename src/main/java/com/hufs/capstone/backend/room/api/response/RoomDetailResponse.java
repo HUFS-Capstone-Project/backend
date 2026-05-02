@@ -10,6 +10,7 @@ public record RoomDetailResponse(
 		boolean pinned,
 		long memberCount,
 		long linkCount,
+		long placeCount,
 		Instant createdAt
 ) {
 
@@ -21,6 +22,7 @@ public record RoomDetailResponse(
 				result.pinned(),
 				result.memberCount(),
 				result.linkCount(),
+				result.placeCount(),
 				result.createdAt()
 		);
 	}

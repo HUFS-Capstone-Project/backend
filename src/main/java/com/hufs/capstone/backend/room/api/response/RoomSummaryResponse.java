@@ -9,7 +9,8 @@ public record RoomSummaryResponse(
 		boolean pinned,
 		Instant createdAt,
 		long memberCount,
-		long linkCount
+		long linkCount,
+		long placeCount
 ) {
 
 	public static RoomSummaryResponse from(RoomSummaryResult result) {
@@ -19,7 +20,8 @@ public record RoomSummaryResponse(
 				result.pinned(),
 				result.createdAt(),
 				result.memberCount(),
-				result.linkCount()
+				result.linkCount(),
+				result.placeCount()
 		);
 	}
 }

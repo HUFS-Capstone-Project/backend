@@ -9,6 +9,7 @@ public record RoomDetailResult(
 		boolean pinned,
 		long memberCount,
 		long linkCount,
+		long placeCount,
 		Instant createdAt
 ) {
 }

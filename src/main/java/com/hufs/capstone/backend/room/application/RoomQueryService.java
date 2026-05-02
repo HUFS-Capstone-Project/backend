@@ -1,6 +1,7 @@
 package com.hufs.capstone.backend.room.application;
 
 import com.hufs.capstone.backend.room.application.port.RoomLinkCountPort;
+import com.hufs.capstone.backend.room.application.port.RoomPlaceCountPort;
 import com.hufs.capstone.backend.room.application.dto.RoomDetailResult;
 import com.hufs.capstone.backend.room.application.dto.RoomSummaryResult;
 import com.hufs.capstone.backend.room.domain.entity.Room;
@@ -18,6 +19,7 @@ public class RoomQueryService {
 	private final RoomAccessService roomAccessService;
 	private final RoomMemberRepository roomMemberRepository;
 	private final RoomLinkCountPort roomLinkCountPort;
+	private final RoomPlaceCountPort roomPlaceCountPort;
 
 	@Transactional(readOnly = true)
 	public List<RoomSummaryResult> getMyRooms(Long userId) {
@@ -32,6 +34,7 @@ public class RoomQueryService {
 		RoomMember membership = roomAccessService.getMembershipOrThrow(room, userId);
 		long memberCount = roomMemberRepository.countByRoomId(room.getId());
 		long linkCount = roomLinkCountPort.countLinksInRoom(room.getId());
+		long placeCount = roomPlaceCountPort.countPlacesInRoom(room.getId());
 		return new RoomDetailResult(
 				room.getPublicId(),
 				room.getName(),
@@ -39,6 +42,7 @@ public class RoomQueryService {
 				membership.isPinned(),
 				memberCount,
 				linkCount,
+				placeCount,
 				room.getCreatedAt()
 		);
 	}
@@ -47,13 +51,15 @@ public class RoomQueryService {
 		Room room = membership.getRoom();
 		long memberCount = roomMemberRepository.countByRoomId(room.getId());
 		long linkCount = roomLinkCountPort.countLinksInRoom(room.getId());
+		long placeCount = roomPlaceCountPort.countPlacesInRoom(room.getId());
 		return new RoomSummaryResult(
 				room.getPublicId(),
 				room.getName(),
 				membership.isPinned(),
 				room.getCreatedAt(),
 				memberCount,
-				linkCount
+				linkCount,
+				placeCount
 		);
 	}
 }

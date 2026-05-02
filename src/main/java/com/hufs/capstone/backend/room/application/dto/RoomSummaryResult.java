@@ -8,7 +8,8 @@ public record RoomSummaryResult(
 		boolean pinned,
 		Instant createdAt,
 		long memberCount,
-		long linkCount
+		long linkCount,
+		long placeCount
 ) {
 }
 
