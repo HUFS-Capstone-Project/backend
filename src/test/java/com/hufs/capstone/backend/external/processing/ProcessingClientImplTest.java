@@ -13,7 +13,10 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -24,11 +27,22 @@ class ProcessingClientImplTest {
 	private static final String INTERNAL_API_KEY = "test-secret-key";
 
 	private HttpServer server;
+	private ExecutorService serverExecutor;
 
 	@AfterEach
 	void tearDown() {
 		if (server != null) {
 			server.stop(0);
+			server = null;
+		}
+		if (serverExecutor != null) {
+			serverExecutor.shutdownNow();
+			try {
+				serverExecutor.awaitTermination(5, TimeUnit.SECONDS);
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+			}
+			serverExecutor = null;
 		}
 	}
 
@@ -156,10 +170,10 @@ class ProcessingClientImplTest {
 
 	@Test
 	void shouldClassifyTimeout() throws Exception {
+		// 타임아웃 후에는 응답을 보내지 않음: 지연된 write가 다음 테스트 클라이언트에서 SocketException 등을 유발할 수 있음
 		startServer(exchange -> {
 			try {
-				Thread.sleep(300);
-				writeJson(exchange, HttpStatus.OK.value(), "{}");
+				new CountDownLatch(1).await();
 			} catch (InterruptedException ex) {
 				Thread.currentThread().interrupt();
 			}
@@ -184,15 +198,10 @@ class ProcessingClientImplTest {
 	}
 
 	private void startServer(ExchangeHandler handler) throws IOException {
+		serverExecutor = Executors.newCachedThreadPool();
 		server = HttpServer.create(new InetSocketAddress(0), 0);
-		server.createContext("/", exchange -> {
-			try {
-				handler.handle(exchange);
-			} finally {
-				exchange.close();
-			}
-		});
-		server.setExecutor(Executors.newCachedThreadPool());
+		server.createContext("/", exchange -> handler.handle(exchange));
+		server.setExecutor(serverExecutor);
 		server.start();
 	}
 
