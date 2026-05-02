@@ -4,7 +4,11 @@ import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
 import com.hufs.capstone.backend.link.application.dto.LinkAnalysisResult;
 import com.hufs.capstone.backend.link.domain.entity.Link;
+import com.hufs.capstone.backend.link.domain.entity.RoomPlace;
 import com.hufs.capstone.backend.link.domain.repository.LinkRepository;
+import com.hufs.capstone.backend.link.domain.repository.RoomPlaceRepository;
+import com.hufs.capstone.backend.room.domain.entity.Room;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -18,10 +22,20 @@ public class LinkAnalysisStatusService {
 	private final LinkSyncOrchestrator linkSyncOrchestrator;
 	private final LinkAnalysisStatusResolver linkAnalysisStatusResolver;
 	private final LinkAnalysisStatusWriteService linkAnalysisStatusWriteService;
+	private final LinkAnalysisResultMapper linkAnalysisResultMapper;
+	private final RoomPlaceRepository roomPlaceRepository;
 
 	public LinkAnalysisResult getLinkAnalysisResult(Long userId, String roomId, Long linkId) {
-		linkAnalysisAuthorizationService.assertReadable(userId, roomId, linkId);
-		return linkAnalysisCacheCoordinator.getOrLoad(linkId, () -> resolveCurrentStatus(linkId));
+		Room room = linkAnalysisAuthorizationService.requireReadableRoom(userId, roomId, linkId);
+		LinkAnalysisResult result = linkAnalysisCacheCoordinator.getOrLoad(linkId, () -> resolveCurrentStatus(linkId));
+		List<String> kakaoPlaceIds = result.candidatePlaces().stream()
+				.map(candidate -> candidate.kakaoPlaceId())
+				.filter(kakaoPlaceId -> kakaoPlaceId != null && !kakaoPlaceId.isBlank())
+				.toList();
+		List<RoomPlace> savedPlaces = kakaoPlaceIds.isEmpty()
+				? List.of()
+				: roomPlaceRepository.findByRoomIdAndKakaoPlaceIdIn(room.getId(), kakaoPlaceIds);
+		return linkAnalysisResultMapper.withSavedStatus(result, savedPlaces);
 	}
 
 	private LinkAnalysisResult resolveCurrentStatus(Long linkId) {
@@ -33,12 +47,12 @@ public class LinkAnalysisStatusService {
 
 		LinkAnalysisStatusResolver.Resolution resolution = linkAnalysisStatusResolver.resolve(snapshot, syncSnapshot);
 		if (!resolution.requiresWrite()) {
-			return LinkAnalysisResult.from(snapshot);
+			return linkAnalysisResultMapper.from(snapshot);
 		}
 		return linkAnalysisStatusWriteService.applySyncSnapshot(
 				linkId,
 				resolution.targetStatus(),
-				resolution.captionRaw(),
+				resolution.result(),
 				resolution.errorCode(),
 				resolution.errorMessage()
 		);

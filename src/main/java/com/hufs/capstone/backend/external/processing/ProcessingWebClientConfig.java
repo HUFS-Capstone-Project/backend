@@ -30,9 +30,14 @@ public class ProcessingWebClientConfig {
 		);
 
 		return WebClient.builder()
-				.baseUrl(props.baseUrl())
+				.baseUrl(apiBaseUrl(props.baseUrl()))
 				.filter(internalAuth)
 				.clientConnector(new ReactorClientHttpConnector(httpClient))
 				.build();
+	}
+
+	private static String apiBaseUrl(String baseUrl) {
+		String trimmed = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
+		return trimmed + "/api/v1";
 	}
 }

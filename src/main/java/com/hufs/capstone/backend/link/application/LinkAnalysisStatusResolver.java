@@ -1,5 +1,6 @@
 package com.hufs.capstone.backend.link.application;
 
+import com.hufs.capstone.backend.link.application.dto.ProcessingResultSnapshot;
 import com.hufs.capstone.backend.link.domain.LinkAnalysisStatus;
 import com.hufs.capstone.backend.link.domain.entity.Link;
 import org.springframework.stereotype.Service;
@@ -16,7 +17,7 @@ public class LinkAnalysisStatusResolver {
 		}
 		return Resolution.write(
 				syncSnapshot.status(),
-				syncSnapshot.captionRaw(),
+				syncSnapshot.result(),
 				syncSnapshot.errorCode(),
 				syncSnapshot.errorMessage()
 		);
@@ -25,7 +26,7 @@ public class LinkAnalysisStatusResolver {
 	public record Resolution(
 			boolean requiresWrite,
 			LinkAnalysisStatus targetStatus,
-			String captionRaw,
+			ProcessingResultSnapshot result,
 			String errorCode,
 			String errorMessage
 	) {
@@ -36,11 +37,11 @@ public class LinkAnalysisStatusResolver {
 
 		public static Resolution write(
 				LinkAnalysisStatus targetStatus,
-				String captionRaw,
+				ProcessingResultSnapshot result,
 				String errorCode,
 				String errorMessage
 		) {
-			return new Resolution(true, targetStatus, captionRaw, errorCode, errorMessage);
+			return new Resolution(true, targetStatus, result, errorCode, errorMessage);
 		}
 	}
 }

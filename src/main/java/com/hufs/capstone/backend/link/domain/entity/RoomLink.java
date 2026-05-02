@@ -15,14 +15,14 @@ import lombok.NoArgsConstructor;
 
 @Getter
 @Entity
-// TODO: 장소 최종 저장 단계에서 RoomLinkPlace(room_link + place) 매핑의 기준 엔티티로 사용한다.
 @Table(
 		name = "room_links",
 		indexes = {
 			@Index(name = "idx_room_links_link_id_room_id", columnList = "link_id, room_id")
 		},
 		uniqueConstraints = {
-			@UniqueConstraint(name = "uq_room_links_room_id_link_id", columnNames = {"room_id", "link_id"})
+			@UniqueConstraint(name = "uq_room_links_room_id_link_id", columnNames = {"room_id", "link_id"}),
+			@UniqueConstraint(name = "uq_room_links_id_room_id", columnNames = {"id", "room_id"})
 		}
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

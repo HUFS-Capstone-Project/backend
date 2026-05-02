@@ -2,19 +2,18 @@ package com.hufs.capstone.backend.link.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.hufs.capstone.backend.link.application.dto.LinkAnalysisResult;
+import com.hufs.capstone.backend.link.application.dto.ProcessingResultSnapshot;
 import com.hufs.capstone.backend.link.application.event.LinkStatusSyncedEvent;
 import com.hufs.capstone.backend.link.domain.LinkAnalysisStatus;
 import com.hufs.capstone.backend.link.domain.entity.Link;
 import com.hufs.capstone.backend.link.domain.repository.LinkRepository;
 import java.time.Instant;
 import java.util.Optional;
-import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -33,6 +32,9 @@ class LinkAnalysisStatusWriteServiceTest {
 	@Mock
 	private ApplicationEventPublisher eventPublisher;
 
+	@Mock
+	private LinkAnalysisResultMapper linkAnalysisResultMapper;
+
 	@InjectMocks
 	private LinkAnalysisStatusWriteService linkAnalysisStatusWriteService;
 
@@ -40,7 +42,9 @@ class LinkAnalysisStatusWriteServiceTest {
 	void applySyncSnapshotShouldReturnImmediatelyWhenTerminal() {
 		Link terminal = link(1L, 1L);
 		terminal.markSucceeded("done");
+		LinkAnalysisResult mapped = result(1L, LinkAnalysisStatus.SUCCEEDED, "done", null, null);
 		when(linkRepository.findById(1L)).thenReturn(Optional.of(terminal));
+		when(linkAnalysisResultMapper.from(terminal)).thenReturn(mapped);
 
 		LinkAnalysisResult result = linkAnalysisStatusWriteService.applySyncSnapshot(
 				1L,
@@ -59,6 +63,11 @@ class LinkAnalysisStatusWriteServiceTest {
 				any(),
 				any(),
 				any(),
+				any(),
+				any(),
+				any(),
+				any(),
+				any(),
 				any()
 		);
 	}
@@ -69,25 +78,18 @@ class LinkAnalysisStatusWriteServiceTest {
 		processing.markProcessing();
 		Link synced = link(2L, 2L);
 		synced.markSucceeded("done");
+		LinkAnalysisResult mapped = result(2L, LinkAnalysisStatus.SUCCEEDED, "done", null, null);
 
 		when(linkRepository.findById(2L))
 				.thenReturn(Optional.of(processing))
 				.thenReturn(Optional.of(synced));
-		when(linkRepository.compareAndSetAnalysisResult(
-				eq(2L),
-				eq(1L),
-				eq(Set.of(LinkAnalysisStatus.REQUESTED, LinkAnalysisStatus.PROCESSING)),
-				eq(LinkAnalysisStatus.SUCCEEDED),
-				eq("done"),
-				eq(null),
-				eq(null),
-				any(Instant.class)
-		)).thenReturn(1);
+		when(linkAnalysisResultMapper.from(synced)).thenReturn(mapped);
+		stubCasUpdate(1);
 
 		LinkAnalysisResult result = linkAnalysisStatusWriteService.applySyncSnapshot(
 				2L,
 				LinkAnalysisStatus.SUCCEEDED,
-				"done",
+				resultSnapshot("done"),
 				null,
 				null
 		);
@@ -105,25 +107,20 @@ class LinkAnalysisStatusWriteServiceTest {
 		processing.markProcessing();
 		Link latest = link(3L, 2L);
 		latest.markSucceeded("latest");
+		LinkAnalysisResult mapped = result(3L, LinkAnalysisStatus.SUCCEEDED, "latest", null, null);
 
 		when(linkRepository.findById(3L))
 				.thenReturn(Optional.of(processing))
+				.thenReturn(Optional.of(processing))
+				.thenReturn(Optional.of(processing))
 				.thenReturn(Optional.of(latest));
-		when(linkRepository.compareAndSetAnalysisResult(
-				eq(3L),
-				eq(1L),
-				eq(Set.of(LinkAnalysisStatus.REQUESTED, LinkAnalysisStatus.PROCESSING)),
-				eq(LinkAnalysisStatus.SUCCEEDED),
-				eq("done"),
-				eq(null),
-				eq(null),
-				any(Instant.class)
-		)).thenReturn(0);
+		when(linkAnalysisResultMapper.from(latest)).thenReturn(mapped);
+		stubCasUpdate(0);
 
 		LinkAnalysisResult result = linkAnalysisStatusWriteService.applySyncSnapshot(
 				3L,
 				LinkAnalysisStatus.SUCCEEDED,
-				"done",
+				resultSnapshot("done"),
 				null,
 				null
 		);
@@ -140,20 +137,13 @@ class LinkAnalysisStatusWriteServiceTest {
 		failed.markFailed();
 		ReflectionTestUtils.setField(failed, "errorCode", "E001");
 		ReflectionTestUtils.setField(failed, "errorMessage", "failed");
+		LinkAnalysisResult mapped = result(4L, LinkAnalysisStatus.FAILED, null, "E001", "failed");
 
 		when(linkRepository.findById(4L))
 				.thenReturn(Optional.of(processing))
 				.thenReturn(Optional.of(failed));
-		when(linkRepository.compareAndSetAnalysisResult(
-				eq(4L),
-				eq(1L),
-				eq(Set.of(LinkAnalysisStatus.REQUESTED, LinkAnalysisStatus.PROCESSING)),
-				eq(LinkAnalysisStatus.FAILED),
-				eq(null),
-				eq("E001"),
-				eq("failed"),
-				any(Instant.class)
-		)).thenReturn(1);
+		when(linkAnalysisResultMapper.from(failed)).thenReturn(mapped);
+		stubCasUpdate(1);
 
 		LinkAnalysisResult result = linkAnalysisStatusWriteService.applySyncSnapshot(
 				4L,
@@ -173,5 +163,44 @@ class LinkAnalysisStatusWriteServiceTest {
 		ReflectionTestUtils.setField(link, "id", id);
 		ReflectionTestUtils.setField(link, "version", version);
 		return link;
+	}
+
+	private void stubCasUpdate(int updatedCount) {
+		when(linkRepository.compareAndSetAnalysisResult(
+				any(),
+				any(),
+				any(),
+				any(),
+				any(),
+				any(),
+				any(),
+				any(),
+				any(),
+				any(),
+				any(),
+				any(),
+				any(Instant.class)
+		)).thenReturn(updatedCount);
+	}
+
+	private static ProcessingResultSnapshot resultSnapshot(String caption) {
+		return new ProcessingResultSnapshot(
+				caption,
+				null,
+				null,
+				null,
+				null,
+				null
+		);
+	}
+
+	private static LinkAnalysisResult result(
+			Long linkId,
+			LinkAnalysisStatus status,
+			String caption,
+			String errorCode,
+			String errorMessage
+	) {
+		return new LinkAnalysisResult(linkId, status, caption, errorCode, errorMessage);
 	}
 }

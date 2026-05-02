@@ -4,6 +4,7 @@ import static org.mockito.Mockito.verify;
 
 import com.hufs.capstone.backend.link.domain.repository.LinkAnalysisRequestRepository;
 import com.hufs.capstone.backend.link.domain.repository.RoomLinkRepository;
+import com.hufs.capstone.backend.link.domain.repository.RoomPlaceRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -17,6 +18,9 @@ class RoomLinkCleanupWriteServiceTest {
 	private LinkAnalysisRequestRepository linkAnalysisRequestRepository;
 
 	@Mock
+	private RoomPlaceRepository roomPlaceRepository;
+
+	@Mock
 	private RoomLinkRepository roomLinkRepository;
 
 	@InjectMocks
@@ -26,6 +30,7 @@ class RoomLinkCleanupWriteServiceTest {
 	void deleteAllByRoomIdShouldCallRepositoryDelete() {
 		roomLinkCleanupWriteService.deleteAllByRoomId(1L);
 
+		verify(roomPlaceRepository).deleteByRoomId(1L);
 		verify(linkAnalysisRequestRepository).deleteByRoomId(1L);
 		verify(roomLinkRepository).deleteByRoomId(1L);
 	}

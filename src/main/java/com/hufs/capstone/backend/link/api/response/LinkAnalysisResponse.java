@@ -1,13 +1,16 @@
 package com.hufs.capstone.backend.link.api.response;
 
 import com.hufs.capstone.backend.link.application.dto.LinkAnalysisResult;
+import com.hufs.capstone.backend.link.application.dto.LinkPlaceResult;
+import com.hufs.capstone.backend.link.application.dto.LinkPlaceResult.DisabledReason;
 import com.hufs.capstone.backend.link.domain.LinkAnalysisStatus;
+import java.math.BigDecimal;
+import java.util.List;
 
-// TODO: processing 서버가 장소 후보를 제공하면 placeCandidates 응답 DTO를 별도로 확장한다.
 public record LinkAnalysisResponse(
 		Long linkId,
 		LinkAnalysisStatus status,
-		String caption,
+		List<PlaceResponse> candidatePlaces,
 		String errorCode,
 		String errorMessage
 ) {
@@ -16,9 +19,52 @@ public record LinkAnalysisResponse(
 		return new LinkAnalysisResponse(
 				result.linkId(),
 				result.status(),
-				result.captionRaw(),
+				result.candidatePlaces().stream()
+						.map(PlaceResponse::from)
+						.toList(),
 				result.errorCode(),
 				result.errorMessage()
 		);
+	}
+
+	public record PlaceResponse(
+			String kakaoPlaceId,
+			String placeName,
+			String categoryName,
+			String categoryGroupCode,
+			String categoryGroupName,
+			String addressName,
+			String roadAddressName,
+			BigDecimal longitude,
+			BigDecimal latitude,
+			String phone,
+			String placeUrl,
+			String sourceKeyword,
+			boolean alreadySaved,
+			boolean selectable,
+			Long roomPlaceId,
+			DisabledReason disabledReason
+	) {
+
+		private static PlaceResponse from(LinkPlaceResult result) {
+			return new PlaceResponse(
+					result.kakaoPlaceId(),
+					result.placeName(),
+					result.categoryName(),
+					result.categoryGroupCode(),
+					result.categoryGroupName(),
+					result.addressName(),
+					result.roadAddressName(),
+					result.longitude(),
+					result.latitude(),
+					result.phone(),
+					result.placeUrl(),
+					result.sourceKeyword(),
+					result.alreadySaved(),
+					result.selectable(),
+					result.roomPlaceId(),
+					result.disabledReason()
+			);
+		}
 	}
 }

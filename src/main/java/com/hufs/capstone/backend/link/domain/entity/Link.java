@@ -40,6 +40,21 @@ public class Link extends AuditableEntity {
 	@Column(columnDefinition = "text")
 	private String captionRaw;
 
+	@Column(length = 255)
+	private String extractionStoreName;
+
+	@Column(length = 500)
+	private String extractionAddress;
+
+	@Column(length = 50)
+	private String extractionCertainty;
+
+	@Column(columnDefinition = "text")
+	private String extractedPlacesJson;
+
+	@Column(columnDefinition = "text")
+	private String processingResultJson;
+
 	@Column(length = 100)
 	private String errorCode;
 

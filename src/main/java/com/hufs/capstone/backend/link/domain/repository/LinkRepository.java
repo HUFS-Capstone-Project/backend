@@ -62,6 +62,11 @@ public interface LinkRepository extends JpaRepository<Link, Long> {
 			update Link l
 			set l.status = :targetStatus,
 			    l.captionRaw = :captionRaw,
+			    l.extractionStoreName = :extractionStoreName,
+			    l.extractionAddress = :extractionAddress,
+			    l.extractionCertainty = :extractionCertainty,
+			    l.extractedPlacesJson = :extractedPlacesJson,
+			    l.processingResultJson = :processingResultJson,
 			    l.errorCode = :errorCode,
 			    l.errorMessage = :errorMessage,
 			    l.version = l.version + 1,
@@ -76,6 +81,11 @@ public interface LinkRepository extends JpaRepository<Link, Long> {
 			@Param("updatableStatuses") Collection<LinkAnalysisStatus> updatableStatuses,
 			@Param("targetStatus") LinkAnalysisStatus targetStatus,
 			@Param("captionRaw") String captionRaw,
+			@Param("extractionStoreName") String extractionStoreName,
+			@Param("extractionAddress") String extractionAddress,
+			@Param("extractionCertainty") String extractionCertainty,
+			@Param("extractedPlacesJson") String extractedPlacesJson,
+			@Param("processingResultJson") String processingResultJson,
 			@Param("errorCode") String errorCode,
 			@Param("errorMessage") String errorMessage,
 			@Param("updatedAt") Instant updatedAt

@@ -8,8 +8,10 @@ import com.hufs.capstone.backend.link.domain.LinkAnalysisStatus;
 import com.hufs.capstone.backend.link.domain.ProcessingDispatchStatus;
 import com.hufs.capstone.backend.link.domain.entity.Link;
 import com.hufs.capstone.backend.link.domain.entity.LinkAnalysisRequest;
+import com.hufs.capstone.backend.link.domain.entity.RoomLink;
 import com.hufs.capstone.backend.link.domain.repository.LinkAnalysisRequestRepository;
 import com.hufs.capstone.backend.link.domain.repository.LinkRepository;
+import com.hufs.capstone.backend.link.domain.repository.RoomLinkRepository;
 import com.hufs.capstone.backend.room.application.RoomAccessService;
 import com.hufs.capstone.backend.room.domain.entity.Room;
 import java.time.Instant;
@@ -28,6 +30,7 @@ public class LinkAnalysisRequestWriteService {
 
 	private final LinkRepository linkRepository;
 	private final LinkAnalysisRequestRepository linkAnalysisRequestRepository;
+	private final RoomLinkRepository roomLinkRepository;
 	private final RoomAccessService roomAccessService;
 	private final ApplicationEventPublisher eventPublisher;
 
@@ -40,6 +43,7 @@ public class LinkAnalysisRequestWriteService {
 	) {
 		Room room = roomAccessService.requireMemberRoom(roomId, userId);
 		AnalysisTarget target = findOrCreateLink(normalizedUrl);
+		findOrCreateRoomLink(target.link(), room);
 		boolean createdRequest = findOrCreateAnalysisRequest(target.link(), room, userId, source);
 		boolean recoveredDispatchFailed = recoverDispatchFailedForManualRetry(target.link());
 
@@ -88,6 +92,21 @@ public class LinkAnalysisRequestWriteService {
 		} catch (DataAccessException ex) {
 			log.error("링크 분석 요청 이력 저장에 실패했습니다. roomId={}, linkId={}", room.getPublicId(), link.getId(), ex);
 			throw new BusinessException(ErrorCode.E500_INTERNAL, "링크 분석 요청 이력 저장에 실패했습니다.", ex);
+		}
+	}
+
+	private void findOrCreateRoomLink(Link link, Room room) {
+		if (roomLinkRepository.findByRoomAndLinkId(room, link.getId()).isPresent()) {
+			return;
+		}
+
+		try {
+			roomLinkRepository.saveAndFlush(RoomLink.bind(room, link));
+		} catch (DataIntegrityViolationException ex) {
+			throw new LinkAnalysisRequestDuplicateRaceException(room.getPublicId(), link.getId(), ex);
+		} catch (DataAccessException ex) {
+			log.error("Room link save failed. roomId={}, linkId={}", room.getPublicId(), link.getId(), ex);
+			throw new BusinessException(ErrorCode.E500_INTERNAL, "Room link save failed.", ex);
 		}
 	}
 

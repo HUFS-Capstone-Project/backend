@@ -2,7 +2,8 @@ package com.hufs.capstone.backend.link.application;
 
 import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
-import com.hufs.capstone.backend.link.domain.repository.LinkAnalysisRequestRepository;
+import com.hufs.capstone.backend.link.domain.entity.RoomLink;
+import com.hufs.capstone.backend.link.domain.repository.RoomLinkRepository;
 import com.hufs.capstone.backend.room.application.RoomAccessService;
 import com.hufs.capstone.backend.room.domain.entity.Room;
 import lombok.RequiredArgsConstructor;
@@ -13,13 +14,19 @@ import org.springframework.stereotype.Service;
 public class LinkAnalysisAuthorizationService {
 
 	private final RoomAccessService roomAccessService;
-	private final LinkAnalysisRequestRepository linkAnalysisRequestRepository;
+	private final RoomLinkRepository roomLinkRepository;
 
-	public void assertReadable(Long userId, String roomId, Long linkId) {
+	public Room requireReadableRoom(Long userId, String roomId, Long linkId) {
 		Room room = roomAccessService.requireMemberRoom(roomId, userId);
-		boolean requestedInRoom = linkAnalysisRequestRepository.existsByRoomAndLinkId(room, linkId);
-		if (!requestedInRoom) {
-			throw new BusinessException(ErrorCode.E403_FORBIDDEN, "해당 방에서 요청한 링크 분석 이력이 없습니다.");
+		if (!roomLinkRepository.existsByRoomAndLinkId(room, linkId)) {
+			throw new BusinessException(ErrorCode.E403_FORBIDDEN, "Link is not shared in this room.");
 		}
+		return room;
+	}
+
+	public RoomLink requireRoomLink(Long userId, String roomId, Long linkId) {
+		Room room = requireReadableRoom(userId, roomId, linkId);
+		return roomLinkRepository.findByRoomAndLinkId(room, linkId)
+				.orElseThrow(() -> new BusinessException(ErrorCode.E403_FORBIDDEN, "Link is not shared in this room."));
 	}
 }

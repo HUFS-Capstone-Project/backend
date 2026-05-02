@@ -19,19 +19,25 @@ import com.hufs.capstone.backend.global.exception.ErrorCode;
 import com.hufs.capstone.backend.link.application.dto.AnalyzeLinkCommand;
 import com.hufs.capstone.backend.link.application.dto.LinkAnalysisResult;
 import com.hufs.capstone.backend.link.application.dto.LinkAnalysisRequestResult;
+import com.hufs.capstone.backend.link.application.dto.LinkPlaceResult;
+import com.hufs.capstone.backend.link.application.dto.RoomPlaceSaveResult;
+import com.hufs.capstone.backend.link.application.dto.SaveRoomPlacesCommand;
 import com.hufs.capstone.backend.link.application.event.LinkProcessingRequestedEvent;
 import com.hufs.capstone.backend.link.domain.LinkAnalysisStatus;
 import com.hufs.capstone.backend.link.domain.ProcessingDispatchStatus;
 import com.hufs.capstone.backend.link.domain.entity.Link;
 import com.hufs.capstone.backend.link.domain.entity.LinkAnalysisRequest;
+import com.hufs.capstone.backend.link.domain.entity.RoomLink;
 import com.hufs.capstone.backend.link.domain.repository.LinkAnalysisRequestRepository;
 import com.hufs.capstone.backend.link.domain.repository.LinkProcessingHistoryRepository;
 import com.hufs.capstone.backend.link.domain.repository.LinkRepository;
 import com.hufs.capstone.backend.link.domain.repository.RoomLinkRepository;
+import com.hufs.capstone.backend.link.domain.repository.RoomPlaceRepository;
 import com.hufs.capstone.backend.room.domain.entity.Room;
 import com.hufs.capstone.backend.room.domain.entity.RoomMember;
 import com.hufs.capstone.backend.room.domain.repository.RoomMemberRepository;
 import com.hufs.capstone.backend.room.domain.repository.RoomRepository;
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -84,6 +90,9 @@ class LinkConcurrencyIntegrationTest {
 	private LinkProcessingDispatchService linkProcessingDispatchService;
 
 	@Autowired
+	private RoomPlaceCommandService roomPlaceCommandService;
+
+	@Autowired
 	private LinkRepository linkRepository;
 
 	@Autowired
@@ -91,6 +100,9 @@ class LinkConcurrencyIntegrationTest {
 
 	@Autowired
 	private RoomLinkRepository roomLinkRepository;
+
+	@Autowired
+	private RoomPlaceRepository roomPlaceRepository;
 
 	@Autowired
 	private LinkProcessingHistoryRepository linkProcessingHistoryRepository;
@@ -109,6 +121,7 @@ class LinkConcurrencyIntegrationTest {
 
 	@BeforeEach
 	void setUp() {
+		roomPlaceRepository.deleteAll();
 		roomLinkRepository.deleteAll();
 		linkAnalysisRequestRepository.deleteAll();
 		linkProcessingHistoryRepository.deleteAll();
@@ -127,6 +140,7 @@ class LinkConcurrencyIntegrationTest {
 
 	@AfterEach
 	void tearDown() {
+		roomPlaceRepository.deleteAll();
 		roomLinkRepository.deleteAll();
 		linkAnalysisRequestRepository.deleteAll();
 		linkProcessingHistoryRepository.deleteAll();
@@ -136,7 +150,7 @@ class LinkConcurrencyIntegrationTest {
 	}
 
 	@Test
-	void shouldCreateAnalysisRequestWithoutRoomLinkForNewUrl() throws Exception {
+	void shouldCreateAnalysisRequestAndRoomLinkForNewUrl() throws Exception {
 		when(processingClient.createJob("https://example.com/post/1", ROOM_A_PUBLIC_ID, null))
 				.thenReturn(new CreateProcessingJobResponse("job-1"));
 
@@ -150,7 +164,7 @@ class LinkConcurrencyIntegrationTest {
 		assertThat(result.createdRequest()).isTrue();
 		assertThat(linkRepository.count()).isEqualTo(1);
 		assertThat(linkAnalysisRequestRepository.count()).isEqualTo(1);
-		assertThat(roomLinkRepository.count()).isZero();
+		assertThat(roomLinkRepository.count()).isEqualTo(1);
 		awaitValue(
 				() -> linkRepository.findById(result.linkId()).orElseThrow(),
 				link -> link.getDispatchStatus() == ProcessingDispatchStatus.DISPATCHED
@@ -183,7 +197,7 @@ class LinkConcurrencyIntegrationTest {
 		assertThat(second.createdRequest()).isFalse();
 		assertThat(linkRepository.count()).isEqualTo(1);
 		assertThat(linkAnalysisRequestRepository.countByLinkId(first.linkId())).isEqualTo(1);
-		assertThat(roomLinkRepository.count()).isZero();
+		assertThat(roomLinkRepository.count()).isEqualTo(1);
 		verify(processingClient, times(1)).createJob("https://example.com/post/1", ROOM_A_PUBLIC_ID, null);
 	}
 
@@ -210,7 +224,7 @@ class LinkConcurrencyIntegrationTest {
 		assertThat(first.linkId()).isEqualTo(second.linkId());
 		assertThat(linkRepository.count()).isEqualTo(1);
 		assertThat(linkAnalysisRequestRepository.countByLinkId(first.linkId())).isEqualTo(2);
-		assertThat(roomLinkRepository.count()).isZero();
+		assertThat(roomLinkRepository.count()).isEqualTo(2);
 		verify(processingClient, times(1)).createJob("https://example.com/post/1", ROOM_A_PUBLIC_ID, null);
 	}
 
@@ -262,7 +276,7 @@ class LinkConcurrencyIntegrationTest {
 		assertThat(results).extracting(LinkAnalysisRequestResult::createdRequest).contains(true, false);
 		assertThat(linkRepository.count()).isEqualTo(1);
 		assertThat(linkAnalysisRequestRepository.count()).isEqualTo(1);
-		assertThat(roomLinkRepository.count()).isZero();
+		assertThat(roomLinkRepository.count()).isEqualTo(1);
 		awaitValue(
 				() -> linkRepository.findById(results.get(0).linkId()).orElseThrow(),
 				link -> link.getDispatchStatus() == ProcessingDispatchStatus.DISPATCHED
@@ -276,7 +290,7 @@ class LinkConcurrencyIntegrationTest {
 		when(processingClient.getJob("job-2"))
 				.thenReturn(new ProcessingJobResponse("job-2", "succeeded", null, ROOM_A_PUBLIC_ID, null, null, null));
 		when(processingClient.getJobResult("job-2"))
-				.thenReturn(new ProcessingJobResultResponse("video", "caption ready", null, null, null, null));
+				.thenReturn(succeededResultWithCaption("caption ready"));
 
 		LinkAnalysisResult result = linkAnalysisStatusService.getLinkAnalysisResult(MEMBER_USER_ID, ROOM_A_PUBLIC_ID, link.getId());
 
@@ -285,9 +299,286 @@ class LinkConcurrencyIntegrationTest {
 	}
 
 	@Test
+	void shouldStoreCandidatePlacesAndRawJsonWhenProcessingSucceeded() {
+		Link link = saveProcessingLink("https://example.com/post/place", "job-place", roomA);
+		when(processingClient.getJob("job-place"))
+				.thenReturn(new ProcessingJobResponse("job-place", "succeeded", null, ROOM_A_PUBLIC_ID, null, null, null));
+		when(processingClient.getJobResult("job-place"))
+				.thenReturn(succeededResultWithPlace());
+
+		LinkAnalysisResult result = linkAnalysisStatusService.getLinkAnalysisResult(
+				MEMBER_USER_ID,
+				ROOM_A_PUBLIC_ID,
+				link.getId()
+		);
+		Link reloaded = linkRepository.findById(link.getId()).orElseThrow();
+
+		assertThat(result.status()).isEqualTo(LinkAnalysisStatus.SUCCEEDED);
+		assertThat(result.candidatePlaces()).hasSize(1);
+		assertThat(result.candidatePlaces().get(0).kakaoPlaceId()).isEqualTo("123456789");
+		assertThat(result.candidatePlaces().get(0).selectable()).isTrue();
+		assertThat(reloaded.getExtractionStoreName()).isEqualTo("Coffee Mansion");
+		assertThat(reloaded.getExtractionAddress()).isEqualTo("Seoul Jongno-gu");
+		assertThat(reloaded.getExtractedPlacesJson()).contains("Coffee Mansion");
+		assertThat(reloaded.getProcessingResultJson()).contains("selected_places");
+	}
+
+	@Test
+	void shouldStoreSucceededResultWithoutCandidatePlacesWhenSelectedPlacesIsEmpty() {
+		Link link = saveProcessingLink("https://example.com/post/no-place", "job-no-place", roomA);
+		when(processingClient.getJob("job-no-place"))
+				.thenReturn(new ProcessingJobResponse("job-no-place", "succeeded", null, ROOM_A_PUBLIC_ID, null, null, null));
+		when(processingClient.getJobResult("job-no-place"))
+				.thenReturn(new ProcessingJobResultResponse(
+						"job-no-place",
+						"https://example.com/post/no-place",
+						"instagram",
+						"SUCCEEDED",
+						"caption without selected place",
+						null,
+						null,
+						List.of(),
+						null,
+						null
+				));
+
+		LinkAnalysisResult result = linkAnalysisStatusService.getLinkAnalysisResult(
+				MEMBER_USER_ID,
+				ROOM_A_PUBLIC_ID,
+				link.getId()
+		);
+		Link reloaded = linkRepository.findById(link.getId()).orElseThrow();
+
+		assertThat(result.status()).isEqualTo(LinkAnalysisStatus.SUCCEEDED);
+		assertThat(result.captionRaw()).isEqualTo("caption without selected place");
+		assertThat(result.candidatePlaces()).isEmpty();
+		assertThat(reloaded.getExtractedPlacesJson()).isEqualTo("[]");
+		assertThat(reloaded.getProcessingResultJson()).contains("caption without selected place");
+	}
+
+	@Test
+	void shouldSaveMultipleCandidatePlacesFromSameLinkAndNoOpAlreadySaved() {
+		Link link = saveProcessingLink("https://example.com/post/save-places", "job-save-places", roomA);
+		when(processingClient.getJob("job-save-places"))
+				.thenReturn(new ProcessingJobResponse("job-save-places", "succeeded", null, ROOM_A_PUBLIC_ID, null, null, null));
+		when(processingClient.getJobResult("job-save-places"))
+				.thenReturn(succeededResultWithPlaces(
+						place("123456789", "Coffee Mansion"),
+						place("987654321", "Tea House")
+				));
+
+		linkAnalysisStatusService.getLinkAnalysisResult(MEMBER_USER_ID, ROOM_A_PUBLIC_ID, link.getId());
+
+		RoomPlaceSaveResult saved = roomPlaceCommandService.saveRoomPlaces(
+				MEMBER_USER_ID,
+				ROOM_A_PUBLIC_ID,
+				link.getId(),
+				new SaveRoomPlacesCommand(List.of("123456789", "987654321"))
+		);
+		RoomPlaceSaveResult repeated = roomPlaceCommandService.saveRoomPlaces(
+				MEMBER_USER_ID,
+				ROOM_A_PUBLIC_ID,
+				link.getId(),
+				new SaveRoomPlacesCommand(List.of("123456789"))
+		);
+
+		assertThat(saved.places()).hasSize(2);
+		assertThat(saved.places()).allMatch(RoomPlaceSaveResult.SavedPlaceResult::created);
+		assertThat(repeated.places()).hasSize(1);
+		assertThat(repeated.places().get(0).created()).isFalse();
+		assertThat(repeated.places().get(0).alreadySaved()).isTrue();
+		assertThat(roomPlaceRepository.countByRoomId(roomA.getId())).isEqualTo(2);
+	}
+
+	@Test
+	void shouldMarkAlreadySavedCandidateInAnalysisResult() {
+		Link link = saveProcessingLink("https://example.com/post/saved-status", "job-saved-status", roomA);
+		when(processingClient.getJob("job-saved-status"))
+				.thenReturn(new ProcessingJobResponse("job-saved-status", "succeeded", null, ROOM_A_PUBLIC_ID, null, null, null));
+		when(processingClient.getJobResult("job-saved-status"))
+				.thenReturn(succeededResultWithPlaces(
+						place("123456789", "Coffee Mansion"),
+						place("987654321", "Tea House")
+				));
+		linkAnalysisStatusService.getLinkAnalysisResult(MEMBER_USER_ID, ROOM_A_PUBLIC_ID, link.getId());
+		roomPlaceCommandService.saveRoomPlaces(
+				MEMBER_USER_ID,
+				ROOM_A_PUBLIC_ID,
+				link.getId(),
+				new SaveRoomPlacesCommand(List.of("123456789"))
+		);
+
+		LinkAnalysisResult result = linkAnalysisStatusService.getLinkAnalysisResult(MEMBER_USER_ID, ROOM_A_PUBLIC_ID, link.getId());
+
+		LinkPlaceResult savedCandidate = result.candidatePlaces().stream()
+				.filter(candidate -> "123456789".equals(candidate.kakaoPlaceId()))
+				.findFirst()
+				.orElseThrow();
+		LinkPlaceResult unsavedCandidate = result.candidatePlaces().stream()
+				.filter(candidate -> "987654321".equals(candidate.kakaoPlaceId()))
+				.findFirst()
+				.orElseThrow();
+		assertThat(savedCandidate.alreadySaved()).isTrue();
+		assertThat(savedCandidate.selectable()).isFalse();
+		assertThat(savedCandidate.disabledReason()).isEqualTo(LinkPlaceResult.DisabledReason.ALREADY_SAVED);
+		assertThat(savedCandidate.roomPlaceId()).isNotNull();
+		assertThat(unsavedCandidate.alreadySaved()).isFalse();
+		assertThat(unsavedCandidate.selectable()).isTrue();
+		assertThat(unsavedCandidate.disabledReason()).isNull();
+	}
+
+	@Test
+	void shouldRejectSavingDuplicateRequestIdsAndInvalidCandidates() {
+		Link link = saveProcessingLink("https://example.com/post/invalid-save", "job-invalid-save", roomA);
+		when(processingClient.getJob("job-invalid-save"))
+				.thenReturn(new ProcessingJobResponse("job-invalid-save", "succeeded", null, ROOM_A_PUBLIC_ID, null, null, null));
+		when(processingClient.getJobResult("job-invalid-save"))
+				.thenReturn(succeededResultWithPlaces(place("123456789", "Coffee Mansion")));
+		linkAnalysisStatusService.getLinkAnalysisResult(MEMBER_USER_ID, ROOM_A_PUBLIC_ID, link.getId());
+
+		assertThatThrownBy(() -> roomPlaceCommandService.saveRoomPlaces(
+				MEMBER_USER_ID,
+				ROOM_A_PUBLIC_ID,
+				link.getId(),
+				new SaveRoomPlacesCommand(List.of("123456789", "123456789"))
+		))
+				.isInstanceOf(BusinessException.class)
+				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.E400_ILLEGAL_ARGUMENT));
+		assertThatThrownBy(() -> roomPlaceCommandService.saveRoomPlaces(
+				MEMBER_USER_ID,
+				ROOM_A_PUBLIC_ID,
+				link.getId(),
+				new SaveRoomPlacesCommand(List.of("missing"))
+		))
+				.isInstanceOf(BusinessException.class)
+				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.E400_ILLEGAL_ARGUMENT));
+		assertThat(roomPlaceRepository.countByRoomId(roomA.getId())).isZero();
+	}
+
+	@Test
+	void shouldTreatSameKakaoPlaceFromDifferentLinkAsAlreadySavedInSameRoom() {
+		Link firstLink = saveProcessingLink("https://example.com/post/first-place", "job-first-place", roomA);
+		when(processingClient.getJob("job-first-place"))
+				.thenReturn(new ProcessingJobResponse("job-first-place", "succeeded", null, ROOM_A_PUBLIC_ID, null, null, null));
+		when(processingClient.getJobResult("job-first-place"))
+				.thenReturn(succeededResultWithPlaces(place("123456789", "Coffee Mansion")));
+		linkAnalysisStatusService.getLinkAnalysisResult(MEMBER_USER_ID, ROOM_A_PUBLIC_ID, firstLink.getId());
+		roomPlaceCommandService.saveRoomPlaces(
+				MEMBER_USER_ID,
+				ROOM_A_PUBLIC_ID,
+				firstLink.getId(),
+				new SaveRoomPlacesCommand(List.of("123456789"))
+		);
+
+		Link secondLink = saveProcessingLink("https://example.com/post/second-place", "job-second-place", roomA);
+		when(processingClient.getJob("job-second-place"))
+				.thenReturn(new ProcessingJobResponse("job-second-place", "succeeded", null, ROOM_A_PUBLIC_ID, null, null, null));
+		when(processingClient.getJobResult("job-second-place"))
+				.thenReturn(succeededResultWithPlaces(place("123456789", "Coffee Mansion")));
+
+		LinkAnalysisResult result =
+				linkAnalysisStatusService.getLinkAnalysisResult(MEMBER_USER_ID, ROOM_A_PUBLIC_ID, secondLink.getId());
+
+		assertThat(result.candidatePlaces()).hasSize(1);
+		assertThat(result.candidatePlaces().get(0).alreadySaved()).isTrue();
+		assertThat(result.candidatePlaces().get(0).selectable()).isFalse();
+		assertThat(roomPlaceRepository.countByRoomId(roomA.getId())).isEqualTo(1);
+	}
+
+	@Test
+	void shouldAllowSameKakaoPlaceInDifferentRooms() {
+		Link firstLink = saveProcessingLink("https://example.com/post/room-a-place", "job-room-a-place", roomA);
+		when(processingClient.getJob("job-room-a-place"))
+				.thenReturn(new ProcessingJobResponse("job-room-a-place", "succeeded", null, ROOM_A_PUBLIC_ID, null, null, null));
+		when(processingClient.getJobResult("job-room-a-place"))
+				.thenReturn(succeededResultWithPlaces(place("123456789", "Coffee Mansion")));
+		linkAnalysisStatusService.getLinkAnalysisResult(MEMBER_USER_ID, ROOM_A_PUBLIC_ID, firstLink.getId());
+		roomPlaceCommandService.saveRoomPlaces(
+				MEMBER_USER_ID,
+				ROOM_A_PUBLIC_ID,
+				firstLink.getId(),
+				new SaveRoomPlacesCommand(List.of("123456789"))
+		);
+		Link secondLink = saveProcessingLink("https://example.com/post/room-b-place", "job-room-b-place", roomB);
+		when(processingClient.getJob("job-room-b-place"))
+				.thenReturn(new ProcessingJobResponse("job-room-b-place", "succeeded", null, ROOM_B_PUBLIC_ID, null, null, null));
+		when(processingClient.getJobResult("job-room-b-place"))
+				.thenReturn(succeededResultWithPlaces(place("123456789", "Coffee Mansion")));
+		linkAnalysisStatusService.getLinkAnalysisResult(MEMBER_USER_ID, ROOM_B_PUBLIC_ID, secondLink.getId());
+
+		roomPlaceCommandService.saveRoomPlaces(
+				MEMBER_USER_ID,
+				ROOM_B_PUBLIC_ID,
+				secondLink.getId(),
+				new SaveRoomPlacesCommand(List.of("123456789"))
+		);
+
+		assertThat(roomPlaceRepository.countByRoomId(roomA.getId())).isEqualTo(1);
+		assertThat(roomPlaceRepository.countByRoomId(roomB.getId())).isEqualTo(1);
+	}
+
+	@Test
+	void shouldRejectSavingWhenLinkIsNotSharedInRoomOrUserIsNotMember() {
+		Link link = saveProcessingLink("https://example.com/post/not-shared", "job-not-shared", roomA);
+
+		assertThatThrownBy(() -> roomPlaceCommandService.saveRoomPlaces(
+				MEMBER_USER_ID,
+				ROOM_B_PUBLIC_ID,
+				link.getId(),
+				new SaveRoomPlacesCommand(List.of("123456789"))
+		))
+				.isInstanceOf(BusinessException.class)
+				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.E403_FORBIDDEN));
+		assertThatThrownBy(() -> roomPlaceCommandService.saveRoomPlaces(
+				OTHER_USER_ID,
+				ROOM_A_PUBLIC_ID,
+				link.getId(),
+				new SaveRoomPlacesCommand(List.of("123456789"))
+		))
+				.isInstanceOf(BusinessException.class)
+				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.E403_FORBIDDEN));
+	}
+
+	@Test
+	void shouldPreventDuplicateRoomPlaceUnderConcurrentSave() throws Exception {
+		Link link = saveProcessingLink("https://example.com/post/concurrent-place", "job-concurrent-place", roomA);
+		when(processingClient.getJob("job-concurrent-place"))
+				.thenReturn(new ProcessingJobResponse("job-concurrent-place", "succeeded", null, ROOM_A_PUBLIC_ID, null, null, null));
+		when(processingClient.getJobResult("job-concurrent-place"))
+				.thenReturn(succeededResultWithPlaces(place("123456789", "Coffee Mansion")));
+		linkAnalysisStatusService.getLinkAnalysisResult(MEMBER_USER_ID, ROOM_A_PUBLIC_ID, link.getId());
+
+		runConcurrently(() -> roomPlaceCommandService.saveRoomPlaces(
+				MEMBER_USER_ID,
+				ROOM_A_PUBLIC_ID,
+				link.getId(),
+				new SaveRoomPlacesCommand(List.of("123456789"))
+		), 2);
+
+		assertThat(roomPlaceRepository.countByRoomIdAndKakaoPlaceId(roomA.getId(), "123456789")).isEqualTo(1);
+	}
+
+	@Test
+	void shouldReturnMissingKakaoPlaceIdCandidateAsNotSelectable() {
+		Link link = saveProcessingLink("https://example.com/post/missing-kakao", "job-missing-kakao", roomA);
+		when(processingClient.getJob("job-missing-kakao"))
+				.thenReturn(new ProcessingJobResponse("job-missing-kakao", "succeeded", null, ROOM_A_PUBLIC_ID, null, null, null));
+		when(processingClient.getJobResult("job-missing-kakao"))
+				.thenReturn(succeededResultWithPlaces(place(null, "Unknown Cafe")));
+
+		LinkAnalysisResult result = linkAnalysisStatusService.getLinkAnalysisResult(MEMBER_USER_ID, ROOM_A_PUBLIC_ID, link.getId());
+
+		assertThat(result.candidatePlaces()).hasSize(1);
+		assertThat(result.candidatePlaces().get(0).selectable()).isFalse();
+		assertThat(result.candidatePlaces().get(0).disabledReason())
+				.isEqualTo(LinkPlaceResult.DisabledReason.MISSING_KAKAO_PLACE_ID);
+	}
+
+	@Test
 	void shouldReturnRequestedWithoutCaptionWhenJobIsNotReady() {
 		Link link = linkRepository.saveAndFlush(Link.registerPending("https://example.com/post/3", "https://example.com/post/3"));
 		linkAnalysisRequestRepository.saveAndFlush(LinkAnalysisRequest.create(link, roomA, MEMBER_USER_ID, null));
+		roomLinkRepository.saveAndFlush(RoomLink.bind(roomA, link));
 
 		LinkAnalysisResult result = linkAnalysisStatusService.getLinkAnalysisResult(MEMBER_USER_ID, ROOM_A_PUBLIC_ID, link.getId());
 
@@ -464,7 +755,7 @@ class LinkConcurrencyIntegrationTest {
 		when(processingClient.getJob("job-8"))
 				.thenReturn(new ProcessingJobResponse("job-8", "succeeded", null, ROOM_A_PUBLIC_ID, null, null, null));
 		when(processingClient.getJobResult("job-8"))
-				.thenReturn(new ProcessingJobResultResponse("video", "caption ready", null, null, null, null));
+				.thenReturn(succeededResultWithCaption("caption ready"));
 
 		runConcurrently(() -> linkAnalysisStatusService.getLinkAnalysisResult(MEMBER_USER_ID, ROOM_A_PUBLIC_ID, link.getId()), 2);
 
@@ -481,9 +772,9 @@ class LinkConcurrencyIntegrationTest {
 		AtomicInteger resultCalls = new AtomicInteger();
 		when(processingClient.getJobResult("job-9")).thenAnswer(invocation -> {
 			if (resultCalls.incrementAndGet() == 1) {
-				return new ProcessingJobResultResponse("video", "caption final", null, null, null, null);
+				return succeededResultWithCaption("caption final");
 			}
-			throw new ProcessingClientException("not-ready", HttpStatus.NOT_FOUND, "");
+			throw new ProcessingClientException("not-ready", HttpStatus.CONFLICT, "");
 		});
 
 		runConcurrently(() -> linkAnalysisStatusService.getLinkAnalysisResult(MEMBER_USER_ID, ROOM_A_PUBLIC_ID, link.getId()), 2);
@@ -504,7 +795,74 @@ class LinkConcurrencyIntegrationTest {
 		link.markProcessing();
 		Link savedLink = linkRepository.saveAndFlush(link);
 		linkAnalysisRequestRepository.saveAndFlush(LinkAnalysisRequest.create(savedLink, room, MEMBER_USER_ID, null));
+		roomLinkRepository.saveAndFlush(RoomLink.bind(room, savedLink));
 		return savedLink;
+	}
+
+	private static ProcessingJobResultResponse succeededResultWithPlace() {
+		return succeededResultWithPlaces(place("123456789", "Coffee Mansion"));
+	}
+
+	private static ProcessingJobResultResponse succeededResultWithCaption(String caption) {
+		return new ProcessingJobResultResponse(
+				null,
+				null,
+				null,
+				null,
+				caption,
+				null,
+				null,
+				null,
+				null,
+				null
+		);
+	}
+
+	private static ProcessingJobResultResponse succeededResultWithPlaces(
+			ProcessingJobResultResponse.PlaceCandidateResponse... places
+	) {
+		ProcessingJobResultResponse.ExtractionResultResponse extraction =
+				new ProcessingJobResultResponse.ExtractionResultResponse(
+						"Coffee Mansion",
+						"Seoul Jongno-gu",
+						"Coffee Mansion",
+						"Seoul Jongno-gu",
+						"high"
+				);
+		List<ProcessingJobResultResponse.PlaceCandidateResponse> selectedPlaces = List.of(places);
+		return new ProcessingJobResultResponse(
+				"job-place",
+				"https://example.com/post/place",
+				"instagram",
+				"SUCCEEDED",
+				"caption ready",
+				null,
+				extraction,
+				selectedPlaces,
+				null,
+				null
+		);
+	}
+
+	private static ProcessingJobResultResponse.PlaceCandidateResponse place(String kakaoPlaceId, String placeName) {
+		String effectiveKakaoPlaceId = kakaoPlaceId == null ? null : kakaoPlaceId;
+		return new ProcessingJobResultResponse.PlaceCandidateResponse(
+				effectiveKakaoPlaceId,
+				placeName,
+				"Food > Cafe",
+				"CE7",
+				"Cafe",
+				"02-000-0000",
+				"Seoul Jongno-gu",
+				"Seoul Road 1",
+				"126.972000000000",
+				"37.570000000000",
+				effectiveKakaoPlaceId == null ? null : "https://place.map.kakao.com/" + effectiveKakaoPlaceId,
+				new BigDecimal("0.95"),
+				placeName,
+				placeName,
+				placeName
+		);
 	}
 
 	private static <T> List<T> runConcurrently(Callable<T> task, int threadCount) throws Exception {

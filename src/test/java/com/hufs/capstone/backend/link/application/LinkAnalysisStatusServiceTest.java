@@ -8,9 +8,13 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.hufs.capstone.backend.link.application.dto.LinkAnalysisResult;
+import com.hufs.capstone.backend.link.application.dto.ProcessingResultSnapshot;
 import com.hufs.capstone.backend.link.domain.LinkAnalysisStatus;
 import com.hufs.capstone.backend.link.domain.entity.Link;
 import com.hufs.capstone.backend.link.domain.repository.LinkRepository;
+import com.hufs.capstone.backend.link.domain.repository.RoomPlaceRepository;
+import com.hufs.capstone.backend.room.domain.entity.Room;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
@@ -44,17 +48,24 @@ class LinkAnalysisStatusServiceTest {
 	@Mock
 	private LinkAnalysisStatusWriteService linkAnalysisStatusWriteService;
 
+	@Mock
+	private LinkAnalysisResultMapper linkAnalysisResultMapper;
+
+	@Mock
+	private RoomPlaceRepository roomPlaceRepository;
+
 	@InjectMocks
 	private LinkAnalysisStatusService linkAnalysisStatusService;
 
 	@Test
 	void getLinkAnalysisResultShouldSyncAndWriteOnCacheMissWhenResolverRequiresWrite() {
 		Link snapshot = link(10L, "job-1", LinkAnalysisStatus.PROCESSING);
+		ProcessingResultSnapshot processingResult = resultSnapshot("caption");
 		LinkSyncOrchestrator.ProcessingSyncSnapshot syncSnapshot =
-				new LinkSyncOrchestrator.ProcessingSyncSnapshot(LinkAnalysisStatus.SUCCEEDED, "caption", null, null);
+				new LinkSyncOrchestrator.ProcessingSyncSnapshot(LinkAnalysisStatus.SUCCEEDED, processingResult, null, null);
 		LinkAnalysisStatusResolver.Resolution resolution = LinkAnalysisStatusResolver.Resolution.write(
 				LinkAnalysisStatus.SUCCEEDED,
-				"caption",
+				processingResult,
 				null,
 				null
 		);
@@ -69,8 +80,10 @@ class LinkAnalysisStatusServiceTest {
 		when(linkRepository.findById(10L)).thenReturn(Optional.of(snapshot));
 		when(linkSyncOrchestrator.resolve(snapshot)).thenReturn(syncSnapshot);
 		when(linkAnalysisStatusResolver.resolve(snapshot, syncSnapshot)).thenReturn(resolution);
-		when(linkAnalysisStatusWriteService.applySyncSnapshot(10L, LinkAnalysisStatus.SUCCEEDED, "caption", null, null))
+		when(linkAnalysisStatusWriteService.applySyncSnapshot(10L, LinkAnalysisStatus.SUCCEEDED, processingResult, null, null))
 				.thenReturn(synced);
+		when(linkAnalysisAuthorizationService.requireReadableRoom(USER_ID, ROOM_PUBLIC_ID, 10L)).thenReturn(room());
+		when(linkAnalysisResultMapper.withSavedStatus(synced, List.of())).thenReturn(synced);
 		when(linkAnalysisCacheCoordinator.getOrLoad(eq(10L), any())).thenAnswer(invocation -> {
 			@SuppressWarnings("unchecked")
 			Supplier<LinkAnalysisResult> loader = invocation.getArgument(1, Supplier.class);
@@ -80,18 +93,28 @@ class LinkAnalysisStatusServiceTest {
 		LinkAnalysisResult result = linkAnalysisStatusService.getLinkAnalysisResult(USER_ID, ROOM_PUBLIC_ID, 10L);
 
 		assertThat(result).isEqualTo(synced);
-		verify(linkAnalysisAuthorizationService).assertReadable(USER_ID, ROOM_PUBLIC_ID, 10L);
+		verify(linkAnalysisAuthorizationService).requireReadableRoom(USER_ID, ROOM_PUBLIC_ID, 10L);
 		verify(linkSyncOrchestrator).resolve(snapshot);
-		verify(linkAnalysisStatusWriteService).applySyncSnapshot(10L, LinkAnalysisStatus.SUCCEEDED, "caption", null, null);
+		verify(linkAnalysisStatusWriteService).applySyncSnapshot(10L, LinkAnalysisStatus.SUCCEEDED, processingResult, null, null);
 	}
 
 	@Test
 	void getLinkAnalysisResultShouldReturnSnapshotWithoutExternalCallWhenTerminal() {
 		Link terminal = link(11L, "job-2", LinkAnalysisStatus.SUCCEEDED);
 		terminal.markSucceeded("caption done");
+		LinkAnalysisResult mapped = new LinkAnalysisResult(
+				11L,
+				LinkAnalysisStatus.SUCCEEDED,
+				"caption done",
+				null,
+				null
+		);
 		LinkAnalysisStatusResolver.Resolution resolution = LinkAnalysisStatusResolver.Resolution.noWrite();
+		when(linkAnalysisAuthorizationService.requireReadableRoom(USER_ID, ROOM_PUBLIC_ID, 11L)).thenReturn(room());
 		when(linkRepository.findById(11L)).thenReturn(Optional.of(terminal));
 		when(linkAnalysisStatusResolver.resolve(terminal, null)).thenReturn(resolution);
+		when(linkAnalysisResultMapper.from(terminal)).thenReturn(mapped);
+		when(linkAnalysisResultMapper.withSavedStatus(mapped, List.of())).thenReturn(mapped);
 		when(linkAnalysisCacheCoordinator.getOrLoad(eq(11L), any())).thenAnswer(invocation -> {
 			@SuppressWarnings("unchecked")
 			Supplier<LinkAnalysisResult> loader = invocation.getArgument(1, Supplier.class);
@@ -103,7 +126,7 @@ class LinkAnalysisStatusServiceTest {
 		assertThat(result.linkId()).isEqualTo(11L);
 		assertThat(result.status()).isEqualTo(LinkAnalysisStatus.SUCCEEDED);
 		assertThat(result.captionRaw()).isEqualTo("caption done");
-		verify(linkAnalysisAuthorizationService).assertReadable(USER_ID, ROOM_PUBLIC_ID, 11L);
+		verify(linkAnalysisAuthorizationService).requireReadableRoom(USER_ID, ROOM_PUBLIC_ID, 11L);
 		verify(linkSyncOrchestrator, never()).resolve(any());
 		verify(linkAnalysisStatusWriteService, never()).applySyncSnapshot(any(), any(), any(), any(), any());
 	}
@@ -117,12 +140,14 @@ class LinkAnalysisStatusServiceTest {
 				null,
 				null
 		);
+		when(linkAnalysisAuthorizationService.requireReadableRoom(USER_ID, ROOM_PUBLIC_ID, 12L)).thenReturn(room());
+		when(linkAnalysisResultMapper.withSavedStatus(cached, List.of())).thenReturn(cached);
 		when(linkAnalysisCacheCoordinator.getOrLoad(eq(12L), any())).thenReturn(cached);
 
 		LinkAnalysisResult result = linkAnalysisStatusService.getLinkAnalysisResult(USER_ID, ROOM_PUBLIC_ID, 12L);
 
 		assertThat(result).isEqualTo(cached);
-		verify(linkAnalysisAuthorizationService).assertReadable(USER_ID, ROOM_PUBLIC_ID, 12L);
+		verify(linkAnalysisAuthorizationService).requireReadableRoom(USER_ID, ROOM_PUBLIC_ID, 12L);
 		verify(linkRepository, never()).findById(any());
 		verify(linkSyncOrchestrator, never()).resolve(any());
 		verify(linkAnalysisStatusWriteService, never()).applySyncSnapshot(any(), any(), any(), any(), any());
@@ -141,5 +166,22 @@ class LinkAnalysisStatusServiceTest {
 			link.markSucceeded("caption");
 		}
 		return link;
+	}
+
+	private static ProcessingResultSnapshot resultSnapshot(String caption) {
+		return new ProcessingResultSnapshot(
+				caption,
+				null,
+				null,
+				null,
+				null,
+				null
+		);
+	}
+
+	private static Room room() {
+		Room room = Room.create(ROOM_PUBLIC_ID, "Test Room", "INVITE123456", USER_ID);
+		ReflectionTestUtils.setField(room, "id", 1L);
+		return room;
 	}
 }

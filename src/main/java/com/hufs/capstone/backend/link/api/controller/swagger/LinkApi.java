@@ -2,8 +2,10 @@ package com.hufs.capstone.backend.link.api.controller.swagger;
 
 import com.hufs.capstone.backend.global.response.CommonResponse;
 import com.hufs.capstone.backend.link.api.request.AnalyzeLinkRequest;
+import com.hufs.capstone.backend.link.api.request.SaveRoomPlacesRequest;
 import com.hufs.capstone.backend.link.api.response.LinkAnalysisRequestResponse;
 import com.hufs.capstone.backend.link.api.response.LinkAnalysisResponse;
+import com.hufs.capstone.backend.link.api.response.RoomPlaceSaveResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -44,4 +46,18 @@ public interface LinkApi {
 	@ApiResponse(responseCode = "200", description = "OK")
 	@GetMapping("/{linkId}/analysis")
 	CommonResponse<LinkAnalysisResponse> getLinkAnalysis(@PathVariable String roomId, @PathVariable Long linkId);
+
+	@Operation(
+			tags = {"Link"},
+			summary = "링크 후보 장소 방 저장 API",
+			description = "링크 분석 결과에서 추출된 후보 장소 중 하나 이상을 해당 방에 저장합니다."
+	)
+	@ApiResponse(responseCode = "200", description = "OK")
+	@PostMapping("/{linkId}/places")
+	CommonResponse<RoomPlaceSaveResponse> saveRoomPlaces(
+			@PathVariable String roomId,
+			@PathVariable Long linkId,
+			@Valid @RequestBody SaveRoomPlacesRequest request,
+			@RequestHeader(name = "X-XSRF-TOKEN", required = false) String csrfToken
+	);
 }

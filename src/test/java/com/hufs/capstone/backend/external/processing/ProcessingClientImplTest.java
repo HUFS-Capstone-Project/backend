@@ -1,0 +1,213 @@
+package com.hufs.capstone.backend.external.processing;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hufs.capstone.backend.external.processing.dto.CreateProcessingJobResponse;
+import com.hufs.capstone.backend.external.processing.dto.ProcessingJobResultResponse;
+import com.hufs.capstone.backend.external.processing.dto.ProcessingJobResponse;
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpServer;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicReference;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
+
+class ProcessingClientImplTest {
+
+	private static final String INTERNAL_API_KEY = "test-secret-key";
+
+	private HttpServer server;
+
+	@AfterEach
+	void tearDown() {
+		if (server != null) {
+			server.stop(0);
+		}
+	}
+
+	@Test
+	void createJobShouldSendApiKeyAndRequestBody() throws Exception {
+		AtomicReference<String> observedPath = new AtomicReference<>();
+		AtomicReference<String> observedApiKey = new AtomicReference<>();
+		AtomicReference<String> observedBody = new AtomicReference<>();
+		startServer(exchange -> {
+			observedPath.set(exchange.getRequestURI().getPath());
+			observedApiKey.set(exchange.getRequestHeaders().getFirst(ProcessingApiHeaders.INTERNAL_API_KEY));
+			observedBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+			writeJson(exchange, HttpStatus.CREATED.value(), """
+					{"job_id":"job-1","status":"QUEUED","source_url":"https://example.com/p/1","source":"instagram"}
+					""");
+		});
+
+		CreateProcessingJobResponse response = client(3000).createJob(
+				"https://example.com/p/1",
+				"11111111-1111-1111-1111-111111111111",
+				null
+		);
+
+		assertThat(response.jobId()).isEqualTo("job-1");
+		assertThat(observedPath.get()).isEqualTo("/api/v1/jobs");
+		assertThat(observedApiKey.get()).isEqualTo(INTERNAL_API_KEY);
+		assertThat(observedBody.get()).contains("\"url\":\"https://example.com/p/1\"");
+		assertThat(observedBody.get()).contains("\"room_id\":\"11111111-1111-1111-1111-111111111111\"");
+	}
+
+	@Test
+	void getJobAndResultShouldUseDocumentedPaths() throws Exception {
+		AtomicReference<String> jobPath = new AtomicReference<>();
+		AtomicReference<String> resultPath = new AtomicReference<>();
+		startServer(exchange -> {
+			String path = exchange.getRequestURI().getPath();
+			if (path.endsWith("/result")) {
+				resultPath.set(path);
+				writeJson(exchange, HttpStatus.OK.value(), """
+						{"job_id":"job-1","status":"SUCCEEDED","caption":"done","selected_places":[]}
+						""");
+				return;
+			}
+			jobPath.set(path);
+			writeJson(exchange, HttpStatus.OK.value(), """
+					{"job_id":"job-1","status":"PROCESSING","room_id":"room-1"}
+					""");
+		});
+
+		ProcessingJobResponse job = client(3000).getJob("job-1");
+		ProcessingJobResultResponse result = client(3000).getJobResult("job-1");
+
+		assertThat(job.status()).isEqualTo("PROCESSING");
+		assertThat(result.caption()).isEqualTo("done");
+		assertThat(jobPath.get()).isEqualTo("/api/v1/jobs/job-1");
+		assertThat(resultPath.get()).isEqualTo("/api/v1/jobs/job-1/result");
+	}
+
+	@Test
+	void resultResponseShouldReadSelectedPlacesAndIgnoreLegacySelectedPlace() throws Exception {
+		ObjectMapper objectMapper = new ObjectMapper();
+
+		ProcessingJobResultResponse result = objectMapper.readValue("""
+				{
+				  "job_id":"job-1",
+				  "status":"SUCCEEDED",
+				  "caption":"done",
+				  "selected_place":{"kakao_place_id":"legacy"},
+				  "selected_places":[
+				    {"kakao_place_id":"123","place_name":"Coffee Mansion"}
+				  ]
+				}
+				""", ProcessingJobResultResponse.class);
+
+		assertThat(result.selectedPlaces()).hasSize(1);
+		assertThat(result.selectedPlaces().get(0).kakaoPlaceId()).isEqualTo("123");
+	}
+
+	@Test
+	void shouldClassifyClientAndServerErrorsWithoutLeakingApiKey() throws Exception {
+		startServer(exchange -> writeJson(exchange, HttpStatus.UNPROCESSABLE_ENTITY.value(), """
+				{"detail":{"code":"INVALID_URL","message":"Invalid URL."}}
+				"""));
+
+		assertThatThrownBy(() -> client(3000).createJob("bad", "room-1", null))
+				.isInstanceOfSatisfying(ProcessingClientException.class, exception -> {
+					assertThat(exception.getErrorType()).isEqualTo(ProcessingClientErrorType.CLIENT_ERROR);
+					assertThat(exception.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+					assertThat(exception.getProcessingErrorCode()).isEqualTo("INVALID_URL");
+					assertThat(exception.getMessage()).doesNotContain(INTERNAL_API_KEY);
+				});
+	}
+
+	@Test
+	void shouldClassifyResultNotReadyConflict() throws Exception {
+		startServer(exchange -> writeJson(exchange, HttpStatus.CONFLICT.value(), """
+				{"detail":{"code":"RESULT_NOT_READY","message":"Job is currently PROCESSING."}}
+				"""));
+
+		assertThatThrownBy(() -> client(3000).getJobResult("job-1"))
+				.isInstanceOfSatisfying(ProcessingClientException.class, exception -> {
+					assertThat(exception.getErrorType()).isEqualTo(ProcessingClientErrorType.CLIENT_ERROR);
+					assertThat(exception.getStatus()).isEqualTo(HttpStatus.CONFLICT);
+					assertThat(exception.getProcessingErrorCode()).isEqualTo("RESULT_NOT_READY");
+				});
+	}
+
+	@Test
+	void shouldClassifyServerError() throws Exception {
+		startServer(exchange -> writeJson(exchange, HttpStatus.BAD_GATEWAY.value(), "{}"));
+
+		assertThatThrownBy(() -> client(3000).getJob("job-1"))
+				.isInstanceOfSatisfying(ProcessingClientException.class, exception ->
+						assertThat(exception.getErrorType()).isEqualTo(ProcessingClientErrorType.SERVER_ERROR));
+	}
+
+	@Test
+	void shouldClassifyMalformedResponse() throws Exception {
+		startServer(exchange -> writeJson(exchange, HttpStatus.OK.value(), "{"));
+
+		assertThatThrownBy(() -> client(3000).getJob("job-1"))
+				.isInstanceOfSatisfying(ProcessingClientException.class, exception ->
+						assertThat(exception.getErrorType()).isEqualTo(ProcessingClientErrorType.MALFORMED_RESPONSE));
+	}
+
+	@Test
+	void shouldClassifyTimeout() throws Exception {
+		startServer(exchange -> {
+			try {
+				Thread.sleep(300);
+				writeJson(exchange, HttpStatus.OK.value(), "{}");
+			} catch (InterruptedException ex) {
+				Thread.currentThread().interrupt();
+			}
+		});
+
+		assertThatThrownBy(() -> client(50).getJob("job-1"))
+				.isInstanceOfSatisfying(ProcessingClientException.class, exception ->
+						assertThat(exception.getErrorType()).isEqualTo(ProcessingClientErrorType.TIMEOUT));
+	}
+
+	private ProcessingClientImpl client(int readTimeoutMs) {
+		ProcessingProperties properties = new ProcessingProperties(
+				"http://127.0.0.1:" + server.getAddress().getPort(),
+				INTERNAL_API_KEY,
+				1000,
+				readTimeoutMs
+		);
+		return new ProcessingClientImpl(
+				new ProcessingWebClientConfig().processingWebClient(properties),
+				new ObjectMapper()
+		);
+	}
+
+	private void startServer(ExchangeHandler handler) throws IOException {
+		server = HttpServer.create(new InetSocketAddress(0), 0);
+		server.createContext("/", exchange -> {
+			try {
+				handler.handle(exchange);
+			} finally {
+				exchange.close();
+			}
+		});
+		server.setExecutor(Executors.newCachedThreadPool());
+		server.start();
+	}
+
+	private static void writeJson(HttpExchange exchange, int status, String body) throws IOException {
+		byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+		exchange.getResponseHeaders().add("Content-Type", "application/json");
+		exchange.sendResponseHeaders(status, bytes.length);
+		try (OutputStream responseBody = exchange.getResponseBody()) {
+			responseBody.write(bytes);
+		}
+	}
+
+	@FunctionalInterface
+	private interface ExchangeHandler {
+
+		void handle(HttpExchange exchange) throws IOException;
+	}
+}

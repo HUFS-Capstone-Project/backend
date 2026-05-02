@@ -1,0 +1,90 @@
+package com.hufs.capstone.backend.link.application;
+
+import com.hufs.capstone.backend.link.application.dto.LinkAnalysisResult;
+import com.hufs.capstone.backend.link.application.dto.LinkPlaceResult;
+import com.hufs.capstone.backend.link.domain.entity.Link;
+import com.hufs.capstone.backend.link.domain.entity.RoomPlace;
+import com.hufs.capstone.backend.link.domain.vo.PlaceCandidateSnapshot;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import org.springframework.stereotype.Component;
+
+@Component
+public class LinkAnalysisResultMapper {
+
+	private final LinkPlaceCandidateSnapshotMapper placeCandidateSnapshotMapper;
+
+	public LinkAnalysisResultMapper(LinkPlaceCandidateSnapshotMapper placeCandidateSnapshotMapper) {
+		this.placeCandidateSnapshotMapper = placeCandidateSnapshotMapper;
+	}
+
+	public LinkAnalysisResult from(Link link) {
+		List<LinkPlaceResult> candidatePlaces = placeCandidateSnapshotMapper.read(link.getExtractedPlacesJson())
+				.stream()
+				.map(LinkPlaceResult::fromCandidate)
+				.toList();
+		return new LinkAnalysisResult(
+				link.getId(),
+				link.getStatus(),
+				link.getCaptionRaw(),
+				link.getExtractionStoreName(),
+				link.getExtractionAddress(),
+				link.getExtractionCertainty(),
+				candidatePlaces,
+				link.getErrorCode(),
+				link.getErrorMessage()
+		);
+	}
+
+	public LinkAnalysisResult withSavedStatus(LinkAnalysisResult result, List<RoomPlace> savedPlaces) {
+		Map<String, RoomPlace> savedByKakaoPlaceId = savedPlaces.stream()
+				.collect(Collectors.toMap(RoomPlace::getKakaoPlaceId, Function.identity(), (first, ignored) -> first));
+		List<LinkPlaceResult> enrichedCandidates = result.candidatePlaces().stream()
+				.map(candidate -> withSavedStatus(candidate, savedByKakaoPlaceId))
+				.toList();
+		return new LinkAnalysisResult(
+				result.linkId(),
+				result.status(),
+				result.captionRaw(),
+				result.extractionStoreName(),
+				result.extractionAddress(),
+				result.extractionCertainty(),
+				enrichedCandidates,
+				result.errorCode(),
+				result.errorMessage()
+		);
+	}
+
+	private static LinkPlaceResult withSavedStatus(LinkPlaceResult candidate, Map<String, RoomPlace> savedByKakaoPlaceId) {
+		if (candidate.kakaoPlaceId() == null) {
+			return candidate;
+		}
+		RoomPlace savedPlace = savedByKakaoPlaceId.get(candidate.kakaoPlaceId());
+		if (savedPlace == null) {
+			return candidate;
+		}
+		return LinkPlaceResult.alreadySaved(toSnapshot(candidate), savedPlace);
+	}
+
+	private static PlaceCandidateSnapshot toSnapshot(LinkPlaceResult candidate) {
+		return new PlaceCandidateSnapshot(
+				candidate.kakaoPlaceId(),
+				candidate.placeName(),
+				candidate.categoryName(),
+				candidate.categoryGroupCode(),
+				candidate.categoryGroupName(),
+				candidate.phone(),
+				candidate.addressName(),
+				candidate.roadAddressName(),
+				candidate.longitude(),
+				candidate.latitude(),
+				candidate.placeUrl(),
+				candidate.confidence(),
+				candidate.sourceKeyword(),
+				candidate.sourceSentence(),
+				candidate.rawCandidate()
+		);
+	}
+}

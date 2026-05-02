@@ -4,6 +4,7 @@ import com.hufs.capstone.backend.external.processing.ProcessingClient;
 import com.hufs.capstone.backend.external.processing.ProcessingClientException;
 import com.hufs.capstone.backend.external.processing.dto.ProcessingJobResponse;
 import com.hufs.capstone.backend.external.processing.dto.ProcessingJobResultResponse;
+import com.hufs.capstone.backend.link.application.dto.ProcessingResultSnapshot;
 import com.hufs.capstone.backend.link.domain.LinkAnalysisStatus;
 import com.hufs.capstone.backend.link.domain.entity.Link;
 import lombok.RequiredArgsConstructor;
@@ -49,7 +50,7 @@ public class LinkSyncOrchestrator {
 
 	public record ProcessingSyncSnapshot(
 			LinkAnalysisStatus status,
-			String captionRaw,
+			ProcessingResultSnapshot result,
 			String errorCode,
 			String errorMessage
 	) {

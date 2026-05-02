@@ -3,12 +3,12 @@ package com.hufs.capstone.backend.link.application;
 import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
 import com.hufs.capstone.backend.link.application.dto.LinkAnalysisResult;
+import com.hufs.capstone.backend.link.application.dto.ProcessingResultSnapshot;
 import com.hufs.capstone.backend.link.application.event.LinkStatusSyncedEvent;
 import com.hufs.capstone.backend.link.domain.LinkAnalysisStatus;
 import com.hufs.capstone.backend.link.domain.entity.Link;
 import com.hufs.capstone.backend.link.domain.repository.LinkRepository;
 import java.time.Instant;
-import java.util.Objects;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,51 +26,58 @@ public class LinkAnalysisStatusWriteService {
 	private static final int MAX_CAS_RETRY = 3;
 
 	private final LinkRepository linkRepository;
+	private final LinkAnalysisResultMapper linkAnalysisResultMapper;
 	private final ApplicationEventPublisher eventPublisher;
 
 	@Transactional
 	public LinkAnalysisResult applySyncSnapshot(
 			Long linkId,
 			LinkAnalysisStatus targetStatus,
-			String captionRaw,
+			ProcessingResultSnapshot result,
 			String errorCode,
 			String errorMessage
 	) {
 		for (int retry = 0; retry < MAX_CAS_RETRY; retry++) {
 			Link current = linkRepository.findById(linkId)
-					.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "링크를 찾을 수 없습니다."));
+					.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "Link not found."));
 
 			if (current.isTerminal()) {
-				return LinkAnalysisResult.from(current);
+				return linkAnalysisResultMapper.from(current);
 			}
 
-			CasPlan plan = CasPlan.from(current, targetStatus, captionRaw, errorCode, errorMessage);
+			CasPlan plan = CasPlan.from(current, targetStatus, result, errorCode, errorMessage);
 			if (!plan.changed()) {
-				return LinkAnalysisResult.from(current);
+				return linkAnalysisResultMapper.from(current);
 			}
 
 			int updated = executeCasUpdate(current.getId(), current.getVersion(), plan);
 			if (updated == 1) {
 				Link refreshed = linkRepository.findById(linkId)
-						.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "링크를 찾을 수 없습니다."));
+						.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "Link not found."));
 				eventPublisher.publishEvent(new LinkStatusSyncedEvent(refreshed.getId()));
-				return LinkAnalysisResult.from(refreshed);
+				return linkAnalysisResultMapper.from(refreshed);
 			}
 		}
 
-		log.warn("CAS 업데이트 경합이 발생해 최신 링크 분석 상태를 반환합니다. linkId={}, targetStatus={}", linkId, targetStatus);
+		log.warn("CAS update conflict. Returning latest link analysis status. linkId={}, targetStatus={}", linkId, targetStatus);
 		Link latest = linkRepository.findById(linkId)
-				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "링크를 찾을 수 없습니다."));
-		return LinkAnalysisResult.from(latest);
+				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "Link not found."));
+		return linkAnalysisResultMapper.from(latest);
 	}
 
 	private int executeCasUpdate(Long linkId, Long expectedVersion, CasPlan plan) {
+		ProcessingResultSnapshot result = plan.result();
 		return linkRepository.compareAndSetAnalysisResult(
 				linkId,
 				expectedVersion,
 				UPDATABLE_STATUSES,
 				plan.targetStatus(),
-				plan.captionRaw(),
+				result.captionRaw(),
+				result.extractionStoreName(),
+				result.extractionAddress(),
+				result.extractionCertainty(),
+				result.extractedPlacesJson(),
+				result.processingResultJson(),
 				plan.errorCode(),
 				plan.errorMessage(),
 				Instant.now()
@@ -80,7 +87,7 @@ public class LinkAnalysisStatusWriteService {
 	private record CasPlan(
 			boolean changed,
 			LinkAnalysisStatus targetStatus,
-			String captionRaw,
+			ProcessingResultSnapshot result,
 			String errorCode,
 			String errorMessage
 	) {
@@ -88,7 +95,7 @@ public class LinkAnalysisStatusWriteService {
 		private static CasPlan from(
 				Link current,
 				LinkAnalysisStatus targetStatus,
-				String captionRaw,
+				ProcessingResultSnapshot result,
 				String errorCode,
 				String errorMessage
 		) {
@@ -97,64 +104,62 @@ public class LinkAnalysisStatusWriteService {
 				case PROCESSING -> processingPlan(current);
 				case FAILED -> failedPlan(current, errorCode, errorMessage);
 				case DISPATCH_FAILED -> dispatchFailedPlan(current, errorCode, errorMessage);
-				case SUCCEEDED -> succeededPlan(current, captionRaw);
+				case SUCCEEDED -> succeededPlan(result);
 			};
 		}
 
 		private static CasPlan requestedPlan(Link current) {
 			if (current.getStatus() == LinkAnalysisStatus.REQUESTED || current.getStatus() == LinkAnalysisStatus.PROCESSING) {
-				return unchanged(current.getStatus(), current.getCaptionRaw(), current.getErrorCode(), current.getErrorMessage());
+				return unchanged(current.getStatus(), ProcessingResultSnapshot.empty(), current.getErrorCode(),
+						current.getErrorMessage());
 			}
-			return changed(LinkAnalysisStatus.REQUESTED, null, null, null);
+			return changed(LinkAnalysisStatus.REQUESTED, ProcessingResultSnapshot.empty(), null, null);
 		}
 
 		private static CasPlan processingPlan(Link current) {
 			if (current.getStatus() == LinkAnalysisStatus.PROCESSING) {
-				return unchanged(current.getStatus(), current.getCaptionRaw(), current.getErrorCode(), current.getErrorMessage());
+				return unchanged(current.getStatus(), ProcessingResultSnapshot.empty(), current.getErrorCode(),
+						current.getErrorMessage());
 			}
-			return changed(LinkAnalysisStatus.PROCESSING, null, null, null);
+			return changed(LinkAnalysisStatus.PROCESSING, ProcessingResultSnapshot.empty(), null, null);
 		}
 
 		private static CasPlan failedPlan(Link current, String errorCode, String errorMessage) {
 			if (current.getStatus().isTerminal()) {
-				return unchanged(current.getStatus(), current.getCaptionRaw(), current.getErrorCode(), current.getErrorMessage());
+				return unchanged(current.getStatus(), ProcessingResultSnapshot.empty(), current.getErrorCode(),
+						current.getErrorMessage());
 			}
-			return changed(LinkAnalysisStatus.FAILED, null, errorCode, errorMessage);
+			return changed(LinkAnalysisStatus.FAILED, ProcessingResultSnapshot.empty(), errorCode, errorMessage);
 		}
 
 		private static CasPlan dispatchFailedPlan(Link current, String errorCode, String errorMessage) {
 			if (current.getStatus().isTerminal()) {
-				return unchanged(current.getStatus(), current.getCaptionRaw(), current.getErrorCode(), current.getErrorMessage());
+				return unchanged(current.getStatus(), ProcessingResultSnapshot.empty(), current.getErrorCode(),
+						current.getErrorMessage());
 			}
-			return changed(LinkAnalysisStatus.DISPATCH_FAILED, null, errorCode, errorMessage);
+			return changed(LinkAnalysisStatus.DISPATCH_FAILED, ProcessingResultSnapshot.empty(), errorCode, errorMessage);
 		}
 
-		private static CasPlan succeededPlan(Link current, String captionRaw) {
-			boolean changedStatus = current.getStatus() != LinkAnalysisStatus.SUCCEEDED;
-			boolean changedCaption = !Objects.equals(current.getCaptionRaw(), captionRaw);
-			boolean changedError = current.getErrorCode() != null || current.getErrorMessage() != null;
-			if (!changedStatus && !changedCaption && !changedError) {
-				return unchanged(current.getStatus(), current.getCaptionRaw(), current.getErrorCode(), current.getErrorMessage());
-			}
-			return changed(LinkAnalysisStatus.SUCCEEDED, captionRaw, null, null);
+		private static CasPlan succeededPlan(ProcessingResultSnapshot result) {
+			return changed(LinkAnalysisStatus.SUCCEEDED, result == null ? ProcessingResultSnapshot.empty() : result, null, null);
 		}
 
 		private static CasPlan unchanged(
 				LinkAnalysisStatus status,
-				String captionRaw,
+				ProcessingResultSnapshot result,
 				String errorCode,
 				String errorMessage
 		) {
-			return new CasPlan(false, status, captionRaw, errorCode, errorMessage);
+			return new CasPlan(false, status, result, errorCode, errorMessage);
 		}
 
 		private static CasPlan changed(
 				LinkAnalysisStatus status,
-				String captionRaw,
+				ProcessingResultSnapshot result,
 				String errorCode,
 				String errorMessage
 		) {
-			return new CasPlan(true, status, captionRaw, errorCode, errorMessage);
+			return new CasPlan(true, status, result, errorCode, errorMessage);
 		}
 	}
 }
