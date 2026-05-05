@@ -6,6 +6,7 @@ import java.time.Instant;
 public record RoomSummaryResponse(
 		String roomId,
 		String roomName,
+		String inviteCode,
 		boolean pinned,
 		Instant createdAt,
 		long memberCount,
@@ -17,6 +18,7 @@ public record RoomSummaryResponse(
 		return new RoomSummaryResponse(
 				result.roomId(),
 				result.roomName(),
+				result.inviteCode(),
 				result.pinned(),
 				result.createdAt(),
 				result.memberCount(),

@@ -55,6 +55,7 @@ public class RoomQueryService {
 		return new RoomSummaryResult(
 				room.getPublicId(),
 				room.getName(),
+				room.getInviteCode(),
 				membership.isPinned(),
 				room.getCreatedAt(),
 				memberCount,

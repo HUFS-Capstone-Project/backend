@@ -57,6 +57,7 @@ class RoomQueryServiceTest {
 		assertThat(result).hasSize(1);
 		assertThat(result.get(0).roomId()).isEqualTo(room.getPublicId());
 		assertThat(result.get(0).roomName()).isEqualTo("Test Room");
+		assertThat(result.get(0).inviteCode()).isEqualTo("INVITE123456");
 		assertThat(result.get(0).pinned()).isTrue();
 		assertThat(result.get(0).memberCount()).isEqualTo(3L);
 		assertThat(result.get(0).linkCount()).isEqualTo(2L);
