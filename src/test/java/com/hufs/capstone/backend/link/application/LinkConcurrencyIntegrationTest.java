@@ -411,7 +411,7 @@ class LinkConcurrencyIntegrationTest {
 		assertThat(repeated.places().get(0).created()).isFalse();
 		assertThat(repeated.places().get(0).alreadyInRoom()).isTrue();
 		assertThat(roomPlaceRepository.countByRoomId(roomA.getId())).isEqualTo(2);
-		List<RoomPlace> savedRoomPlaces = roomPlaceRepository.findByRoomIdAndPlaceKakaoPlaceIdIn(
+		List<RoomPlace> savedRoomPlaces = roomPlaceRepository.findExistingByRoomIdAndKakaoPlaceIds(
 				roomA.getId(),
 				List.of("123456789", "987654321")
 		);

@@ -38,7 +38,7 @@ public class LinkAnalysisStatusService {
 				.toList();
 		List<RoomPlace> savedPlaces = kakaoPlaceIds.isEmpty()
 				? List.of()
-				: roomPlaceRepository.findByRoomIdAndPlaceKakaoPlaceIdIn(room.getId(), kakaoPlaceIds);
+				: roomPlaceRepository.findExistingByRoomIdAndKakaoPlaceIds(room.getId(), kakaoPlaceIds);
 		return linkAnalysisResultMapper.withSavedStatus(result, savedPlaces);
 	}
 

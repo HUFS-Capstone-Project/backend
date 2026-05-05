@@ -52,7 +52,7 @@ public class PlaceCandidateQueryService {
 		if (externalPlaceIds.isEmpty()) {
 			return List.of();
 		}
-		return roomPlaceRepository.findByRoomIdAndPlaceSourceAndExternalPlaceIdIn(
+		return roomPlaceRepository.findExistingByRoomIdAndSourceExternalPlaceIds(
 				roomId,
 				PlaceSource.KAKAO,
 				externalPlaceIds

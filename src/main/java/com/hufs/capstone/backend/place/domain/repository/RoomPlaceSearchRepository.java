@@ -1,6 +1,9 @@
 package com.hufs.capstone.backend.place.domain.repository;
 
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
+import com.hufs.capstone.backend.place.domain.enums.PlaceSource;
+import java.util.Collection;
+import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -13,5 +16,13 @@ public interface RoomPlaceSearchRepository {
 			String categoryCode,
 			String tagCode,
 			Pageable pageable
+	);
+
+	List<RoomPlace> findExistingByRoomIdAndKakaoPlaceIds(Long roomId, Collection<String> kakaoPlaceIds);
+
+	List<RoomPlace> findExistingByRoomIdAndSourceExternalPlaceIds(
+			Long roomId,
+			PlaceSource source,
+			Collection<String> externalPlaceIds
 	);
 }

@@ -57,7 +57,7 @@ class PlaceCandidateQueryServiceTest {
 		RoomPlace existingRoomPlace = existingRoomPlace(existingCandidate);
 		when(roomAccessService.requireMemberRoom("room-public-id", 100L)).thenReturn(room);
 		when(kakaoLocalClient.searchByKeyword(query)).thenReturn(List.of(existingCandidate, newCandidate, missingIdCandidate));
-		when(roomPlaceRepository.findByRoomIdAndPlaceSourceAndExternalPlaceIdIn(
+		when(roomPlaceRepository.findExistingByRoomIdAndSourceExternalPlaceIds(
 				eq(1L),
 				eq(PlaceSource.KAKAO),
 				eq(List.of("123", "456"))
