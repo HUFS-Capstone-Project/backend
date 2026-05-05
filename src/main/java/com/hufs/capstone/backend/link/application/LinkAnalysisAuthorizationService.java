@@ -2,8 +2,8 @@ package com.hufs.capstone.backend.link.application;
 
 import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
-import com.hufs.capstone.backend.link.domain.entity.RoomLink;
-import com.hufs.capstone.backend.link.domain.repository.RoomLinkRepository;
+import com.hufs.capstone.backend.link.domain.entity.LinkAnalysisRequest;
+import com.hufs.capstone.backend.link.domain.repository.LinkAnalysisRequestRepository;
 import com.hufs.capstone.backend.room.application.RoomAccessService;
 import com.hufs.capstone.backend.room.domain.entity.Room;
 import lombok.RequiredArgsConstructor;
@@ -14,19 +14,27 @@ import org.springframework.stereotype.Service;
 public class LinkAnalysisAuthorizationService {
 
 	private final RoomAccessService roomAccessService;
-	private final RoomLinkRepository roomLinkRepository;
+	private final LinkAnalysisRequestRepository linkAnalysisRequestRepository;
 
-	public Room requireReadableRoom(Long userId, String roomId, Long linkId) {
+	public LinkAnalysisRequest requireAnalysisRequest(Long userId, String roomId, Long analysisRequestId) {
 		Room room = roomAccessService.requireMemberRoom(roomId, userId);
-		if (!roomLinkRepository.existsByRoomAndLinkId(room, linkId)) {
-			throw new BusinessException(ErrorCode.E403_FORBIDDEN, "Link is not shared in this room.");
-		}
-		return room;
+		LinkAnalysisRequest analysisRequest = linkAnalysisRequestRepository.findWithRoomAndLinkById(analysisRequestId)
+				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "Link analysis request not found."));
+		requireSameRoom(room, analysisRequest);
+		return analysisRequest;
 	}
 
-	public RoomLink requireRoomLink(Long userId, String roomId, Long linkId) {
-		Room room = requireReadableRoom(userId, roomId, linkId);
-		return roomLinkRepository.findByRoomAndLinkId(room, linkId)
-				.orElseThrow(() -> new BusinessException(ErrorCode.E403_FORBIDDEN, "Link is not shared in this room."));
+	public LinkAnalysisRequest requireAnalysisRequestForUpdate(Long userId, String roomId, Long analysisRequestId) {
+		Room room = roomAccessService.requireMemberRoom(roomId, userId);
+		LinkAnalysisRequest analysisRequest = linkAnalysisRequestRepository.findWithRoomAndLinkByIdForUpdate(analysisRequestId)
+				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "Link analysis request not found."));
+		requireSameRoom(room, analysisRequest);
+		return analysisRequest;
+	}
+
+	private static void requireSameRoom(Room room, LinkAnalysisRequest analysisRequest) {
+		if (!room.getId().equals(analysisRequest.getRoom().getId())) {
+			throw new BusinessException(ErrorCode.E403_FORBIDDEN, "Link analysis request does not belong to this room.");
+		}
 	}
 }

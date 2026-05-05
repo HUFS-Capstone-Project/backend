@@ -4,7 +4,8 @@ import static org.mockito.Mockito.verify;
 
 import com.hufs.capstone.backend.link.domain.repository.LinkAnalysisRequestRepository;
 import com.hufs.capstone.backend.link.domain.repository.RoomLinkRepository;
-import com.hufs.capstone.backend.link.domain.repository.RoomPlaceRepository;
+import com.hufs.capstone.backend.place.domain.repository.RoomPlaceRepository;
+import com.hufs.capstone.backend.place.domain.repository.RoomPlaceSourceRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -16,6 +17,9 @@ class RoomLinkCleanupWriteServiceTest {
 
 	@Mock
 	private LinkAnalysisRequestRepository linkAnalysisRequestRepository;
+
+	@Mock
+	private RoomPlaceSourceRepository roomPlaceSourceRepository;
 
 	@Mock
 	private RoomPlaceRepository roomPlaceRepository;
@@ -30,8 +34,16 @@ class RoomLinkCleanupWriteServiceTest {
 	void deleteAllByRoomIdShouldCallRepositoryDelete() {
 		roomLinkCleanupWriteService.deleteAllByRoomId(1L);
 
+		verify(roomPlaceSourceRepository).deleteByRoomId(1L);
 		verify(roomPlaceRepository).deleteByRoomId(1L);
 		verify(linkAnalysisRequestRepository).deleteByRoomId(1L);
 		verify(roomLinkRepository).deleteByRoomId(1L);
+	}
+
+	@Test
+	void deleteAnalysisRequestsOnlyByRoomIdShouldNotDeleteSavedRoomData() {
+		roomLinkCleanupWriteService.deleteAnalysisRequestsOnlyByRoomId(1L);
+
+		verify(linkAnalysisRequestRepository).deleteByRoomId(1L);
 	}
 }

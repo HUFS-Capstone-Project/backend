@@ -40,7 +40,7 @@ public record LinkAnalysisResponse(
 			String phone,
 			String placeUrl,
 			String sourceKeyword,
-			boolean alreadySaved,
+			boolean alreadyInRoom,
 			boolean selectable,
 			Long roomPlaceId,
 			DisabledReason disabledReason
@@ -60,7 +60,7 @@ public record LinkAnalysisResponse(
 					result.phone(),
 					result.placeUrl(),
 					result.sourceKeyword(),
-					result.alreadySaved(),
+					result.alreadyInRoom(),
 					result.selectable(),
 					result.roomPlaceId(),
 					result.disabledReason()

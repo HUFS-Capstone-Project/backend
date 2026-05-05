@@ -1,6 +1,6 @@
 package com.hufs.capstone.backend.link.application;
 
-import com.hufs.capstone.backend.link.domain.repository.RoomPlaceRepository;
+import com.hufs.capstone.backend.place.domain.repository.RoomPlaceRepository;
 import com.hufs.capstone.backend.room.application.port.RoomPlaceCountPort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;

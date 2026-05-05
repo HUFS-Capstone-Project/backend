@@ -34,7 +34,7 @@ public class PlaceTaxonomySeedDataInitializer implements ApplicationRunner {
 	@Override
 	@Transactional
 	public void run(ApplicationArguments args) {
-		PlaceCategory foodCategory = upsertCategory(CATEGORY_FOOD, "맛집", 1);
+		PlaceCategory foodCategory = upsertCategory(CATEGORY_FOOD, "음식점", 1);
 		PlaceCategory cafeCategory = upsertCategory(CATEGORY_CAFE, "카페", 2);
 		PlaceCategory activityCategory = upsertCategory(CATEGORY_ACTIVITY, "놀거리", 3);
 
@@ -87,24 +87,24 @@ public class PlaceTaxonomySeedDataInitializer implements ApplicationRunner {
 		upsertTag(category, null, "JAPANESE", "일식", 3);
 		upsertTag(category, null, "WESTERN", "양식", 4);
 		upsertTag(category, null, "SNACK", "분식", 5);
-		upsertTag(category, null, "ASIAN", "아시아식", 6);
+		upsertTag(category, null, "ASIAN", "아시안", 6);
 		upsertTag(category, null, "BAR", "술집", 7);
 		upsertTag(category, null, "MISC", "기타", 8);
 	}
 
 	private void seedCafeTags(PlaceCategory category) {
-		upsertTag(category, null, "CONFECTIONERY", "제과", 1);
-		upsertTag(category, null, "BAKERY", "베이커리", 2);
-		upsertTag(category, null, "MISC", "기타", 3);
+		deactivateTag(category, "CONFECTIONERY");
+		upsertTag(category, null, "BAKERY", "제과,베이커리", 1);
+		upsertTag(category, null, "MISC", "기타", 2);
 	}
 
 	private void seedActivityTags(PlaceCategory category, Map<String, PlaceTagGroup> groups) {
 		upsertTag(category, groups.get(GROUP_EXPERIENCE), "THEME_PARK", "테마파크", 1);
-		upsertTag(category, groups.get(GROUP_EXPERIENCE), "BOARD_GAME_CAFE", "보드카페", 2);
+		upsertTag(category, groups.get(GROUP_EXPERIENCE), "BOARD_GAME_CAFE", "보드게임카페", 2);
 		upsertTag(category, groups.get(GROUP_EXPERIENCE), "ESCAPE_ROOM_CAFE", "방탈출카페", 3);
 		upsertTag(category, groups.get(GROUP_EXPERIENCE), "SPORTS", "스포츠", 4);
 
-		upsertTag(category, groups.get(GROUP_CULTURE), "CULTURE_ART", "문화·예술", 1);
+		upsertTag(category, groups.get(GROUP_CULTURE), "CULTURE_ART", "문화예술", 1);
 		upsertTag(category, groups.get(GROUP_CULTURE), "COMIC_CAFE", "만화카페", 2);
 
 		upsertTag(category, groups.get(GROUP_REST), "PARK", "공원", 1);
@@ -130,5 +130,10 @@ public class PlaceTaxonomySeedDataInitializer implements ApplicationRunner {
 				.orElseGet(() -> placeTagRepository.save(
 						PlaceTag.create(category, group, code, name, sortOrder, true)
 				));
+	}
+
+	private void deactivateTag(PlaceCategory category, String code) {
+		placeTagRepository.findByCategoryAndCode(category, code)
+				.ifPresent(tag -> tag.updateMetadata(tag.getTagGroup(), tag.getName(), tag.getSortOrder(), false));
 	}
 }

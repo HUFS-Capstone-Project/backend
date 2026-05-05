@@ -4,9 +4,10 @@ import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
 import com.hufs.capstone.backend.link.application.dto.LinkAnalysisResult;
 import com.hufs.capstone.backend.link.domain.entity.Link;
-import com.hufs.capstone.backend.link.domain.entity.RoomPlace;
+import com.hufs.capstone.backend.link.domain.entity.LinkAnalysisRequest;
 import com.hufs.capstone.backend.link.domain.repository.LinkRepository;
-import com.hufs.capstone.backend.link.domain.repository.RoomPlaceRepository;
+import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
+import com.hufs.capstone.backend.place.domain.repository.RoomPlaceRepository;
 import com.hufs.capstone.backend.room.domain.entity.Room;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -25,8 +26,11 @@ public class LinkAnalysisStatusService {
 	private final LinkAnalysisResultMapper linkAnalysisResultMapper;
 	private final RoomPlaceRepository roomPlaceRepository;
 
-	public LinkAnalysisResult getLinkAnalysisResult(Long userId, String roomId, Long linkId) {
-		Room room = linkAnalysisAuthorizationService.requireReadableRoom(userId, roomId, linkId);
+	public LinkAnalysisResult getLinkAnalysisResult(Long userId, String roomId, Long analysisRequestId) {
+		LinkAnalysisRequest analysisRequest =
+				linkAnalysisAuthorizationService.requireAnalysisRequest(userId, roomId, analysisRequestId);
+		Room room = analysisRequest.getRoom();
+		Long linkId = analysisRequest.getLink().getId();
 		LinkAnalysisResult result = linkAnalysisCacheCoordinator.getOrLoad(linkId, () -> resolveCurrentStatus(linkId));
 		List<String> kakaoPlaceIds = result.candidatePlaces().stream()
 				.map(candidate -> candidate.kakaoPlaceId())
@@ -34,7 +38,7 @@ public class LinkAnalysisStatusService {
 				.toList();
 		List<RoomPlace> savedPlaces = kakaoPlaceIds.isEmpty()
 				? List.of()
-				: roomPlaceRepository.findByRoomIdAndKakaoPlaceIdIn(room.getId(), kakaoPlaceIds);
+				: roomPlaceRepository.findByRoomIdAndPlaceKakaoPlaceIdIn(room.getId(), kakaoPlaceIds);
 		return linkAnalysisResultMapper.withSavedStatus(result, savedPlaces);
 	}
 

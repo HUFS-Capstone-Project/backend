@@ -82,7 +82,11 @@ public class LinkAnalysisRequestService {
 
 	private LinkAnalysisRequestResult refreshLatest(LinkAnalysisRequestResult requested) {
 		return linkRepository.findById(requested.linkId())
-				.map(link -> LinkAnalysisRequestResult.from(link, requested.createdRequest()))
+				.map(link -> LinkAnalysisRequestResult.from(
+						link,
+						requested.analysisRequestId(),
+						requested.createdRequest()
+				))
 				.orElse(requested);
 	}
 

@@ -43,6 +43,11 @@ processing:
   connect-timeout-ms: 3000
   read-timeout-ms: 30000
 
+kakao:
+  local:
+    connect-timeout-ms: 3000
+    read-timeout-ms: 5000
+
 app:
   room:
     join-rate-limit:

@@ -1,9 +1,10 @@
 package com.hufs.capstone.backend.link.api.controller;
 
-import com.hufs.capstone.backend.global.response.CommonResponse;
 import com.hufs.capstone.backend.auth.security.SecurityUtils;
+import com.hufs.capstone.backend.global.response.CommonResponse;
 import com.hufs.capstone.backend.link.api.controller.swagger.LinkApi;
-import com.hufs.capstone.backend.link.api.request.AnalyzeLinkRequest;
+import com.hufs.capstone.backend.link.api.request.CreateLinkAnalysisRequest;
+import com.hufs.capstone.backend.link.api.request.SaveManualRoomPlaceRequest;
 import com.hufs.capstone.backend.link.api.request.SaveRoomPlacesRequest;
 import com.hufs.capstone.backend.link.api.response.LinkAnalysisRequestResponse;
 import com.hufs.capstone.backend.link.api.response.LinkAnalysisResponse;
@@ -14,8 +15,9 @@ import com.hufs.capstone.backend.link.application.RoomPlaceCommandService;
 import com.hufs.capstone.backend.link.application.dto.AnalyzeLinkCommand;
 import com.hufs.capstone.backend.link.application.dto.LinkAnalysisRequestResult;
 import com.hufs.capstone.backend.link.application.dto.LinkAnalysisResult;
-import com.hufs.capstone.backend.link.application.dto.RoomPlaceSaveResult;
+import com.hufs.capstone.backend.link.application.dto.SaveManualRoomPlaceCommand;
 import com.hufs.capstone.backend.link.application.dto.SaveRoomPlacesCommand;
+import com.hufs.capstone.backend.place.application.dto.RoomPlaceSaveResult;
 import jakarta.validation.Valid;
 import java.net.URI;
 import lombok.RequiredArgsConstructor;
@@ -35,9 +37,9 @@ public class LinkController implements LinkApi {
 	private final RoomPlaceCommandService roomPlaceCommandService;
 
 	@Override
-	public ResponseEntity<CommonResponse<LinkAnalysisRequestResponse>> analyzeLink(
+	public ResponseEntity<CommonResponse<LinkAnalysisRequestResponse>> createLinkAnalysisRequest(
 			@PathVariable String roomId,
-			@Valid @RequestBody AnalyzeLinkRequest request,
+			@Valid @RequestBody CreateLinkAnalysisRequest request,
 			@RequestHeader(name = "X-XSRF-TOKEN", required = false) String csrfToken
 	) {
 		Long userId = SecurityUtils.currentUserIdOrThrow();
@@ -47,8 +49,8 @@ public class LinkController implements LinkApi {
 				new AnalyzeLinkCommand(request.url(), request.source())
 		);
 		URI location = ServletUriComponentsBuilder.fromCurrentRequest()
-				.replacePath("/api/v1/rooms/{roomId}/links/{linkId}/analysis")
-				.buildAndExpand(roomId, result.linkId())
+				.replacePath("/api/v1/rooms/{roomId}/link-analysis-requests/{analysisRequestId}")
+				.buildAndExpand(roomId, result.analysisRequestId())
 				.toUri();
 		CommonResponse<LinkAnalysisRequestResponse> body =
 				CommonResponse.ok(LinkAnalysisRequestResponse.from(result));
@@ -59,16 +61,19 @@ public class LinkController implements LinkApi {
 	}
 
 	@Override
-	public CommonResponse<LinkAnalysisResponse> getLinkAnalysis(@PathVariable String roomId, @PathVariable Long linkId) {
+	public CommonResponse<LinkAnalysisResponse> getLinkAnalysis(
+			@PathVariable String roomId,
+			@PathVariable Long analysisRequestId
+	) {
 		Long userId = SecurityUtils.currentUserIdOrThrow();
-		LinkAnalysisResult result = linkAnalysisStatusService.getLinkAnalysisResult(userId, roomId, linkId);
+		LinkAnalysisResult result = linkAnalysisStatusService.getLinkAnalysisResult(userId, roomId, analysisRequestId);
 		return CommonResponse.ok(LinkAnalysisResponse.from(result));
 	}
 
 	@Override
 	public CommonResponse<RoomPlaceSaveResponse> saveRoomPlaces(
 			@PathVariable String roomId,
-			@PathVariable Long linkId,
+			@PathVariable Long analysisRequestId,
 			@Valid @RequestBody SaveRoomPlacesRequest request,
 			@RequestHeader(name = "X-XSRF-TOKEN", required = false) String csrfToken
 	) {
@@ -76,8 +81,25 @@ public class LinkController implements LinkApi {
 		RoomPlaceSaveResult result = roomPlaceCommandService.saveRoomPlaces(
 				userId,
 				roomId,
-				linkId,
+				analysisRequestId,
 				new SaveRoomPlacesCommand(request.kakaoPlaceIds())
+		);
+		return CommonResponse.ok(RoomPlaceSaveResponse.from(result));
+	}
+
+	@Override
+	public CommonResponse<RoomPlaceSaveResponse> saveManualRoomPlace(
+			@PathVariable String roomId,
+			@PathVariable Long analysisRequestId,
+			@Valid @RequestBody SaveManualRoomPlaceRequest request,
+			@RequestHeader(name = "X-XSRF-TOKEN", required = false) String csrfToken
+	) {
+		Long userId = SecurityUtils.currentUserIdOrThrow();
+		RoomPlaceSaveResult result = roomPlaceCommandService.saveManualRoomPlace(
+				userId,
+				roomId,
+				analysisRequestId,
+				new SaveManualRoomPlaceCommand(request.toSnapshot())
 		);
 		return CommonResponse.ok(RoomPlaceSaveResponse.from(result));
 	}

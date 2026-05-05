@@ -7,8 +7,8 @@ import static org.mockito.Mockito.when;
 import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
 import com.hufs.capstone.backend.link.domain.entity.Link;
-import com.hufs.capstone.backend.link.domain.entity.RoomLink;
-import com.hufs.capstone.backend.link.domain.repository.RoomLinkRepository;
+import com.hufs.capstone.backend.link.domain.entity.LinkAnalysisRequest;
+import com.hufs.capstone.backend.link.domain.repository.LinkAnalysisRequestRepository;
 import com.hufs.capstone.backend.room.application.RoomAccessService;
 import com.hufs.capstone.backend.room.domain.entity.Room;
 import java.util.Optional;
@@ -28,51 +28,60 @@ class LinkAnalysisAuthorizationServiceTest {
 	private RoomAccessService roomAccessService;
 
 	@Mock
-	private RoomLinkRepository roomLinkRepository;
+	private LinkAnalysisRequestRepository linkAnalysisRequestRepository;
 
 	@InjectMocks
 	private LinkAnalysisAuthorizationService linkAnalysisAuthorizationService;
 
 	@Test
-	void requireReadableRoomShouldPassWhenRoomMemberAndRoomLinkExists() {
-		Room room = room();
+	void requireAnalysisRequestShouldPassWhenRoomMemberAndRequestBelongsToRoom() {
+		Room room = room(1L, ROOM_PUBLIC_ID);
+		LinkAnalysisRequest analysisRequest = analysisRequest(10L, room);
 		when(roomAccessService.requireMemberRoom(ROOM_PUBLIC_ID, 100L)).thenReturn(room);
-		when(roomLinkRepository.existsByRoomAndLinkId(room, 10L)).thenReturn(true);
+		when(linkAnalysisRequestRepository.findWithRoomAndLinkById(10L)).thenReturn(Optional.of(analysisRequest));
 
-		Room result = linkAnalysisAuthorizationService.requireReadableRoom(100L, ROOM_PUBLIC_ID, 10L);
+		LinkAnalysisRequest result = linkAnalysisAuthorizationService.requireAnalysisRequest(100L, ROOM_PUBLIC_ID, 10L);
 
-		assertThat(result).isEqualTo(room);
+		assertThat(result).isEqualTo(analysisRequest);
 	}
 
 	@Test
-	void requireReadableRoomShouldThrowForbiddenWhenRoomLinkDoesNotExist() {
-		Room room = room();
-		when(roomAccessService.requireMemberRoom(ROOM_PUBLIC_ID, 100L)).thenReturn(room);
-		when(roomLinkRepository.existsByRoomAndLinkId(room, 10L)).thenReturn(false);
+	void requireAnalysisRequestShouldThrowForbiddenWhenRequestBelongsToDifferentRoom() {
+		Room requestedRoom = room(1L, ROOM_PUBLIC_ID);
+		Room otherRoom = room(2L, "22222222-2222-2222-2222-222222222222");
+		LinkAnalysisRequest analysisRequest = analysisRequest(10L, otherRoom);
+		when(roomAccessService.requireMemberRoom(ROOM_PUBLIC_ID, 100L)).thenReturn(requestedRoom);
+		when(linkAnalysisRequestRepository.findWithRoomAndLinkById(10L)).thenReturn(Optional.of(analysisRequest));
 
-		assertThatThrownBy(() -> linkAnalysisAuthorizationService.requireReadableRoom(100L, ROOM_PUBLIC_ID, 10L))
+		assertThatThrownBy(() -> linkAnalysisAuthorizationService.requireAnalysisRequest(100L, ROOM_PUBLIC_ID, 10L))
 				.isInstanceOf(BusinessException.class)
 				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.E403_FORBIDDEN));
 	}
 
 	@Test
-	void requireRoomLinkShouldReturnRoomLinkWhenSharedInRoom() {
-		Room room = room();
-		Link link = Link.register("https://example.com/post/1", "https://example.com/post/1", "job-1");
-		ReflectionTestUtils.setField(link, "id", 10L);
-		RoomLink roomLink = RoomLink.bind(room, link);
+	void requireAnalysisRequestForUpdateShouldUseLockedLookup() {
+		Room room = room(1L, ROOM_PUBLIC_ID);
+		LinkAnalysisRequest analysisRequest = analysisRequest(10L, room);
 		when(roomAccessService.requireMemberRoom(ROOM_PUBLIC_ID, 100L)).thenReturn(room);
-		when(roomLinkRepository.existsByRoomAndLinkId(room, 10L)).thenReturn(true);
-		when(roomLinkRepository.findByRoomAndLinkId(room, 10L)).thenReturn(Optional.of(roomLink));
+		when(linkAnalysisRequestRepository.findWithRoomAndLinkByIdForUpdate(10L)).thenReturn(Optional.of(analysisRequest));
 
-		RoomLink result = linkAnalysisAuthorizationService.requireRoomLink(100L, ROOM_PUBLIC_ID, 10L);
+		LinkAnalysisRequest result =
+				linkAnalysisAuthorizationService.requireAnalysisRequestForUpdate(100L, ROOM_PUBLIC_ID, 10L);
 
-		assertThat(result).isEqualTo(roomLink);
+		assertThat(result).isEqualTo(analysisRequest);
 	}
 
-	private static Room room() {
-		Room room = Room.create(ROOM_PUBLIC_ID, "Test Room", "INVITE123456", 100L);
-		ReflectionTestUtils.setField(room, "id", 1L);
+	private static LinkAnalysisRequest analysisRequest(Long id, Room room) {
+		Link link = Link.register("https://example.com/post/" + id, "https://example.com/post/" + id, "job-" + id);
+		ReflectionTestUtils.setField(link, "id", id + 100);
+		LinkAnalysisRequest analysisRequest = LinkAnalysisRequest.create(link, room, 100L, null);
+		ReflectionTestUtils.setField(analysisRequest, "id", id);
+		return analysisRequest;
+	}
+
+	private static Room room(Long id, String publicId) {
+		Room room = Room.create(publicId, "Test Room", "INVITE123456", 100L);
+		ReflectionTestUtils.setField(room, "id", id);
 		return room;
 	}
 }

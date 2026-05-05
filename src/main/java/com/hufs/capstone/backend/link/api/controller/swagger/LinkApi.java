@@ -1,7 +1,8 @@
 package com.hufs.capstone.backend.link.api.controller.swagger;
 
 import com.hufs.capstone.backend.global.response.CommonResponse;
-import com.hufs.capstone.backend.link.api.request.AnalyzeLinkRequest;
+import com.hufs.capstone.backend.link.api.request.CreateLinkAnalysisRequest;
+import com.hufs.capstone.backend.link.api.request.SaveManualRoomPlaceRequest;
 import com.hufs.capstone.backend.link.api.request.SaveRoomPlacesRequest;
 import com.hufs.capstone.backend.link.api.response.LinkAnalysisRequestResponse;
 import com.hufs.capstone.backend.link.api.response.LinkAnalysisResponse;
@@ -19,45 +20,62 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 
-@RequestMapping("/api/v1/rooms/{roomId}/links")
+@RequestMapping("/api/v1/rooms/{roomId}")
 @SecurityRequirement(name = "bearer-jwt")
 public interface LinkApi {
 
 	@Operation(
 			tags = {"Link"},
-			summary = "링크 분석 요청 API",
-			description = "방 멤버십을 검증한 뒤 링크 분석을 요청합니다. 신규 분석 대상이면 processing job 생성을 요청합니다."
+			summary = "링크 분석 요청 생성 API",
+			description = "방 멤버십을 검증한 뒤 링크 분석 후보를 생성합니다. 이 API는 방에 링크나 장소를 저장하지 않습니다."
 	)
 	@ApiResponse(responseCode = "201", description = "Created")
 	@ApiResponse(responseCode = "200", description = "OK")
-	@PostMapping("/analyze")
-	ResponseEntity<CommonResponse<LinkAnalysisRequestResponse>> analyzeLink(
+	@PostMapping("/link-analysis-requests")
+	ResponseEntity<CommonResponse<LinkAnalysisRequestResponse>> createLinkAnalysisRequest(
 			@PathVariable String roomId,
-			@Valid @RequestBody AnalyzeLinkRequest request,
-			@Parameter(description = "CSRF 토큰 헤더 값(XSRF-TOKEN 쿠키 값)")
+			@Valid @RequestBody CreateLinkAnalysisRequest request,
+			@Parameter(description = "CSRF token header value")
 			@RequestHeader(name = "X-XSRF-TOKEN", required = false) String csrfToken
 	);
 
 	@Operation(
 			tags = {"Link"},
-			summary = "링크 분석 상태 조회 API",
-			description = "방 멤버십과 해당 방의 분석 요청 이력을 확인하고, 링크 분석 상태와 caption을 조회합니다."
+			summary = "링크 분석 결과 조회 API",
+			description = "방 멤버십과 analysisRequestId의 방 소속을 검증한 뒤 분석 상태와 후보 장소를 조회합니다."
 	)
 	@ApiResponse(responseCode = "200", description = "OK")
-	@GetMapping("/{linkId}/analysis")
-	CommonResponse<LinkAnalysisResponse> getLinkAnalysis(@PathVariable String roomId, @PathVariable Long linkId);
+	@GetMapping("/link-analysis-requests/{analysisRequestId}")
+	CommonResponse<LinkAnalysisResponse> getLinkAnalysis(
+			@PathVariable String roomId,
+			@PathVariable Long analysisRequestId
+	);
 
 	@Operation(
 			tags = {"Link"},
-			summary = "링크 후보 장소 방 저장 API",
-			description = "링크 분석 결과에서 추출된 후보 장소 중 하나 이상을 해당 방에 저장합니다."
+			summary = "링크 분석 후보 장소 저장 API",
+			description = "선택한 후보 장소를 저장합니다. 이 순간 RoomLink가 생성되며, 장소는 RoomPlaceSource를 통해 해당 링크 출처와 연결됩니다."
 	)
 	@ApiResponse(responseCode = "200", description = "OK")
-	@PostMapping("/{linkId}/places")
+	@PostMapping("/link-analysis-requests/{analysisRequestId}/places")
 	CommonResponse<RoomPlaceSaveResponse> saveRoomPlaces(
 			@PathVariable String roomId,
-			@PathVariable Long linkId,
+			@PathVariable Long analysisRequestId,
 			@Valid @RequestBody SaveRoomPlacesRequest request,
+			@RequestHeader(name = "X-XSRF-TOKEN", required = false) String csrfToken
+	);
+
+	@Operation(
+			tags = {"Link"},
+			summary = "링크 분석 수동 검색 장소 저장 API",
+			description = "분석 실패 또는 후보 없음 상태에서도 카카오 검색으로 직접 선택한 장소를 해당 링크 출처로 저장합니다."
+	)
+	@ApiResponse(responseCode = "200", description = "OK")
+	@PostMapping("/link-analysis-requests/{analysisRequestId}/places/manual")
+	CommonResponse<RoomPlaceSaveResponse> saveManualRoomPlace(
+			@PathVariable String roomId,
+			@PathVariable Long analysisRequestId,
+			@Valid @RequestBody SaveManualRoomPlaceRequest request,
 			@RequestHeader(name = "X-XSRF-TOKEN", required = false) String csrfToken
 	);
 }

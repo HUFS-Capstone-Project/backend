@@ -43,3 +43,10 @@ app:
 processing:
   base-url: http://localhost:8000
   internal-api-key: test-processing-internal-key
+
+kakao:
+  local:
+    base-url: https://dapi.kakao.com
+    rest-api-key: test-kakao-rest-api-key
+    connect-timeout-ms: 1000
+    read-timeout-ms: 1000

@@ -86,3 +86,10 @@ processing:
   internal-api-key: ${PROCESSING_INTERNAL_API_KEY}
   connect-timeout-ms: ${PROCESSING_CONNECT_TIMEOUT_MS:3000}
   read-timeout-ms: ${PROCESSING_READ_TIMEOUT_MS:30000}
+
+kakao:
+  local:
+    base-url: ${KAKAO_LOCAL_BASE_URL:https://dapi.kakao.com}
+    rest-api-key: ${KAKAO_REST_API_KEY}
+    connect-timeout-ms: ${KAKAO_LOCAL_CONNECT_TIMEOUT_MS:3000}
+    read-timeout-ms: ${KAKAO_LOCAL_READ_TIMEOUT_MS:5000}

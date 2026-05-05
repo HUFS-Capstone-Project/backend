@@ -1,5 +1,6 @@
 package com.hufs.capstone.backend.global.exception;
 
+import com.hufs.capstone.backend.external.kakao.KakaoLocalClientException;
 import com.hufs.capstone.backend.external.processing.ProcessingClientException;
 import com.hufs.capstone.backend.global.response.FieldErrorDetail;
 import com.hufs.capstone.backend.global.response.ProblemDetailFactory;
@@ -89,6 +90,13 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(ProcessingClientException.class)
 	public ResponseEntity<ProblemDetail> handleProcessing(ProcessingClientException ex, HttpServletRequest request) {
 		log.warn("Processing(FastAPI private) 연동 실패: status={}", ex.getStatus(), ex);
+		ProblemDetail body = ProblemDetailFactory.create(ErrorCode.E502_EXTERNAL_API, ex.getMessage(), null, requestUri(request));
+		return ResponseEntity.status(body.getStatus()).body(body);
+	}
+
+	@ExceptionHandler(KakaoLocalClientException.class)
+	public ResponseEntity<ProblemDetail> handleKakaoLocal(KakaoLocalClientException ex, HttpServletRequest request) {
+		log.warn("Kakao Local API call failed: status={}", ex.getStatus(), ex);
 		ProblemDetail body = ProblemDetailFactory.create(ErrorCode.E502_EXTERNAL_API, ex.getMessage(), null, requestUri(request));
 		return ResponseEntity.status(body.getStatus()).body(body);
 	}

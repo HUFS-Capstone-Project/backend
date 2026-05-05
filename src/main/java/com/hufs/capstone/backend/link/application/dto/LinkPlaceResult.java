@@ -1,7 +1,7 @@
 package com.hufs.capstone.backend.link.application.dto;
 
-import com.hufs.capstone.backend.link.domain.entity.RoomPlace;
 import com.hufs.capstone.backend.link.domain.vo.PlaceCandidateSnapshot;
+import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
 import java.math.BigDecimal;
 
 public record LinkPlaceResult(
@@ -20,14 +20,14 @@ public record LinkPlaceResult(
 		String sourceKeyword,
 		String sourceSentence,
 		String rawCandidate,
-		boolean alreadySaved,
+		boolean alreadyInRoom,
 		boolean selectable,
 		Long roomPlaceId,
 		DisabledReason disabledReason
 ) {
 
 	public static LinkPlaceResult fromCandidate(PlaceCandidateSnapshot candidate) {
-		boolean hasKakaoPlaceId = candidate.kakaoPlaceId() != null;
+		boolean hasKakaoPlaceId = candidate.kakaoPlaceId() != null && !candidate.kakaoPlaceId().isBlank();
 		return fromCandidate(
 				candidate,
 				false,
@@ -37,13 +37,13 @@ public record LinkPlaceResult(
 		);
 	}
 
-	public static LinkPlaceResult alreadySaved(PlaceCandidateSnapshot candidate, RoomPlace roomPlace) {
-		return fromCandidate(candidate, true, false, roomPlace.getId(), DisabledReason.ALREADY_SAVED);
+	public static LinkPlaceResult alreadyInRoom(PlaceCandidateSnapshot candidate, RoomPlace roomPlace) {
+		return fromCandidate(candidate, true, false, roomPlace.getId(), DisabledReason.ALREADY_IN_ROOM);
 	}
 
 	private static LinkPlaceResult fromCandidate(
 			PlaceCandidateSnapshot candidate,
-			boolean alreadySaved,
+			boolean alreadyInRoom,
 			boolean selectable,
 			Long roomPlaceId,
 			DisabledReason disabledReason
@@ -64,7 +64,7 @@ public record LinkPlaceResult(
 				candidate.sourceKeyword(),
 				candidate.sourceSentence(),
 				candidate.rawCandidate(),
-				alreadySaved,
+				alreadyInRoom,
 				selectable,
 				roomPlaceId,
 				disabledReason
@@ -72,7 +72,7 @@ public record LinkPlaceResult(
 	}
 
 	public enum DisabledReason {
-		ALREADY_SAVED,
+		ALREADY_IN_ROOM,
 		MISSING_KAKAO_PLACE_ID
 	}
 }

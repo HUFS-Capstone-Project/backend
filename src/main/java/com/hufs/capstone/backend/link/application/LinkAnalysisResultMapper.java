@@ -3,8 +3,8 @@ package com.hufs.capstone.backend.link.application;
 import com.hufs.capstone.backend.link.application.dto.LinkAnalysisResult;
 import com.hufs.capstone.backend.link.application.dto.LinkPlaceResult;
 import com.hufs.capstone.backend.link.domain.entity.Link;
-import com.hufs.capstone.backend.link.domain.entity.RoomPlace;
 import com.hufs.capstone.backend.link.domain.vo.PlaceCandidateSnapshot;
+import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -58,14 +58,14 @@ public class LinkAnalysisResultMapper {
 	}
 
 	private static LinkPlaceResult withSavedStatus(LinkPlaceResult candidate, Map<String, RoomPlace> savedByKakaoPlaceId) {
-		if (candidate.kakaoPlaceId() == null) {
+		if (candidate.kakaoPlaceId() == null || candidate.kakaoPlaceId().isBlank()) {
 			return candidate;
 		}
 		RoomPlace savedPlace = savedByKakaoPlaceId.get(candidate.kakaoPlaceId());
 		if (savedPlace == null) {
 			return candidate;
 		}
-		return LinkPlaceResult.alreadySaved(toSnapshot(candidate), savedPlace);
+		return LinkPlaceResult.alreadyInRoom(toSnapshot(candidate), savedPlace);
 	}
 
 	private static PlaceCandidateSnapshot toSnapshot(LinkPlaceResult candidate) {
