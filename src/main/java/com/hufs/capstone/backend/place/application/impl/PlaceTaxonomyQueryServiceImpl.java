@@ -25,7 +25,15 @@ import org.springframework.transaction.annotation.Transactional;
 public class PlaceTaxonomyQueryServiceImpl implements PlaceTaxonomyQueryService {
 
 	private static final String DEFAULT_GROUP_CODE = "DEFAULT";
-	private static final int DEFAULT_GROUP_SORT_ORDER = Integer.MAX_VALUE;
+	private static final int DEFAULT_GROUP_SORT_ORDER = 0;
+	private static final String CAFE_CATEGORY_CODE = "CAFE";
+	private static final String BAKERY_TAG_CODE = "BAKERY";
+	private static final String CAFE_MISC_TAG_CODE = "MISC";
+	private static final String ALL_TAG_CODE = "ALL";
+	private static final String ALL_TAG_NAME = "\uC804\uCCB4";
+	private static final int ALL_TAG_SORT_ORDER = 0;
+	private static final String BAKERY_DISPLAY_NAME = "\uBCA0\uC774\uCEE4\uB9AC";
+	private static final String CAFE_MISC_DISPLAY_NAME = "\uCEE4\uD53C\u00B7\uB514\uC800\uD2B8";
 
 	private final PlaceCategoryRepository placeCategoryRepository;
 	private final PlaceTagRepository placeTagRepository;
@@ -80,7 +88,20 @@ public class PlaceTaxonomyQueryServiceImpl implements PlaceTaxonomyQueryService 
 	}
 
 	private PlaceTaxonomyTagResult toTagResult(PlaceTag tag) {
-		return new PlaceTaxonomyTagResult(tag.getCode(), tag.getName(), tag.getSortOrder());
+		return new PlaceTaxonomyTagResult(tag.getCode(), displayNameOf(tag), tag.getSortOrder());
+	}
+
+	private String displayNameOf(PlaceTag tag) {
+		if (!CAFE_CATEGORY_CODE.equals(tag.getCategory().getCode())) {
+			return tag.getName();
+		}
+		if (BAKERY_TAG_CODE.equals(tag.getCode())) {
+			return BAKERY_DISPLAY_NAME;
+		}
+		if (CAFE_MISC_TAG_CODE.equals(tag.getCode())) {
+			return CAFE_MISC_DISPLAY_NAME;
+		}
+		return tag.getName();
 	}
 
 	private static final class CategoryAccumulator {
@@ -94,6 +115,7 @@ public class PlaceTaxonomyQueryServiceImpl implements PlaceTaxonomyQueryService 
 			this.code = category.getCode();
 			this.name = category.getName();
 			this.sortOrder = category.getSortOrder();
+			addTag(null, new PlaceTaxonomyTagResult(ALL_TAG_CODE, ALL_TAG_NAME, ALL_TAG_SORT_ORDER));
 		}
 
 		private void addTag(PlaceTagGroup tagGroup, PlaceTaxonomyTagResult tag) {

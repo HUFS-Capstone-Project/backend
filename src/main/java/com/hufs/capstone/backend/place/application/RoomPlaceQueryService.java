@@ -23,6 +23,7 @@ public class RoomPlaceQueryService {
 	private static final int DEFAULT_PAGE = 0;
 	private static final int DEFAULT_LIMIT = 20;
 	private static final int MAX_LIMIT = 100;
+	private static final String ALL_TAG_CODE = "ALL";
 
 	private final RoomAccessService roomAccessService;
 	private final RoomPlaceRepository roomPlaceRepository;
@@ -52,7 +53,7 @@ public class RoomPlaceQueryService {
 				normalizedKeyword,
 				PlaceSearchText.initialKeyword(keyword),
 				trimToNull(categoryCode),
-				trimToNull(tagCode),
+				normalizeTagCode(tagCode),
 				PageRequest.of(normalizedPage, normalizedLimit, Sort.by(Sort.Direction.DESC, "createdAt", "id"))
 		);
 		return new RoomPlacePageResult(
@@ -72,5 +73,10 @@ public class RoomPlaceQueryService {
 		}
 		String trimmed = value.trim();
 		return trimmed.isEmpty() ? null : trimmed;
+	}
+
+	private static String normalizeTagCode(String value) {
+		String normalized = trimToNull(value);
+		return ALL_TAG_CODE.equalsIgnoreCase(normalized) ? null : normalized;
 	}
 }

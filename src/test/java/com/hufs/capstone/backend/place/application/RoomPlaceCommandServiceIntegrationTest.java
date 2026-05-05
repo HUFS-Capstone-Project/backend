@@ -9,6 +9,9 @@ import com.hufs.capstone.backend.link.domain.entity.Link;
 import com.hufs.capstone.backend.link.domain.entity.RoomLink;
 import com.hufs.capstone.backend.link.domain.repository.LinkRepository;
 import com.hufs.capstone.backend.link.domain.repository.RoomLinkRepository;
+import com.hufs.capstone.backend.place.application.dto.PlaceTaxonomyCategoryResult;
+import com.hufs.capstone.backend.place.application.dto.PlaceTaxonomyResult;
+import com.hufs.capstone.backend.place.application.dto.PlaceTaxonomyTagResult;
 import com.hufs.capstone.backend.place.application.dto.RoomPlacePageResult;
 import com.hufs.capstone.backend.place.application.dto.RoomPlaceSaveResult;
 import com.hufs.capstone.backend.place.domain.entity.Place;
@@ -43,6 +46,9 @@ class RoomPlaceCommandServiceIntegrationTest {
 
 	@Autowired
 	private RoomPlaceQueryService roomPlaceQueryService;
+
+	@Autowired
+	private PlaceTaxonomyQueryService placeTaxonomyQueryService;
 
 	@Autowired
 	private RoomPlaceStorageService roomPlaceStorageService;
@@ -197,6 +203,62 @@ class RoomPlaceCommandServiceIntegrationTest {
 	}
 
 	@Test
+	void shouldExposeAllTaxonomyTagForEveryCategory() {
+		PlaceTaxonomyResult result = placeTaxonomyQueryService.getPlaceTaxonomy();
+
+		assertAllTag(firstTagOf(result, "FOOD"));
+		assertAllTag(firstTagOf(result, "CAFE"));
+		assertAllTag(firstTagOf(result, "ACTIVITY"));
+	}
+
+	@Test
+	void shouldExposeCafeTaxonomyDisplayNames() {
+		PlaceTaxonomyResult result = placeTaxonomyQueryService.getPlaceTaxonomy();
+
+		assertThat(tagOf(result, "CAFE", "BAKERY").name()).isEqualTo("\uBCA0\uC774\uCEE4\uB9AC");
+		assertThat(tagOf(result, "CAFE", "MISC").name()).isEqualTo("\uCEE4\uD53C\u00B7\uB514\uC800\uD2B8");
+	}
+
+	@Test
+	void shouldTreatAllTagCodeAsCategoryWideSearch() {
+		saveExternalForTest(foodSnapshot("123456789", "Donkatsu Place"));
+		saveExternalForTest(cafeSnapshot("222222222", "Bakery Cafe"));
+		saveExternalForTest(noTaxonomySnapshot("987654321", "Activity Place"));
+
+		RoomPlacePageResult foodPlaces = roomPlaceQueryService.searchRoomPlaces(
+				USER_ID,
+				ROOM_PUBLIC_ID,
+				null,
+				"FOOD",
+				"ALL",
+				0,
+				20
+		);
+		RoomPlacePageResult cafePlaces = roomPlaceQueryService.searchRoomPlaces(
+				USER_ID,
+				ROOM_PUBLIC_ID,
+				null,
+				"CAFE",
+				"ALL",
+				0,
+				20
+		);
+		RoomPlacePageResult activityPlaces = roomPlaceQueryService.searchRoomPlaces(
+				USER_ID,
+				ROOM_PUBLIC_ID,
+				null,
+				"ACTIVITY",
+				"ALL",
+				0,
+				20
+		);
+
+		assertThat(foodPlaces.items()).extracting("name").containsExactly("Donkatsu Place");
+		assertThat(cafePlaces.items()).extracting("name").containsExactly("Bakery Cafe");
+		assertThat(activityPlaces.items()).extracting("name").containsExactly("Activity Place");
+	}
+
+	@Test
 	void shouldPreserveRoomPlaceAndClearSourceRoomLinkWhenRoomLinkIsDeleted() {
 		Link link = linkRepository.saveAndFlush(Link.register("https://example.com/a", "https://example.com/a", "job-a"));
 		RoomLink roomLink = roomLinkRepository.saveAndFlush(RoomLink.bind(room, link));
@@ -278,6 +340,26 @@ class RoomPlaceCommandServiceIntegrationTest {
 		);
 	}
 
+	private static PlaceSnapshot cafeSnapshot(String kakaoPlaceId, String name) {
+		return PlaceSnapshot.kakao(
+				kakaoPlaceId,
+				name,
+				"\uC74C\uC2DD\uC810 > \uCE74\uD398 > \uBCA0\uC774\uCEE4\uB9AC",
+				"CE7",
+				"\uCE74\uD398",
+				"02-111-1111",
+				"\uC11C\uC6B8\uC2DC \uC885\uB85C\uAD6C",
+				"\uC885\uB85C 2",
+				new BigDecimal("126.973000000000"),
+				new BigDecimal("37.571000000000"),
+				"https://place.map.kakao.com/" + kakaoPlaceId,
+				null,
+				null,
+				null,
+				null
+		);
+	}
+
 	private static PlaceSnapshot noTaxonomySnapshot(String kakaoPlaceId, String name) {
 		return PlaceSnapshot.kakao(
 				kakaoPlaceId,
@@ -296,5 +378,31 @@ class RoomPlaceCommandServiceIntegrationTest {
 				null,
 				null
 		);
+	}
+
+	private static PlaceTaxonomyTagResult firstTagOf(PlaceTaxonomyResult result, String categoryCode) {
+		PlaceTaxonomyCategoryResult category = result.categories().stream()
+				.filter(item -> categoryCode.equals(item.code()))
+				.findFirst()
+				.orElseThrow();
+		return category.tagGroups().get(0).tags().get(0);
+	}
+
+	private static PlaceTaxonomyTagResult tagOf(PlaceTaxonomyResult result, String categoryCode, String tagCode) {
+		PlaceTaxonomyCategoryResult category = result.categories().stream()
+				.filter(item -> categoryCode.equals(item.code()))
+				.findFirst()
+				.orElseThrow();
+		return category.tagGroups().stream()
+				.flatMap(group -> group.tags().stream())
+				.filter(tag -> tagCode.equals(tag.code()))
+				.findFirst()
+				.orElseThrow();
+	}
+
+	private static void assertAllTag(PlaceTaxonomyTagResult tag) {
+		assertThat(tag.code()).isEqualTo("ALL");
+		assertThat(tag.name()).isEqualTo("\uC804\uCCB4");
+		assertThat(tag.sortOrder()).isZero();
 	}
 }
