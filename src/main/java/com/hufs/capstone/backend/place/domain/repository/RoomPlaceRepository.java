@@ -24,6 +24,8 @@ public interface RoomPlaceRepository extends JpaRepository<RoomPlace, Long>, Roo
 			join fetch rp.place p
 			join fetch p.serviceCategory c
 			join fetch p.serviceTag t
+			left join fetch rp.sourceRoomLink srl
+			left join fetch srl.link
 			where rp.id = :id
 			  and rp.room.id = :roomId
 			""")

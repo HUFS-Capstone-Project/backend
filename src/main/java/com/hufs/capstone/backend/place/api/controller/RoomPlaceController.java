@@ -5,6 +5,7 @@ import com.hufs.capstone.backend.global.response.CommonResponse;
 import com.hufs.capstone.backend.place.api.controller.swagger.RoomPlaceApi;
 import com.hufs.capstone.backend.place.api.request.UpdateRoomPlaceMemoRequest;
 import com.hufs.capstone.backend.place.api.response.RoomPlacePageResponse;
+import com.hufs.capstone.backend.place.api.response.RoomPlaceResponse;
 import com.hufs.capstone.backend.place.application.RoomPlaceManagementService;
 import com.hufs.capstone.backend.place.application.RoomPlaceQueryService;
 import com.hufs.capstone.backend.place.application.dto.RoomPlacePageResult;
@@ -50,6 +51,15 @@ public class RoomPlaceController implements RoomPlaceApi {
 				size
 		);
 		return CommonResponse.ok(RoomPlacePageResponse.from(result));
+	}
+
+	@Override
+	public CommonResponse<RoomPlaceResponse> getRoomPlace(
+			@PathVariable String roomId,
+			@PathVariable Long roomPlaceId
+	) {
+		Long userId = SecurityUtils.currentUserIdOrThrow();
+		return CommonResponse.ok(RoomPlaceResponse.from(roomPlaceQueryService.getRoomPlace(userId, roomId, roomPlaceId)));
 	}
 
 	@Override

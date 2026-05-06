@@ -1,10 +1,16 @@
 package com.hufs.capstone.backend.place.application;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
+import com.hufs.capstone.backend.place.application.dto.BusinessHoursResult;
 import com.hufs.capstone.backend.place.application.dto.RoomPlacePageResult;
 import com.hufs.capstone.backend.place.application.dto.RoomPlaceResult;
+import com.hufs.capstone.backend.place.domain.entity.PlaceBusinessHours;
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
+import com.hufs.capstone.backend.place.domain.repository.PlaceBusinessHoursRepository;
 import com.hufs.capstone.backend.place.domain.repository.RoomPlaceRepository;
 import com.hufs.capstone.backend.place.domain.vo.PlaceSearchText;
 import com.hufs.capstone.backend.region.application.RegionQueryService;
@@ -12,6 +18,11 @@ import com.hufs.capstone.backend.region.application.dto.RegionFilter;
 import com.hufs.capstone.backend.room.application.RoomAccessService;
 import com.hufs.capstone.backend.room.domain.entity.Room;
 import lombok.RequiredArgsConstructor;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -30,6 +41,8 @@ public class RoomPlaceQueryService {
 	private final RoomAccessService roomAccessService;
 	private final RoomPlaceRepository roomPlaceRepository;
 	private final RegionQueryService regionQueryService;
+	private final PlaceBusinessHoursRepository placeBusinessHoursRepository;
+	private final ObjectMapper objectMapper;
 
 	@Transactional(readOnly = true)
 	public RoomPlacePageResult searchRoomPlaces(
@@ -65,15 +78,78 @@ public class RoomPlaceQueryService {
 				regionFilter.sigunguCode(),
 				PageRequest.of(normalizedPage, normalizedLimit, Sort.by(Sort.Direction.DESC, "createdAt", "id"))
 		);
+		Map<String, PlaceBusinessHours> cachesByKakaoPlaceId = findCaches(result.getContent());
 		return new RoomPlacePageResult(
 				result.getContent().stream()
-						.map(RoomPlaceResult::from)
+						.map(roomPlace -> RoomPlaceResult.from(
+								roomPlace,
+								toBusinessHoursResult(cachesByKakaoPlaceId.get(roomPlace.getKakaoPlaceId()))
+						))
 						.toList(),
 				normalizedPage,
 				normalizedLimit,
 				result.getTotalElements(),
 				result.getTotalPages()
 		);
+	}
+
+	@Transactional(readOnly = true)
+	public RoomPlaceResult getRoomPlace(Long userId, String roomId, Long roomPlaceId) {
+		Room room = roomAccessService.requireMemberRoom(roomId, userId);
+		RoomPlace roomPlace = roomPlaceRepository.findByIdAndRoomId(roomPlaceId, room.getId())
+				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "Room place not found."));
+		PlaceBusinessHours cache = placeBusinessHoursRepository.findByKakaoPlaceId(roomPlace.getKakaoPlaceId())
+				.orElse(null);
+		return RoomPlaceResult.from(roomPlace, toBusinessHoursResult(cache), sourceUrl(roomPlace));
+	}
+
+	private String sourceUrl(RoomPlace roomPlace) {
+		if (roomPlace.getSourceRoomLink() == null || roomPlace.getSourceRoomLink().getLink() == null) {
+			return null;
+		}
+		return roomPlace.getSourceRoomLink().getLink().getOriginalUrl();
+	}
+
+	private Map<String, PlaceBusinessHours> findCaches(Collection<RoomPlace> roomPlaces) {
+		List<String> kakaoPlaceIds = roomPlaces.stream()
+				.map(RoomPlace::getKakaoPlaceId)
+				.filter(kakaoPlaceId -> kakaoPlaceId != null && !kakaoPlaceId.isBlank())
+				.toList();
+		if (kakaoPlaceIds.isEmpty()) {
+			return Map.of();
+		}
+		return placeBusinessHoursRepository.findByKakaoPlaceIdIn(kakaoPlaceIds)
+				.stream()
+				.collect(Collectors.toMap(
+						PlaceBusinessHours::getKakaoPlaceId,
+						Function.identity(),
+						(first, second) -> first
+				));
+	}
+
+	private BusinessHoursResult toBusinessHoursResult(PlaceBusinessHours cache) {
+		if (cache == null) {
+			return null;
+		}
+		return new BusinessHoursResult(
+				readBusinessHours(cache.getBusinessHoursJson()),
+				cache.getBusinessHoursRaw(),
+				cache.getBusinessHoursStatus(),
+				cache.getBusinessHoursFetchedAt(),
+				cache.getBusinessHoursExpiresAt(),
+				cache.getBusinessHoursSource()
+		);
+	}
+
+	private JsonNode readBusinessHours(String businessHoursJson) {
+		if (businessHoursJson == null || businessHoursJson.isBlank()) {
+			return null;
+		}
+		try {
+			return objectMapper.readTree(businessHoursJson);
+		} catch (JsonProcessingException ex) {
+			throw new BusinessException(ErrorCode.E500_INTERNAL, "Business hours cache JSON is malformed.", ex);
+		}
 	}
 
 	private static String trimToNull(String value) {

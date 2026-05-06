@@ -26,6 +26,9 @@ logging:
     root: warn
 
 app:
+  business-hours:
+    polling:
+      enabled: false
   auth:
     jwt:
       secret-base64: VGhpc0lzQVN0cm9uZ0RlbW9TZWNyZXRLZXlGb3JVZGlkdXJhQmFja2VuZA==

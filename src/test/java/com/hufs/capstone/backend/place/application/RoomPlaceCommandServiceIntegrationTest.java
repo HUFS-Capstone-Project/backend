@@ -13,6 +13,7 @@ import com.hufs.capstone.backend.place.application.dto.PlaceTaxonomyCategoryResu
 import com.hufs.capstone.backend.place.application.dto.PlaceTaxonomyResult;
 import com.hufs.capstone.backend.place.application.dto.PlaceTaxonomyTagResult;
 import com.hufs.capstone.backend.place.application.dto.RoomPlacePageResult;
+import com.hufs.capstone.backend.place.application.dto.RoomPlaceResult;
 import com.hufs.capstone.backend.place.application.dto.RoomPlaceSaveResult;
 import com.hufs.capstone.backend.place.domain.entity.Place;
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
@@ -379,6 +380,63 @@ class RoomPlaceCommandServiceIntegrationTest {
 
 		assertThat(reloaded.getSourceRoomLinkId()).isNull();
 		assertThat(reloaded.getPlaceName()).isEqualTo("Linked Place");
+	}
+
+	@Test
+	void shouldExposeSourceFeedUrlWhenGettingRoomPlaceDetail() {
+		String feedUrl = "https://www.instagram.com/reel/source-feed";
+		Link link = linkRepository.saveAndFlush(Link.register(feedUrl, feedUrl, "job-feed"));
+		RoomLink roomLink = roomLinkRepository.saveAndFlush(RoomLink.bind(room, link));
+		RoomPlaceSaveResult saved = new RoomPlaceSaveResult(
+				link.getId(),
+				roomPlaceStorageService.saveAll(
+						room,
+						USER_ID,
+						List.of(foodSnapshot("123456789", "Linked Place")),
+						null,
+						RoomPlaceSourceType.LINK_ANALYSIS,
+						roomLink
+				)
+		);
+
+		RoomPlaceResult detail = roomPlaceQueryService.getRoomPlace(
+				USER_ID,
+				ROOM_PUBLIC_ID,
+				saved.places().get(0).roomPlaceId()
+		);
+
+		assertThat(detail.sourceRoomLinkId()).isEqualTo(roomLink.getId());
+		assertThat(detail.sourceUrl()).isEqualTo(feedUrl);
+	}
+
+	@Test
+	void shouldNotAttachSourceFeedUrlWhenExistingPlaceIsSavedFromAnotherLinkContext() {
+		saveExternalForTest(foodSnapshot("123456789", "Linked Place"));
+		String feedUrl = "https://www.instagram.com/reel/manual-source-feed";
+		Link link = linkRepository.saveAndFlush(Link.register(feedUrl, feedUrl, "job-manual-feed"));
+		RoomLink roomLink = roomLinkRepository.saveAndFlush(RoomLink.bind(room, link));
+		RoomPlaceSaveResult savedFromLink = transactionTemplate.execute(status -> new RoomPlaceSaveResult(
+				link.getId(),
+				roomPlaceStorageService.saveAll(
+						roomRepository.findById(room.getId()).orElseThrow(),
+						USER_ID,
+						List.of(foodSnapshot("123456789", "Linked Place")),
+						null,
+						RoomPlaceSourceType.LINK_ANALYSIS_MANUAL_SEARCH,
+						roomLinkRepository.findById(roomLink.getId()).orElseThrow()
+				)
+		));
+
+		RoomPlaceResult detail = roomPlaceQueryService.getRoomPlace(
+				USER_ID,
+				ROOM_PUBLIC_ID,
+				savedFromLink.places().get(0).roomPlaceId()
+		);
+
+		assertThat(savedFromLink.places().get(0).created()).isFalse();
+		assertThat(savedFromLink.places().get(0).alreadyInRoom()).isTrue();
+		assertThat(detail.sourceRoomLinkId()).isNull();
+		assertThat(detail.sourceUrl()).isNull();
 	}
 
 	private RoomPlaceSaveResult saveExternalForTest(PlaceSnapshot snapshot) {

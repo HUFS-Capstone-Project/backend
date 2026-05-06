@@ -1,5 +1,6 @@
 package com.hufs.capstone.backend.place.api.response;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.hufs.capstone.backend.place.application.dto.RoomPlaceResult;
 import com.hufs.capstone.backend.place.domain.enums.RoomPlaceSourceType;
 import java.math.BigDecimal;
@@ -28,8 +29,15 @@ public record RoomPlaceResponse(
 		String memo,
 		RoomPlaceSourceType sourceType,
 		Long sourceRoomLinkId,
+		String sourceUrl,
 		Long createdBy,
-		Instant createdAt
+		Instant createdAt,
+		JsonNode businessHours,
+		String businessHoursRaw,
+		String businessHoursStatus,
+		Instant businessHoursFetchedAt,
+		Instant businessHoursExpiresAt,
+		String businessHoursSource
 ) {
 
 	public static RoomPlaceResponse from(RoomPlaceResult result) {
@@ -56,8 +64,15 @@ public record RoomPlaceResponse(
 				result.memo(),
 				result.sourceType(),
 				result.sourceRoomLinkId(),
+				result.sourceUrl(),
 				result.createdBy(),
-				result.createdAt()
+				result.createdAt(),
+				result.businessHours(),
+				result.businessHoursRaw(),
+				result.businessHoursStatus(),
+				result.businessHoursFetchedAt(),
+				result.businessHoursExpiresAt(),
+				result.businessHoursSource()
 		);
 	}
 }

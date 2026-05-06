@@ -1,5 +1,6 @@
 package com.hufs.capstone.backend.place.application.dto;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.hufs.capstone.backend.place.domain.entity.Place;
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
 import com.hufs.capstone.backend.place.domain.enums.RoomPlaceSourceType;
@@ -29,11 +30,26 @@ public record RoomPlaceResult(
 		String memo,
 		RoomPlaceSourceType sourceType,
 		Long sourceRoomLinkId,
+		String sourceUrl,
 		Long createdBy,
-		Instant createdAt
+		Instant createdAt,
+		JsonNode businessHours,
+		String businessHoursRaw,
+		String businessHoursStatus,
+		Instant businessHoursFetchedAt,
+		Instant businessHoursExpiresAt,
+		String businessHoursSource
 ) {
 
 	public static RoomPlaceResult from(RoomPlace roomPlace) {
+		return from(roomPlace, null);
+	}
+
+	public static RoomPlaceResult from(RoomPlace roomPlace, BusinessHoursResult businessHours) {
+		return from(roomPlace, businessHours, null);
+	}
+
+	public static RoomPlaceResult from(RoomPlace roomPlace, BusinessHoursResult businessHours, String sourceUrl) {
 		Place place = roomPlace.getPlace();
 		return new RoomPlaceResult(
 				roomPlace.getId(),
@@ -58,8 +74,17 @@ public record RoomPlaceResult(
 				roomPlace.getMemo(),
 				roomPlace.getSourceType(),
 				roomPlace.getSourceRoomLinkId(),
+				sourceUrl,
 				roomPlace.getCreatedByUserId(),
-				roomPlace.getCreatedAt()
+				roomPlace.getCreatedAt(),
+				businessHours == null ? null : businessHours.businessHours(),
+				businessHours == null ? null : businessHours.businessHoursRaw(),
+				businessHours == null || businessHours.businessHoursStatus() == null
+						? null
+						: businessHours.businessHoursStatus().name(),
+				businessHours == null ? null : businessHours.businessHoursFetchedAt(),
+				businessHours == null ? null : businessHours.businessHoursExpiresAt(),
+				businessHours == null ? null : businessHours.businessHoursSource()
 		);
 	}
 }

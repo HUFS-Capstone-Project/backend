@@ -53,6 +53,12 @@ app:
     join-rate-limit:
       max-attempts: 5
       window: 1m
+  business-hours:
+    polling:
+      enabled: true
+      interval: 5s
+      batch-size: 50
+      scheduler-delay-ms: 5000
   security:
     csrf:
       cookie:

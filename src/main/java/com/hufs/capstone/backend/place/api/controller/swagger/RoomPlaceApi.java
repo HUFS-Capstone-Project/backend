@@ -3,6 +3,7 @@ package com.hufs.capstone.backend.place.api.controller.swagger;
 import com.hufs.capstone.backend.global.response.CommonResponse;
 import com.hufs.capstone.backend.place.api.request.UpdateRoomPlaceMemoRequest;
 import com.hufs.capstone.backend.place.api.response.RoomPlacePageResponse;
+import com.hufs.capstone.backend.place.api.response.RoomPlaceResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -38,6 +39,18 @@ public interface RoomPlaceApi {
 			@RequestParam(required = false) Integer page,
 			@RequestParam(required = false) Integer size,
 			@RequestParam(required = false) Integer limit
+	);
+
+	@Operation(
+			tags = {"Room place"},
+			summary = "저장된 장소 상세 조회 API",
+			description = "해당 방에 저장된 장소 상세를 DB 캐시 기준으로 조회합니다."
+	)
+	@ApiResponse(responseCode = "200", description = "OK")
+	@GetMapping("/{roomPlaceId}")
+	CommonResponse<RoomPlaceResponse> getRoomPlace(
+			@PathVariable String roomId,
+			@PathVariable Long roomPlaceId
 	);
 
 	@Operation(

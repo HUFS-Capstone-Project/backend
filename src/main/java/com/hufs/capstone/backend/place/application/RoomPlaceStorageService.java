@@ -6,9 +6,11 @@ import com.hufs.capstone.backend.link.domain.entity.RoomLink;
 import com.hufs.capstone.backend.place.application.dto.ResolvedPlaceTaxonomy;
 import com.hufs.capstone.backend.place.application.dto.RoomPlaceSaveResult.SavedRoomPlaceResult;
 import com.hufs.capstone.backend.place.domain.entity.Place;
+import com.hufs.capstone.backend.place.domain.entity.PlaceBusinessHours;
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
 import com.hufs.capstone.backend.place.domain.entity.RoomPlaceSource;
 import com.hufs.capstone.backend.place.domain.enums.RoomPlaceSourceType;
+import com.hufs.capstone.backend.place.domain.repository.PlaceBusinessHoursRepository;
 import com.hufs.capstone.backend.place.domain.repository.PlaceRepository;
 import com.hufs.capstone.backend.place.domain.repository.RoomPlaceRepository;
 import com.hufs.capstone.backend.place.domain.repository.RoomPlaceSourceRepository;
@@ -17,8 +19,10 @@ import com.hufs.capstone.backend.region.application.RegionAddressResolver;
 import com.hufs.capstone.backend.region.application.dto.ResolvedRegion;
 import com.hufs.capstone.backend.room.domain.entity.Room;
 import java.util.ArrayList;
+import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
@@ -31,6 +35,9 @@ public class RoomPlaceStorageService {
 	private final RoomPlaceSourceRepository roomPlaceSourceRepository;
 	private final PlaceTaxonomyResolver placeTaxonomyResolver;
 	private final RegionAddressResolver regionAddressResolver;
+	private final PlaceBusinessHoursRepository placeBusinessHoursRepository;
+	private final PlaceBusinessHoursRefreshPolicy placeBusinessHoursRefreshPolicy;
+	private final ApplicationEventPublisher eventPublisher;
 
 	public List<SavedRoomPlaceResult> saveAll(
 			Room room,
@@ -68,13 +75,45 @@ public class RoomPlaceStorageService {
 				.orElse(null);
 		if (existingRoomPlace != null) {
 			existingRoomPlace.fillRegionIfAbsent(region);
-			attachSourceIfNeeded(existingRoomPlace, sourceRoomLink, sourceType, userId, snapshot);
+			publishBusinessHoursRequestIfNeeded(existingRoomPlace, false);
 			return toResult(existingRoomPlace, false, true);
 		}
 		RoomPlace roomPlace = RoomPlace.create(room, place, userId, memo, sourceType, sourceRoomLink, snapshot, region);
 		RoomPlace saved = roomPlaceRepository.save(roomPlace);
 		attachSourceIfNeeded(saved, sourceRoomLink, sourceType, userId, snapshot);
+		publishBusinessHoursRequestIfNeeded(saved, true);
 		return toResult(saved, true, false);
+	}
+
+	private void publishBusinessHoursRequestIfNeeded(RoomPlace roomPlace, boolean created) {
+		PlaceBusinessHours cache = placeBusinessHoursRepository.findByKakaoPlaceId(roomPlace.getKakaoPlaceId())
+				.orElse(null);
+		if (!placeBusinessHoursRefreshPolicy.shouldRequest(cache, Instant.now())) {
+			return;
+		}
+		Place place = roomPlace.getPlace();
+		eventPublisher.publishEvent(new BusinessHoursRequestedEvent(
+				roomPlace.getId(),
+				place.getId(),
+				place.getKakaoPlaceId(),
+				place.getPlaceUrl(),
+				place.getName(),
+				created,
+				refreshReason(created, cache)
+		));
+	}
+
+	private static String refreshReason(boolean created, PlaceBusinessHours cache) {
+		if (created) {
+			return "created";
+		}
+		if (cache == null) {
+			return "missing_cache";
+		}
+		if (cache.getBusinessHoursExpiresAt() == null) {
+			return "null_expires_at";
+		}
+		return "expired";
 	}
 
 	private void attachSourceIfNeeded(
