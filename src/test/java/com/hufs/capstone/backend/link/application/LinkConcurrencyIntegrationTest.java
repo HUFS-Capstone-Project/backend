@@ -20,6 +20,7 @@ import com.hufs.capstone.backend.link.application.dto.AnalyzeLinkCommand;
 import com.hufs.capstone.backend.link.application.dto.LinkAnalysisResult;
 import com.hufs.capstone.backend.link.application.dto.LinkAnalysisRequestResult;
 import com.hufs.capstone.backend.link.application.dto.LinkPlaceResult;
+import com.hufs.capstone.backend.link.application.dto.RoomLinkCandidateOverrideResult;
 import com.hufs.capstone.backend.link.application.dto.SaveRoomPlacesCommand;
 import com.hufs.capstone.backend.link.application.event.LinkProcessingRequestedEvent;
 import com.hufs.capstone.backend.link.domain.LinkAnalysisStatus;
@@ -27,9 +28,11 @@ import com.hufs.capstone.backend.link.domain.ProcessingDispatchStatus;
 import com.hufs.capstone.backend.link.domain.entity.Link;
 import com.hufs.capstone.backend.link.domain.entity.LinkAnalysisRequest;
 import com.hufs.capstone.backend.link.domain.entity.RoomLink;
+import com.hufs.capstone.backend.link.domain.repository.LinkCandidateRepository;
 import com.hufs.capstone.backend.link.domain.repository.LinkAnalysisRequestRepository;
 import com.hufs.capstone.backend.link.domain.repository.LinkProcessingHistoryRepository;
 import com.hufs.capstone.backend.link.domain.repository.LinkRepository;
+import com.hufs.capstone.backend.link.domain.repository.RoomLinkCandidateOverrideRepository;
 import com.hufs.capstone.backend.link.domain.repository.RoomLinkRepository;
 import com.hufs.capstone.backend.place.application.dto.RoomPlaceSaveResult;
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
@@ -37,6 +40,7 @@ import com.hufs.capstone.backend.place.domain.enums.RoomPlaceSourceType;
 import com.hufs.capstone.backend.place.domain.repository.PlaceRepository;
 import com.hufs.capstone.backend.place.domain.repository.RoomPlaceRepository;
 import com.hufs.capstone.backend.place.domain.repository.RoomPlaceSourceRepository;
+import com.hufs.capstone.backend.place.domain.vo.PlaceSnapshot;
 import com.hufs.capstone.backend.room.domain.entity.Room;
 import com.hufs.capstone.backend.room.domain.entity.RoomMember;
 import com.hufs.capstone.backend.room.domain.repository.RoomMemberRepository;
@@ -97,10 +101,19 @@ class LinkConcurrencyIntegrationTest {
 	private RoomPlaceCommandService roomPlaceCommandService;
 
 	@Autowired
+	private RoomLinkCandidateOverrideService roomLinkCandidateOverrideService;
+
+	@Autowired
 	private LinkRepository linkRepository;
 
 	@Autowired
 	private LinkAnalysisRequestRepository linkAnalysisRequestRepository;
+
+	@Autowired
+	private LinkCandidateRepository linkCandidateRepository;
+
+	@Autowired
+	private RoomLinkCandidateOverrideRepository overrideRepository;
 
 	@Autowired
 	private RoomLinkRepository roomLinkRepository;
@@ -131,10 +144,12 @@ class LinkConcurrencyIntegrationTest {
 
 	@BeforeEach
 	void setUp() {
+		overrideRepository.deleteAll();
 		roomPlaceSourceRepository.deleteAll();
 		roomPlaceRepository.deleteAll();
 		placeRepository.deleteAll();
 		roomLinkRepository.deleteAll();
+		linkCandidateRepository.deleteAll();
 		linkAnalysisRequestRepository.deleteAll();
 		linkProcessingHistoryRepository.deleteAll();
 		roomMemberRepository.deleteAll();
@@ -152,10 +167,12 @@ class LinkConcurrencyIntegrationTest {
 
 	@AfterEach
 	void tearDown() {
+		overrideRepository.deleteAll();
 		roomPlaceSourceRepository.deleteAll();
 		roomPlaceRepository.deleteAll();
 		placeRepository.deleteAll();
 		roomLinkRepository.deleteAll();
+		linkCandidateRepository.deleteAll();
 		linkAnalysisRequestRepository.deleteAll();
 		linkProcessingHistoryRepository.deleteAll();
 		roomMemberRepository.deleteAll();
@@ -467,6 +484,97 @@ class LinkConcurrencyIntegrationTest {
 		assertThat(unsavedCandidate.alreadyInRoom()).isFalse();
 		assertThat(unsavedCandidate.selectable()).isTrue();
 		assertThat(unsavedCandidate.disabledReason()).isNull();
+	}
+
+	@Test
+	void shouldOverlayRoomScopedCandidateOverrideForRepeatedSameLinkAnalysis() throws Exception {
+		when(processingClient.createJob("https://example.com/post/manual-corrected", ROOM_A_PUBLIC_ID, null))
+				.thenReturn(new CreateProcessingJobResponse("job-manual-corrected"));
+		LinkAnalysisRequestResult firstRequest = linkAnalysisRequestService.requestLinkAnalysis(
+				MEMBER_USER_ID,
+				ROOM_A_PUBLIC_ID,
+				new AnalyzeLinkCommand("https://example.com/post/manual-corrected", null)
+		);
+		Link link = awaitValue(
+				() -> linkRepository.findById(firstRequest.linkId()).orElseThrow(),
+				item -> item.getDispatchStatus() == ProcessingDispatchStatus.DISPATCHED
+		);
+		when(processingClient.getJob("job-manual-corrected"))
+				.thenReturn(new ProcessingJobResponse("job-manual-corrected", "succeeded", null, ROOM_A_PUBLIC_ID, null, null, null));
+		when(processingClient.getJobResult("job-manual-corrected"))
+				.thenReturn(succeededResultWithPlaces(place("111111111", "A Twosome Place Myeongdong")));
+		LinkAnalysisResult originalResult =
+				linkAnalysisStatusService.getLinkAnalysisResult(MEMBER_USER_ID, ROOM_A_PUBLIC_ID, firstRequest.analysisRequestId());
+		LinkPlaceResult originalCandidate = originalResult.candidatePlaces().get(0);
+		RoomLinkCandidateOverrideResult override = roomLinkCandidateOverrideService.overrideCandidate(
+				MEMBER_USER_ID,
+				ROOM_A_PUBLIC_ID,
+				firstRequest.analysisRequestId(),
+				originalCandidate.candidateId(),
+				manualCafeSnapshot("222222222", "A Twosome Place HUFS")
+		);
+
+		LinkAnalysisRequestResult repeatedRequest = linkAnalysisRequestService.requestLinkAnalysis(
+				MEMBER_USER_ID,
+				ROOM_A_PUBLIC_ID,
+				new AnalyzeLinkCommand("https://example.com/post/manual-corrected?utm_source=again", null)
+		);
+		LinkAnalysisResult result = linkAnalysisStatusService.getLinkAnalysisResult(
+				MEMBER_USER_ID,
+				ROOM_A_PUBLIC_ID,
+				repeatedRequest.analysisRequestId()
+		);
+
+		assertThat(repeatedRequest.linkId()).isEqualTo(link.getId());
+		assertThat(repeatedRequest.analysisRequestId()).isEqualTo(firstRequest.analysisRequestId());
+		assertThat(repeatedRequest.createdRequest()).isFalse();
+		LinkPlaceResult correctedCandidate = result.candidatePlaces().stream()
+				.filter(candidate -> "222222222".equals(candidate.kakaoPlaceId()))
+				.findFirst()
+				.orElseThrow();
+		assertThat(override.candidateId()).isEqualTo(originalCandidate.candidateId());
+		assertThat(correctedCandidate.candidateId()).isEqualTo(originalCandidate.candidateId());
+		assertThat(correctedCandidate.overrideId()).isEqualTo(override.overrideId());
+		assertThat(correctedCandidate.placeName()).isEqualTo("A Twosome Place HUFS");
+		assertThat(correctedCandidate.corrected()).isTrue();
+		assertThat(correctedCandidate.alreadyInRoom()).isFalse();
+		assertThat(correctedCandidate.selectable()).isTrue();
+		assertThat(roomPlaceRepository.countByRoomId(roomA.getId())).isZero();
+
+		roomPlaceCommandService.saveRoomPlaces(
+				MEMBER_USER_ID,
+				ROOM_A_PUBLIC_ID,
+				repeatedRequest.analysisRequestId(),
+				new SaveRoomPlacesCommand(List.of("222222222"))
+		);
+		LinkAnalysisResult savedResult = linkAnalysisStatusService.getLinkAnalysisResult(
+				MEMBER_USER_ID,
+				ROOM_A_PUBLIC_ID,
+				repeatedRequest.analysisRequestId()
+		);
+		LinkPlaceResult savedCorrectedCandidate = savedResult.candidatePlaces().stream()
+				.filter(candidate -> "222222222".equals(candidate.kakaoPlaceId()))
+				.findFirst()
+				.orElseThrow();
+		assertThat(savedCorrectedCandidate.alreadyInRoom()).isTrue();
+		assertThat(savedCorrectedCandidate.selectable()).isFalse();
+		assertThat(roomPlaceRepository.countByRoomIdAndKakaoPlaceId(roomA.getId(), "222222222")).isEqualTo(1);
+
+		LinkAnalysisRequestResult otherRoomRequest = linkAnalysisRequestService.requestLinkAnalysis(
+				MEMBER_USER_ID,
+				ROOM_B_PUBLIC_ID,
+				new AnalyzeLinkCommand("https://example.com/post/manual-corrected", null)
+		);
+		LinkAnalysisResult otherRoomResult = linkAnalysisStatusService.getLinkAnalysisResult(
+				MEMBER_USER_ID,
+				ROOM_B_PUBLIC_ID,
+				otherRoomRequest.analysisRequestId()
+		);
+
+		assertThat(otherRoomResult.candidatePlaces())
+				.extracting(LinkPlaceResult::kakaoPlaceId)
+				.contains("111111111")
+				.doesNotContain("222222222");
 	}
 
 	@Test
@@ -949,6 +1057,26 @@ class LinkConcurrencyIntegrationTest {
 				placeName,
 				placeName,
 				placeName
+		);
+	}
+
+	private static PlaceSnapshot manualCafeSnapshot(String kakaoPlaceId, String placeName) {
+		return PlaceSnapshot.kakao(
+				kakaoPlaceId,
+				placeName,
+				"Food > Cafe",
+				"CE7",
+				"Cafe",
+				"02-111-1111",
+				"Seoul Dongdaemun-gu",
+				"HUFS Road 1",
+				new BigDecimal("127.058000000000"),
+				new BigDecimal("37.596000000000"),
+				"https://place.map.kakao.com/" + kakaoPlaceId,
+				null,
+				"A Twosome Place",
+				null,
+				null
 		);
 	}
 

@@ -3,7 +3,8 @@ package com.hufs.capstone.backend.link.application;
 import com.hufs.capstone.backend.link.application.dto.LinkAnalysisResult;
 import com.hufs.capstone.backend.link.application.dto.LinkPlaceResult;
 import com.hufs.capstone.backend.link.domain.entity.Link;
-import com.hufs.capstone.backend.link.domain.vo.PlaceCandidateSnapshot;
+import com.hufs.capstone.backend.link.domain.entity.LinkCandidate;
+import com.hufs.capstone.backend.link.domain.entity.RoomLinkCandidateOverride;
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +39,40 @@ public class LinkAnalysisResultMapper {
 		);
 	}
 
+	public LinkAnalysisResult withRoomCandidateContext(
+			LinkAnalysisResult result,
+			List<LinkCandidate> originalCandidates,
+			List<RoomLinkCandidateOverride> overrides,
+			List<RoomPlace> savedPlaces
+	) {
+		Map<Long, RoomLinkCandidateOverride> overrideByCandidateId = overrides.stream()
+				.collect(Collectors.toMap(
+						override -> override.getLinkCandidate().getId(),
+						Function.identity(),
+						(first, ignored) -> first
+				));
+		List<LinkPlaceResult> overlaidCandidates = originalCandidates.stream()
+				.map(candidate -> {
+					RoomLinkCandidateOverride override = overrideByCandidateId.get(candidate.getId());
+					return override == null
+							? LinkPlaceResult.fromCandidate(candidate)
+							: LinkPlaceResult.fromOverride(candidate, override);
+				})
+				.toList();
+		LinkAnalysisResult overlaidResult = new LinkAnalysisResult(
+				result.linkId(),
+				result.status(),
+				result.captionRaw(),
+				result.extractionStoreName(),
+				result.extractionAddress(),
+				result.extractionCertainty(),
+				overlaidCandidates,
+				result.errorCode(),
+				result.errorMessage()
+		);
+		return withSavedStatus(overlaidResult, savedPlaces);
+	}
+
 	public LinkAnalysisResult withSavedStatus(LinkAnalysisResult result, List<RoomPlace> savedPlaces) {
 		Map<String, RoomPlace> savedByKakaoPlaceId = savedPlaces.stream()
 				.collect(Collectors.toMap(RoomPlace::getKakaoPlaceId, Function.identity(), (first, ignored) -> first));
@@ -65,26 +100,7 @@ public class LinkAnalysisResultMapper {
 		if (savedPlace == null) {
 			return candidate;
 		}
-		return LinkPlaceResult.alreadyInRoom(toSnapshot(candidate), savedPlace);
+		return LinkPlaceResult.alreadyInRoom(candidate, savedPlace);
 	}
 
-	private static PlaceCandidateSnapshot toSnapshot(LinkPlaceResult candidate) {
-		return new PlaceCandidateSnapshot(
-				candidate.kakaoPlaceId(),
-				candidate.placeName(),
-				candidate.categoryName(),
-				candidate.categoryGroupCode(),
-				candidate.categoryGroupName(),
-				candidate.phone(),
-				candidate.addressName(),
-				candidate.roadAddressName(),
-				candidate.longitude(),
-				candidate.latitude(),
-				candidate.placeUrl(),
-				candidate.confidence(),
-				candidate.sourceKeyword(),
-				candidate.sourceSentence(),
-				candidate.rawCandidate()
-		);
-	}
 }

@@ -28,6 +28,8 @@ public record LinkAnalysisResponse(
 	}
 
 	public record PlaceResponse(
+			Long candidateId,
+			Long overrideId,
 			String kakaoPlaceId,
 			String placeName,
 			String categoryName,
@@ -42,12 +44,17 @@ public record LinkAnalysisResponse(
 			String sourceKeyword,
 			boolean alreadyInRoom,
 			boolean selectable,
+			boolean originalCandidate,
+			boolean corrected,
+			boolean editable,
 			Long roomPlaceId,
 			DisabledReason disabledReason
 	) {
 
 		private static PlaceResponse from(LinkPlaceResult result) {
 			return new PlaceResponse(
+					result.candidateId(),
+					result.overrideId(),
 					result.kakaoPlaceId(),
 					result.placeName(),
 					result.categoryName(),
@@ -62,6 +69,9 @@ public record LinkAnalysisResponse(
 					result.sourceKeyword(),
 					result.alreadyInRoom(),
 					result.selectable(),
+					result.originalCandidate(),
+					result.corrected(),
+					result.editable(),
 					result.roomPlaceId(),
 					result.disabledReason()
 			);

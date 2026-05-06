@@ -27,6 +27,8 @@ public class LinkAnalysisStatusWriteService {
 
 	private final LinkRepository linkRepository;
 	private final LinkAnalysisResultMapper linkAnalysisResultMapper;
+	private final LinkPlaceCandidateSnapshotMapper placeCandidateSnapshotMapper;
+	private final LinkCandidateSyncService linkCandidateSyncService;
 	private final ApplicationEventPublisher eventPublisher;
 
 	@Transactional
@@ -54,6 +56,12 @@ public class LinkAnalysisStatusWriteService {
 			if (updated == 1) {
 				Link refreshed = linkRepository.findById(linkId)
 						.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "Link not found."));
+				if (plan.targetStatus() == LinkAnalysisStatus.SUCCEEDED) {
+					linkCandidateSyncService.replaceCandidates(
+							refreshed,
+							placeCandidateSnapshotMapper.read(refreshed.getExtractedPlacesJson())
+					);
+				}
 				eventPublisher.publishEvent(new LinkStatusSyncedEvent(refreshed.getId()));
 				return linkAnalysisResultMapper.from(refreshed);
 			}

@@ -4,17 +4,21 @@ import com.hufs.capstone.backend.auth.security.SecurityUtils;
 import com.hufs.capstone.backend.global.response.CommonResponse;
 import com.hufs.capstone.backend.link.api.controller.swagger.LinkApi;
 import com.hufs.capstone.backend.link.api.request.CreateLinkAnalysisRequest;
+import com.hufs.capstone.backend.link.api.request.OverrideLinkCandidateRequest;
 import com.hufs.capstone.backend.link.api.request.SaveManualRoomPlaceRequest;
 import com.hufs.capstone.backend.link.api.request.SaveRoomPlacesRequest;
 import com.hufs.capstone.backend.link.api.response.LinkAnalysisRequestResponse;
 import com.hufs.capstone.backend.link.api.response.LinkAnalysisResponse;
+import com.hufs.capstone.backend.link.api.response.RoomLinkCandidateOverrideResponse;
 import com.hufs.capstone.backend.link.api.response.RoomPlaceSaveResponse;
 import com.hufs.capstone.backend.link.application.LinkAnalysisRequestService;
 import com.hufs.capstone.backend.link.application.LinkAnalysisStatusService;
+import com.hufs.capstone.backend.link.application.RoomLinkCandidateOverrideService;
 import com.hufs.capstone.backend.link.application.RoomPlaceCommandService;
 import com.hufs.capstone.backend.link.application.dto.AnalyzeLinkCommand;
 import com.hufs.capstone.backend.link.application.dto.LinkAnalysisRequestResult;
 import com.hufs.capstone.backend.link.application.dto.LinkAnalysisResult;
+import com.hufs.capstone.backend.link.application.dto.RoomLinkCandidateOverrideResult;
 import com.hufs.capstone.backend.link.application.dto.SaveManualRoomPlaceCommand;
 import com.hufs.capstone.backend.link.application.dto.SaveRoomPlacesCommand;
 import com.hufs.capstone.backend.place.application.dto.RoomPlaceSaveResult;
@@ -35,6 +39,7 @@ public class LinkController implements LinkApi {
 	private final LinkAnalysisRequestService linkAnalysisRequestService;
 	private final LinkAnalysisStatusService linkAnalysisStatusService;
 	private final RoomPlaceCommandService roomPlaceCommandService;
+	private final RoomLinkCandidateOverrideService roomLinkCandidateOverrideService;
 
 	@Override
 	public ResponseEntity<CommonResponse<LinkAnalysisRequestResponse>> createLinkAnalysisRequest(
@@ -85,6 +90,25 @@ public class LinkController implements LinkApi {
 				new SaveRoomPlacesCommand(request.kakaoPlaceIds())
 		);
 		return CommonResponse.ok(RoomPlaceSaveResponse.from(result));
+	}
+
+	@Override
+	public CommonResponse<RoomLinkCandidateOverrideResponse> overrideLinkCandidate(
+			@PathVariable String roomId,
+			@PathVariable Long analysisRequestId,
+			@PathVariable Long candidateId,
+			@Valid @RequestBody OverrideLinkCandidateRequest request,
+			@RequestHeader(name = "X-XSRF-TOKEN", required = false) String csrfToken
+	) {
+		Long userId = SecurityUtils.currentUserIdOrThrow();
+		RoomLinkCandidateOverrideResult result = roomLinkCandidateOverrideService.overrideCandidate(
+				userId,
+				roomId,
+				analysisRequestId,
+				candidateId,
+				request.toSnapshot()
+		);
+		return CommonResponse.ok(RoomLinkCandidateOverrideResponse.from(result));
 	}
 
 	@Override

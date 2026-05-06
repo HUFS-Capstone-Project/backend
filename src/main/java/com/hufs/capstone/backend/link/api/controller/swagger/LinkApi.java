@@ -2,10 +2,12 @@ package com.hufs.capstone.backend.link.api.controller.swagger;
 
 import com.hufs.capstone.backend.global.response.CommonResponse;
 import com.hufs.capstone.backend.link.api.request.CreateLinkAnalysisRequest;
+import com.hufs.capstone.backend.link.api.request.OverrideLinkCandidateRequest;
 import com.hufs.capstone.backend.link.api.request.SaveManualRoomPlaceRequest;
 import com.hufs.capstone.backend.link.api.request.SaveRoomPlacesRequest;
 import com.hufs.capstone.backend.link.api.response.LinkAnalysisRequestResponse;
 import com.hufs.capstone.backend.link.api.response.LinkAnalysisResponse;
+import com.hufs.capstone.backend.link.api.response.RoomLinkCandidateOverrideResponse;
 import com.hufs.capstone.backend.link.api.response.RoomPlaceSaveResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -16,6 +18,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -62,6 +65,21 @@ public interface LinkApi {
 			@PathVariable String roomId,
 			@PathVariable Long analysisRequestId,
 			@Valid @RequestBody SaveRoomPlacesRequest request,
+			@RequestHeader(name = "X-XSRF-TOKEN", required = false) String csrfToken
+	);
+
+	@Operation(
+			tags = {"Link"},
+			summary = "링크 분석 후보 장소 수정 API",
+			description = "전역 Link 원본 후보를 변경하지 않고, 현재 방의 RoomLink 컨텍스트에 후보 override를 저장합니다."
+	)
+	@ApiResponse(responseCode = "200", description = "OK")
+	@PutMapping("/link-analysis-requests/{analysisRequestId}/candidates/{candidateId}/override")
+	CommonResponse<RoomLinkCandidateOverrideResponse> overrideLinkCandidate(
+			@PathVariable String roomId,
+			@PathVariable Long analysisRequestId,
+			@PathVariable Long candidateId,
+			@Valid @RequestBody OverrideLinkCandidateRequest request,
 			@RequestHeader(name = "X-XSRF-TOKEN", required = false) String csrfToken
 	);
 

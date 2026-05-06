@@ -35,6 +35,12 @@ class LinkAnalysisStatusWriteServiceTest {
 	@Mock
 	private LinkAnalysisResultMapper linkAnalysisResultMapper;
 
+	@Mock
+	private LinkPlaceCandidateSnapshotMapper placeCandidateSnapshotMapper;
+
+	@Mock
+	private LinkCandidateSyncService linkCandidateSyncService;
+
 	@InjectMocks
 	private LinkAnalysisStatusWriteService linkAnalysisStatusWriteService;
 

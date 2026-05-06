@@ -7,7 +7,11 @@ import com.hufs.capstone.backend.link.application.dto.SaveRoomPlacesCommand;
 import com.hufs.capstone.backend.link.domain.LinkAnalysisStatus;
 import com.hufs.capstone.backend.link.domain.entity.Link;
 import com.hufs.capstone.backend.link.domain.entity.LinkAnalysisRequest;
+import com.hufs.capstone.backend.link.domain.entity.LinkCandidate;
 import com.hufs.capstone.backend.link.domain.entity.RoomLink;
+import com.hufs.capstone.backend.link.domain.entity.RoomLinkCandidateOverride;
+import com.hufs.capstone.backend.link.domain.repository.LinkCandidateRepository;
+import com.hufs.capstone.backend.link.domain.repository.RoomLinkCandidateOverrideRepository;
 import com.hufs.capstone.backend.link.domain.repository.RoomLinkRepository;
 import com.hufs.capstone.backend.link.domain.vo.PlaceCandidateSnapshot;
 import com.hufs.capstone.backend.place.application.RoomPlaceStorageService;
@@ -35,6 +39,8 @@ public class RoomPlaceCommandWriteService {
 
 	private final LinkAnalysisAuthorizationService linkAnalysisAuthorizationService;
 	private final RoomLinkRepository roomLinkRepository;
+	private final LinkCandidateRepository linkCandidateRepository;
+	private final RoomLinkCandidateOverrideRepository overrideRepository;
 	private final LinkPlaceCandidateSnapshotMapper placeCandidateSnapshotMapper;
 	private final RoomPlaceStorageService roomPlaceStorageService;
 
@@ -53,11 +59,12 @@ public class RoomPlaceCommandWriteService {
 			throw new BusinessException(ErrorCode.E409_CONFLICT, "Link analysis is not completed.");
 		}
 
-		Map<String, PlaceCandidateSnapshot> candidatesByKakaoPlaceId = candidateMap(link);
+		Map<String, PlaceSnapshot> candidatesByKakaoPlaceId =
+				effectiveCandidateMap(link, analysisRequest.getRoom());
 		validateCandidatesExist(requestedKakaoPlaceIds, candidatesByKakaoPlaceId.keySet());
 
 		List<PlaceSnapshot> snapshots = requestedKakaoPlaceIds.stream()
-				.map(kakaoPlaceId -> toPlaceSnapshot(candidatesByKakaoPlaceId.get(kakaoPlaceId)))
+				.map(candidatesByKakaoPlaceId::get)
 				.toList();
 		RoomLink roomLink = findOrCreateRoomLink(analysisRequest.getRoom(), link);
 		return new RoomPlaceSaveResult(
@@ -117,7 +124,32 @@ public class RoomPlaceCommandWriteService {
 		}
 	}
 
-	private Map<String, PlaceCandidateSnapshot> candidateMap(Link link) {
+	private Map<String, PlaceSnapshot> effectiveCandidateMap(Link link, Room room) {
+		List<LinkCandidate> candidates = linkCandidateRepository.findByLinkIdOrderByCandidateOrderAscIdAsc(link.getId());
+		if (candidates.isEmpty()) {
+			return legacyCandidateMap(link);
+		}
+		RoomLink roomLink = roomLinkRepository.findByRoomAndLinkId(room, link.getId()).orElse(null);
+		Map<Long, RoomLinkCandidateOverride> overridesByCandidateId = roomLink == null
+				? Map.of()
+				: overrideRepository.findByRoomLinkId(roomLink.getId()).stream()
+						.collect(
+								LinkedHashMap::new,
+								(map, override) -> map.putIfAbsent(override.getLinkCandidate().getId(), override),
+								Map::putAll
+						);
+		Map<String, PlaceSnapshot> result = new LinkedHashMap<>();
+		for (LinkCandidate candidate : candidates) {
+			RoomLinkCandidateOverride override = overridesByCandidateId.get(candidate.getId());
+			PlaceSnapshot snapshot = override == null ? toPlaceSnapshot(candidate.toSnapshot()) : override.toSnapshot();
+			if (snapshot.hasKakaoPlaceId() && !result.containsKey(snapshot.kakaoPlaceId())) {
+				result.put(snapshot.kakaoPlaceId(), snapshot);
+			}
+		}
+		return result;
+	}
+
+	private Map<String, PlaceSnapshot> legacyCandidateMap(Link link) {
 		List<PlaceCandidateSnapshot> candidates;
 		try {
 			candidates = placeCandidateSnapshotMapper.read(link.getExtractedPlacesJson());
@@ -131,7 +163,11 @@ public class RoomPlaceCommandWriteService {
 				result.put(candidate.kakaoPlaceId(), candidate);
 			}
 		}
-		return result;
+		Map<String, PlaceSnapshot> snapshots = new LinkedHashMap<>();
+		for (Map.Entry<String, PlaceCandidateSnapshot> entry : result.entrySet()) {
+			snapshots.put(entry.getKey(), toPlaceSnapshot(entry.getValue()));
+		}
+		return snapshots;
 	}
 
 	private static void validateCandidatesExist(Collection<String> requested, Set<String> candidateKakaoPlaceIds) {

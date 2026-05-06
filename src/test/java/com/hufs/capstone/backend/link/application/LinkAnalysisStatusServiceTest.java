@@ -3,6 +3,7 @@ package com.hufs.capstone.backend.link.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -12,12 +13,16 @@ import com.hufs.capstone.backend.link.application.dto.ProcessingResultSnapshot;
 import com.hufs.capstone.backend.link.domain.LinkAnalysisStatus;
 import com.hufs.capstone.backend.link.domain.entity.Link;
 import com.hufs.capstone.backend.link.domain.entity.LinkAnalysisRequest;
+import com.hufs.capstone.backend.link.domain.repository.LinkCandidateRepository;
 import com.hufs.capstone.backend.link.domain.repository.LinkRepository;
+import com.hufs.capstone.backend.link.domain.repository.RoomLinkCandidateOverrideRepository;
+import com.hufs.capstone.backend.link.domain.repository.RoomLinkRepository;
 import com.hufs.capstone.backend.place.domain.repository.RoomPlaceRepository;
 import com.hufs.capstone.backend.room.domain.entity.Room;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -55,8 +60,23 @@ class LinkAnalysisStatusServiceTest {
 	@Mock
 	private RoomPlaceRepository roomPlaceRepository;
 
+	@Mock
+	private LinkCandidateRepository linkCandidateRepository;
+
+	@Mock
+	private RoomLinkRepository roomLinkRepository;
+
+	@Mock
+	private RoomLinkCandidateOverrideRepository overrideRepository;
+
 	@InjectMocks
 	private LinkAnalysisStatusService linkAnalysisStatusService;
+
+	@BeforeEach
+	void setUp() {
+		lenient().when(linkCandidateRepository.findByLinkIdOrderByCandidateOrderAscIdAsc(any()))
+				.thenReturn(List.of());
+	}
 
 	@Test
 	void getLinkAnalysisResultShouldSyncAndWriteOnCacheMissWhenResolverRequiresWrite() {
