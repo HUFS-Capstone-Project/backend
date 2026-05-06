@@ -15,6 +15,8 @@ public interface RoomPlaceSearchRepository {
 			String initialKeyword,
 			String categoryCode,
 			String tagCode,
+			String sidoCode,
+			String sigunguCode,
 			Pageable pageable
 	);
 

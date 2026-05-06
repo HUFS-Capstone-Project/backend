@@ -4,6 +4,7 @@ import com.hufs.capstone.backend.global.common.entity.AuditableEntity;
 import com.hufs.capstone.backend.link.domain.entity.RoomLink;
 import com.hufs.capstone.backend.place.domain.enums.RoomPlaceSourceType;
 import com.hufs.capstone.backend.place.domain.vo.PlaceSnapshot;
+import com.hufs.capstone.backend.region.application.dto.ResolvedRegion;
 import com.hufs.capstone.backend.room.domain.entity.Room;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -28,7 +29,9 @@ import lombok.NoArgsConstructor;
 			@Index(name = "idx_room_places_room_id", columnList = "room_id"),
 			@Index(name = "idx_room_places_place_id", columnList = "place_id"),
 			@Index(name = "idx_room_places_source_room_link_id", columnList = "source_room_link_id"),
-			@Index(name = "idx_room_places_room_id_created_at", columnList = "room_id, created_at")
+			@Index(name = "idx_room_places_room_id_created_at", columnList = "room_id, created_at"),
+			@Index(name = "idx_room_places_room_sido", columnList = "room_id, sido_code"),
+			@Index(name = "idx_room_places_room_sigungu", columnList = "room_id, sigungu_code")
 		},
 		uniqueConstraints = {
 			@UniqueConstraint(name = "uq_room_places_room_id_place_id", columnNames = {"room_id", "place_id"})
@@ -71,6 +74,18 @@ public class RoomPlace extends AuditableEntity {
 	@Column(columnDefinition = "text")
 	private String rawCandidate;
 
+	@Column(name = "sido_code", length = 2)
+	private String sidoCode;
+
+	@Column(name = "sido_name", length = 50)
+	private String sidoName;
+
+	@Column(name = "sigungu_code", length = 5)
+	private String sigunguCode;
+
+	@Column(name = "sigungu_name", length = 50)
+	private String sigunguName;
+
 	private RoomPlace(
 			Room room,
 			Place place,
@@ -78,7 +93,8 @@ public class RoomPlace extends AuditableEntity {
 			String memo,
 			RoomPlaceSourceType sourceType,
 			RoomLink sourceRoomLink,
-			PlaceSnapshot snapshot
+			PlaceSnapshot snapshot,
+			ResolvedRegion region
 	) {
 		this.room = room;
 		this.place = place;
@@ -90,6 +106,7 @@ public class RoomPlace extends AuditableEntity {
 		this.sourceKeyword = trimToNull(snapshot.sourceKeyword());
 		this.sourceSentence = trimToNull(snapshot.sourceSentence());
 		this.rawCandidate = trimToNull(snapshot.rawCandidate());
+		applyRegion(region);
 	}
 
 	public static RoomPlace create(
@@ -99,12 +116,13 @@ public class RoomPlace extends AuditableEntity {
 			String memo,
 			RoomPlaceSourceType sourceType,
 			RoomLink sourceRoomLink,
-			PlaceSnapshot snapshot
+			PlaceSnapshot snapshot,
+			ResolvedRegion region
 	) {
-		if (room == null || place == null || createdByUserId == null || sourceType == null || snapshot == null) {
+		if (room == null || place == null || createdByUserId == null || sourceType == null || snapshot == null || region == null) {
 			throw new IllegalArgumentException("Room place required values are missing.");
 		}
-		return new RoomPlace(room, place, createdByUserId, memo, sourceType, sourceRoomLink, snapshot);
+		return new RoomPlace(room, place, createdByUserId, memo, sourceType, sourceRoomLink, snapshot, region);
 	}
 
 	public void updateMemo(String memo) {
@@ -131,6 +149,19 @@ public class RoomPlace extends AuditableEntity {
 		if (this.sourceRoomLink == null) {
 			this.sourceRoomLink = roomLink;
 		}
+	}
+
+	public void fillRegionIfAbsent(ResolvedRegion region) {
+		if (this.sidoCode == null && region != null && region.sidoCode() != null) {
+			applyRegion(region);
+		}
+	}
+
+	private void applyRegion(ResolvedRegion region) {
+		this.sidoCode = trimToNull(region.sidoCode());
+		this.sidoName = trimToNull(region.sidoName());
+		this.sigunguCode = trimToNull(region.sigunguCode());
+		this.sigunguName = trimToNull(region.sigunguName());
 	}
 
 	private static String trimToNull(String value) {

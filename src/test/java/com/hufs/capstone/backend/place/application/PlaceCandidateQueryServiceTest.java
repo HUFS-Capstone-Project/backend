@@ -16,6 +16,7 @@ import com.hufs.capstone.backend.place.domain.enums.PlaceSource;
 import com.hufs.capstone.backend.place.domain.enums.RoomPlaceSourceType;
 import com.hufs.capstone.backend.place.domain.repository.RoomPlaceRepository;
 import com.hufs.capstone.backend.place.domain.vo.PlaceSnapshot;
+import com.hufs.capstone.backend.region.application.dto.ResolvedRegion;
 import com.hufs.capstone.backend.room.application.RoomAccessService;
 import com.hufs.capstone.backend.room.domain.entity.Room;
 import java.util.List;
@@ -87,7 +88,16 @@ class PlaceCandidateQueryServiceTest {
 		ReflectionTestUtils.setField(place, "id", 10L);
 		Room room = Room.create("room-public-id", "Room", "INVITE123", 100L);
 		ReflectionTestUtils.setField(room, "id", 1L);
-		RoomPlace roomPlace = RoomPlace.create(room, place, 100L, null, RoomPlaceSourceType.EXTERNAL_SEARCH, null, snapshot);
+		RoomPlace roomPlace = RoomPlace.create(
+				room,
+				place,
+				100L,
+				null,
+				RoomPlaceSourceType.EXTERNAL_SEARCH,
+				null,
+				snapshot,
+				ResolvedRegion.unresolved()
+		);
 		ReflectionTestUtils.setField(roomPlace, "id", 12L);
 		return roomPlace;
 	}

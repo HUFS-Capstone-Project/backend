@@ -7,6 +7,8 @@ import com.hufs.capstone.backend.place.application.dto.RoomPlaceResult;
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
 import com.hufs.capstone.backend.place.domain.repository.RoomPlaceRepository;
 import com.hufs.capstone.backend.place.domain.vo.PlaceSearchText;
+import com.hufs.capstone.backend.region.application.RegionQueryService;
+import com.hufs.capstone.backend.region.application.dto.RegionFilter;
 import com.hufs.capstone.backend.room.application.RoomAccessService;
 import com.hufs.capstone.backend.room.domain.entity.Room;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +29,7 @@ public class RoomPlaceQueryService {
 
 	private final RoomAccessService roomAccessService;
 	private final RoomPlaceRepository roomPlaceRepository;
+	private final RegionQueryService regionQueryService;
 
 	@Transactional(readOnly = true)
 	public RoomPlacePageResult searchRoomPlaces(
@@ -35,18 +38,22 @@ public class RoomPlaceQueryService {
 			String keyword,
 			String categoryCode,
 			String tagCode,
+			String sidoCode,
+			String sigunguCode,
 			Integer page,
-			Integer limit
+			Integer limit,
+			Integer size
 	) {
 		Room room = roomAccessService.requireMemberRoom(roomId, userId);
 		int normalizedPage = page == null ? DEFAULT_PAGE : page;
-		int normalizedLimit = limit == null ? DEFAULT_LIMIT : limit;
+		int normalizedLimit = resolveLimit(limit, size);
 		if (normalizedPage < 0) {
 			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "page must be greater than or equal to 0.");
 		}
 		if (normalizedLimit < 1 || normalizedLimit > MAX_LIMIT) {
 			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "limit must be between 1 and 100.");
 		}
+		RegionFilter regionFilter = regionQueryService.validateFilter(sidoCode, sigunguCode);
 		String normalizedKeyword = PlaceSearchText.normalizeKeyword(keyword);
 		Page<RoomPlace> result = roomPlaceRepository.searchRoomPlaces(
 				room.getId(),
@@ -54,6 +61,8 @@ public class RoomPlaceQueryService {
 				PlaceSearchText.initialKeyword(keyword),
 				trimToNull(categoryCode),
 				normalizeTagCode(tagCode),
+				regionFilter.sidoCode(),
+				regionFilter.sigunguCode(),
 				PageRequest.of(normalizedPage, normalizedLimit, Sort.by(Sort.Direction.DESC, "createdAt", "id"))
 		);
 		return new RoomPlacePageResult(
@@ -78,5 +87,15 @@ public class RoomPlaceQueryService {
 	private static String normalizeTagCode(String value) {
 		String normalized = trimToNull(value);
 		return ALL_TAG_CODE.equalsIgnoreCase(normalized) ? null : normalized;
+	}
+
+	private static int resolveLimit(Integer limit, Integer size) {
+		if (size != null) {
+			return size;
+		}
+		if (limit != null) {
+			return limit;
+		}
+		return DEFAULT_LIMIT;
 	}
 }

@@ -22,7 +22,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 public class LinkProcessingDispatchService {
 
 	private static final String DISPATCH_FAILED_ERROR_CODE = "PROCESSING_DISPATCH_FAILED";
-	private static final String DISPATCH_FAILED_ERROR_MESSAGE = "\uCC98\uB9AC \uB514\uC2A4\uD328\uCE58 \uC7AC\uC2DC\uB3C4\uAC00 \uBAA8\uB450 \uC18C\uC9C4\uB418\uC5C8\uC2B5\uB2C8\uB2E4.";
+	private static final String DISPATCH_FAILED_ERROR_MESSAGE = "처리 디스패치 재시도가 모두 소진되었습니다.";
 
 	private final ProcessingClient processingClient;
 	private final LinkRepository linkRepository;

@@ -30,10 +30,10 @@ public class PlaceTaxonomyQueryServiceImpl implements PlaceTaxonomyQueryService 
 	private static final String BAKERY_TAG_CODE = "BAKERY";
 	private static final String CAFE_MISC_TAG_CODE = "MISC";
 	private static final String ALL_TAG_CODE = "ALL";
-	private static final String ALL_TAG_NAME = "\uC804\uCCB4";
+	private static final String ALL_TAG_NAME = "전체";
 	private static final int ALL_TAG_SORT_ORDER = 0;
-	private static final String BAKERY_DISPLAY_NAME = "\uBCA0\uC774\uCEE4\uB9AC";
-	private static final String CAFE_MISC_DISPLAY_NAME = "\uCEE4\uD53C\u00B7\uB514\uC800\uD2B8";
+	private static final String BAKERY_DISPLAY_NAME = "베이커리";
+	private static final String CAFE_MISC_DISPLAY_NAME = "커피·디저트";
 
 	private final PlaceCategoryRepository placeCategoryRepository;
 	private final PlaceTagRepository placeTagRepository;

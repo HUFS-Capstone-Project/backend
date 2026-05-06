@@ -13,6 +13,8 @@ import com.hufs.capstone.backend.place.domain.repository.PlaceRepository;
 import com.hufs.capstone.backend.place.domain.repository.RoomPlaceRepository;
 import com.hufs.capstone.backend.place.domain.repository.RoomPlaceSourceRepository;
 import com.hufs.capstone.backend.place.domain.vo.PlaceSnapshot;
+import com.hufs.capstone.backend.region.application.RegionAddressResolver;
+import com.hufs.capstone.backend.region.application.dto.ResolvedRegion;
 import com.hufs.capstone.backend.room.domain.entity.Room;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,6 +30,7 @@ public class RoomPlaceStorageService {
 	private final RoomPlaceRepository roomPlaceRepository;
 	private final RoomPlaceSourceRepository roomPlaceSourceRepository;
 	private final PlaceTaxonomyResolver placeTaxonomyResolver;
+	private final RegionAddressResolver regionAddressResolver;
 
 	public List<SavedRoomPlaceResult> saveAll(
 			Room room,
@@ -60,13 +63,15 @@ public class RoomPlaceStorageService {
 	) {
 		validateSnapshot(snapshot);
 		Place place = upsertPlace(snapshot);
+		ResolvedRegion region = regionAddressResolver.resolve(snapshot.address(), snapshot.roadAddress());
 		RoomPlace existingRoomPlace = roomPlaceRepository.findByRoomIdAndPlaceId(room.getId(), place.getId())
 				.orElse(null);
 		if (existingRoomPlace != null) {
+			existingRoomPlace.fillRegionIfAbsent(region);
 			attachSourceIfNeeded(existingRoomPlace, sourceRoomLink, sourceType, userId, snapshot);
 			return toResult(existingRoomPlace, false, true);
 		}
-		RoomPlace roomPlace = RoomPlace.create(room, place, userId, memo, sourceType, sourceRoomLink, snapshot);
+		RoomPlace roomPlace = RoomPlace.create(room, place, userId, memo, sourceType, sourceRoomLink, snapshot, region);
 		RoomPlace saved = roomPlaceRepository.save(roomPlace);
 		attachSourceIfNeeded(saved, sourceRoomLink, sourceType, userId, snapshot);
 		return toResult(saved, true, false);

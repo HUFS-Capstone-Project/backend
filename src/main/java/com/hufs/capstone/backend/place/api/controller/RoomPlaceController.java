@@ -27,9 +27,13 @@ public class RoomPlaceController implements RoomPlaceApi {
 	public CommonResponse<RoomPlacePageResponse> searchRoomPlaces(
 			@PathVariable String roomId,
 			@RequestParam(required = false) String keyword,
+			@RequestParam(required = false) String category,
 			@RequestParam(required = false) String categoryCode,
 			@RequestParam(required = false) String tagCode,
+			@RequestParam(required = false) String sidoCode,
+			@RequestParam(required = false) String sigunguCode,
 			@RequestParam(required = false) Integer page,
+			@RequestParam(required = false) Integer size,
 			@RequestParam(required = false) Integer limit
 	) {
 		Long userId = SecurityUtils.currentUserIdOrThrow();
@@ -37,10 +41,13 @@ public class RoomPlaceController implements RoomPlaceApi {
 				userId,
 				roomId,
 				keyword,
-				categoryCode,
+				resolveCategoryCode(category, categoryCode),
 				tagCode,
+				sidoCode,
+				sigunguCode,
 				page,
-				limit
+				limit,
+				size
 		);
 		return CommonResponse.ok(RoomPlacePageResponse.from(result));
 	}
@@ -66,5 +73,11 @@ public class RoomPlaceController implements RoomPlaceApi {
 		Long userId = SecurityUtils.currentUserIdOrThrow();
 		roomPlaceManagementService.deleteRoomPlace(userId, roomId, roomPlaceId);
 		return CommonResponse.okMessage("장소가 삭제되었습니다.");
+	}
+	private static String resolveCategoryCode(String category, String categoryCode) {
+		if (category != null && !category.isBlank()) {
+			return category;
+		}
+		return categoryCode;
 	}
 }

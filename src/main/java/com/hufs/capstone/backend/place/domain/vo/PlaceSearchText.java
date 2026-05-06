@@ -5,14 +5,14 @@ import java.util.Locale;
 
 public final class PlaceSearchText {
 
-	private static final char HANGUL_BASE = '\uAC00';
-	private static final char HANGUL_END = '\uD7A3';
+	private static final char HANGUL_BASE = '가';
+	private static final char HANGUL_END = '힣';
 	private static final int HANGUL_INITIAL_UNIT = 21 * 28;
 	private static final char[] HANGUL_INITIALS = {
-		'\u3131', '\u3132', '\u3134', '\u3137', '\u3138',
-		'\u3139', '\u3141', '\u3142', '\u3143', '\u3145',
-		'\u3146', '\u3147', '\u3148', '\u3149', '\u314A',
-		'\u314B', '\u314C', '\u314D', '\u314E'
+		'ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ',
+		'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ',
+		'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ',
+		'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'
 	};
 
 	private PlaceSearchText() {
@@ -94,7 +94,7 @@ public final class PlaceSearchText {
 	}
 
 	private static boolean isHangulInitial(char ch) {
-		return ch >= '\u3131' && ch <= '\u314E';
+		return ch >= 'ㄱ' && ch <= 'ㅎ';
 	}
 
 	private static String toNullIfBlank(String value) {

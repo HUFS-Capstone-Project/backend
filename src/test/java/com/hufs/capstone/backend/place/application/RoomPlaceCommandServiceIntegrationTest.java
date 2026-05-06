@@ -156,7 +156,7 @@ class RoomPlaceCommandServiceIntegrationTest {
 
 	@Test
 	void shouldListWithoutKeywordAndFindByHangulInitialConsonants() {
-		String placeName = "\uB204\uD06C\uB179";
+		String placeName = "누크녹";
 		saveExternalForTest(noTaxonomySnapshot("555555555", placeName));
 
 		RoomPlacePageResult allPlaces = roomPlaceQueryService.searchRoomPlaces(
@@ -165,35 +165,47 @@ class RoomPlaceCommandServiceIntegrationTest {
 				null,
 				null,
 				null,
+				null,
+				null,
 				0,
-				20
+				20,
+				null
 		);
 		RoomPlacePageResult initialOne = roomPlaceQueryService.searchRoomPlaces(
 				USER_ID,
 				ROOM_PUBLIC_ID,
-				"\u3134",
+				"ㄴ",
+				null,
+				null,
 				null,
 				null,
 				0,
-				20
+				20,
+				null
 		);
 		RoomPlacePageResult initialTwo = roomPlaceQueryService.searchRoomPlaces(
 				USER_ID,
 				ROOM_PUBLIC_ID,
-				"\u3134\u314B",
+				"ㄴㅋ",
+				null,
+				null,
 				null,
 				null,
 				0,
-				20
+				20,
+				null
 		);
 		RoomPlacePageResult initialThree = roomPlaceQueryService.searchRoomPlaces(
 				USER_ID,
 				ROOM_PUBLIC_ID,
-				"\u3134\u314B\u3134",
+				"ㄴㅋㄴ",
+				null,
+				null,
 				null,
 				null,
 				0,
-				20
+				20,
+				null
 		);
 
 		assertThat(allPlaces.items()).extracting("name").contains(placeName);
@@ -215,8 +227,8 @@ class RoomPlaceCommandServiceIntegrationTest {
 	void shouldExposeCafeTaxonomyDisplayNames() {
 		PlaceTaxonomyResult result = placeTaxonomyQueryService.getPlaceTaxonomy();
 
-		assertThat(tagOf(result, "CAFE", "BAKERY").name()).isEqualTo("\uBCA0\uC774\uCEE4\uB9AC");
-		assertThat(tagOf(result, "CAFE", "MISC").name()).isEqualTo("\uCEE4\uD53C\u00B7\uB514\uC800\uD2B8");
+		assertThat(tagOf(result, "CAFE", "BAKERY").name()).isEqualTo("베이커리");
+		assertThat(tagOf(result, "CAFE", "MISC").name()).isEqualTo("커피·디저트");
 	}
 
 	@Test
@@ -231,8 +243,11 @@ class RoomPlaceCommandServiceIntegrationTest {
 				null,
 				"FOOD",
 				"ALL",
+				null,
+				null,
 				0,
-				20
+				20,
+				null
 		);
 		RoomPlacePageResult cafePlaces = roomPlaceQueryService.searchRoomPlaces(
 				USER_ID,
@@ -240,8 +255,11 @@ class RoomPlaceCommandServiceIntegrationTest {
 				null,
 				"CAFE",
 				"ALL",
+				null,
+				null,
 				0,
-				20
+				20,
+				null
 		);
 		RoomPlacePageResult activityPlaces = roomPlaceQueryService.searchRoomPlaces(
 				USER_ID,
@@ -249,13 +267,90 @@ class RoomPlaceCommandServiceIntegrationTest {
 				null,
 				"ACTIVITY",
 				"ALL",
+				null,
+				null,
 				0,
-				20
+				20,
+				null
 		);
 
 		assertThat(foodPlaces.items()).extracting("name").containsExactly("Donkatsu Place");
 		assertThat(cafePlaces.items()).extracting("name").containsExactly("Bakery Cafe");
 		assertThat(activityPlaces.items()).extracting("name").containsExactly("Activity Place");
+	}
+
+	@Test
+	void shouldNormalizeRegionAndFilterRoomPlacesBySidoAndSigungu() {
+		saveExternalForTest(regionalSnapshot(
+				"111111111",
+				"Jongno Place",
+				"서울특별시 종로구 세종대로 1"
+		));
+		saveExternalForTest(regionalSnapshot(
+				"222222222",
+				"Gangnam Place",
+				"서울 강남구 테헤란로 1"
+		));
+		saveExternalForTest(regionalSnapshot(
+				"333333333",
+				"Haeundae Place",
+				"부산광역시 해운대구 해운대해변로 1"
+		));
+
+		RoomPlacePageResult seoulPlaces = roomPlaceQueryService.searchRoomPlaces(
+				USER_ID,
+				ROOM_PUBLIC_ID,
+				null,
+				null,
+				null,
+				"11",
+				null,
+				0,
+				20,
+				null
+		);
+		RoomPlacePageResult jongnoPlaces = roomPlaceQueryService.searchRoomPlaces(
+				USER_ID,
+				ROOM_PUBLIC_ID,
+				null,
+				null,
+				null,
+				"11",
+				"11110",
+				0,
+				20,
+				null
+		);
+
+		assertThat(seoulPlaces.items()).extracting("name")
+				.containsExactlyInAnyOrder("Jongno Place", "Gangnam Place");
+		assertThat(jongnoPlaces.items()).extracting("name").containsExactly("Jongno Place");
+		assertThat(jongnoPlaces.items().get(0).sidoCode()).isEqualTo("11");
+		assertThat(jongnoPlaces.items().get(0).sigunguCode()).isEqualTo("11110");
+		assertThatThrownBy(() -> roomPlaceQueryService.searchRoomPlaces(
+				USER_ID,
+				ROOM_PUBLIC_ID,
+				null,
+				null,
+				null,
+				null,
+				"11110",
+				0,
+				20,
+				null
+		)).isInstanceOf(BusinessException.class);
+		assertThatThrownBy(() -> roomPlaceQueryService.searchRoomPlaces(
+				USER_ID,
+				ROOM_PUBLIC_ID,
+				null,
+				null,
+				null,
+				"11",
+				"26350",
+				0,
+				20,
+				null
+		)).isInstanceOf(BusinessException.class);
 	}
 
 	@Test
@@ -304,12 +399,12 @@ class RoomPlaceCommandServiceIntegrationTest {
 		return PlaceSnapshot.kakao(
 				kakaoPlaceId,
 				name,
-				"\uC74C\uC2DD\uC810 > \uC77C\uC2DD > \uB3C8\uAE4C\uC2A4",
+				"음식점 > 일식 > 돈까스",
 				"FD6",
-				"\uC74C\uC2DD\uC810",
+				"음식점",
 				"02-000-0000",
-				"\uC11C\uC6B8\uC2DC \uC885\uB85C\uAD6C",
-				"\uC885\uB85C 1",
+				"서울시 종로구",
+				"종로 1",
 				new BigDecimal("126.972000000000"),
 				new BigDecimal("37.570000000000"),
 				"https://place.map.kakao.com/" + kakaoPlaceId,
@@ -344,12 +439,12 @@ class RoomPlaceCommandServiceIntegrationTest {
 		return PlaceSnapshot.kakao(
 				kakaoPlaceId,
 				name,
-				"\uC74C\uC2DD\uC810 > \uCE74\uD398 > \uBCA0\uC774\uCEE4\uB9AC",
+				"음식점 > 카페 > 베이커리",
 				"CE7",
-				"\uCE74\uD398",
+				"카페",
 				"02-111-1111",
-				"\uC11C\uC6B8\uC2DC \uC885\uB85C\uAD6C",
-				"\uC885\uB85C 2",
+				"서울시 종로구",
+				"종로 2",
 				new BigDecimal("126.973000000000"),
 				new BigDecimal("37.571000000000"),
 				"https://place.map.kakao.com/" + kakaoPlaceId,
@@ -370,6 +465,26 @@ class RoomPlaceCommandServiceIntegrationTest {
 				null,
 				null,
 				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				null
+		);
+	}
+
+	private static PlaceSnapshot regionalSnapshot(String kakaoPlaceId, String name, String address) {
+		return PlaceSnapshot.kakao(
+				kakaoPlaceId,
+				name,
+				null,
+				null,
+				null,
+				null,
+				address,
+				address,
 				null,
 				null,
 				null,
@@ -402,7 +517,7 @@ class RoomPlaceCommandServiceIntegrationTest {
 
 	private static void assertAllTag(PlaceTaxonomyTagResult tag) {
 		assertThat(tag.code()).isEqualTo("ALL");
-		assertThat(tag.name()).isEqualTo("\uC804\uCCB4");
+		assertThat(tag.name()).isEqualTo("전체");
 		assertThat(tag.sortOrder()).isZero();
 	}
 }

@@ -12,6 +12,12 @@ public class CacheConfig {
 
 	@Bean
 	public CacheManager cacheManager() {
-		return new ConcurrentMapCacheManager("placeTaxonomy");
+		return new ConcurrentMapCacheManager(
+				"placeTaxonomy",
+				"regionSidos",
+				"regionSigungus",
+				"regionSidoMatchers",
+				"regionSigunguEntities"
+		);
 	}
 }

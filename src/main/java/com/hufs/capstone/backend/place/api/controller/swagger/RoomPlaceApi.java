@@ -30,9 +30,13 @@ public interface RoomPlaceApi {
 	CommonResponse<RoomPlacePageResponse> searchRoomPlaces(
 			@PathVariable String roomId,
 			@RequestParam(required = false) String keyword,
+			@RequestParam(required = false) String category,
 			@RequestParam(required = false) String categoryCode,
 			@RequestParam(required = false) String tagCode,
+			@RequestParam(required = false) String sidoCode,
+			@RequestParam(required = false) String sigunguCode,
 			@RequestParam(required = false) Integer page,
+			@RequestParam(required = false) Integer size,
 			@RequestParam(required = false) Integer limit
 	);
 
