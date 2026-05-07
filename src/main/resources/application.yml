@@ -56,9 +56,9 @@ app:
   business-hours:
     polling:
       enabled: true
-      interval: 5s
+      interval: 3s
       batch-size: 50
-      scheduler-delay-ms: 5000
+      scheduler-delay-ms: 3000
   security:
     csrf:
       cookie:

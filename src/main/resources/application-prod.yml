@@ -55,9 +55,9 @@ app:
   business-hours:
     polling:
       enabled: ${BUSINESS_HOURS_POLLING_ENABLED:true}
-      interval: ${BUSINESS_HOURS_POLLING_INTERVAL:5s}
+      interval: ${BUSINESS_HOURS_POLLING_INTERVAL:3s}
       batch-size: ${BUSINESS_HOURS_POLLING_BATCH_SIZE:50}
-      scheduler-delay-ms: ${BUSINESS_HOURS_POLLING_SCHEDULER_DELAY_MS:5000}
+      scheduler-delay-ms: ${BUSINESS_HOURS_POLLING_SCHEDULER_DELAY_MS:3000}
   security:
     csrf:
       cookie:
