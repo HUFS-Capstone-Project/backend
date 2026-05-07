@@ -18,9 +18,9 @@ public record PlaceSnapshot(
 		BigDecimal latitude,
 		String placeUrl,
 		BigDecimal confidence,
-		String sourceKeyword,
-		String sourceSentence,
-		String rawCandidate
+		String query,
+		String evidenceText,
+		String originalText
 ) {
 
 	public static PlaceSnapshot kakao(
@@ -36,9 +36,9 @@ public record PlaceSnapshot(
 			BigDecimal latitude,
 			String placeUrl,
 			BigDecimal confidence,
-			String sourceKeyword,
-			String sourceSentence,
-			String rawCandidate
+			String query,
+			String evidenceText,
+			String originalText
 	) {
 		return new PlaceSnapshot(
 				PlaceSource.KAKAO,
@@ -55,9 +55,9 @@ public record PlaceSnapshot(
 				latitude,
 				placeUrl,
 				confidence,
-				sourceKeyword,
-				sourceSentence,
-				rawCandidate
+				query,
+				evidenceText,
+				originalText
 		);
 	}
 

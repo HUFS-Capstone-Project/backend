@@ -45,7 +45,7 @@ public interface LinkApi {
 	@Operation(
 			tags = {"Link"},
 			summary = "링크 분석 결과 조회 API",
-			description = "방 멤버십과 analysisRequestId의 방 소속을 검증한 뒤 분석 상태와 후보 장소를 조회합니다."
+			description = "방 멤버십과 analysisRequestId의 방 소속을 검증한 뒤 processing resolved_places 기반 분석 상태와 후보 장소를 조회합니다."
 	)
 	@ApiResponse(responseCode = "200", description = "OK")
 	@GetMapping("/link-analysis-requests/{analysisRequestId}")

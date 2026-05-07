@@ -21,7 +21,6 @@ public interface PlaceCandidateApi {
 			description = "카카오 로컬 API로 검색하고, 해당 방 기준 선택 가능 여부 등을 반영해 후보 목록을 반환합니다."
 	)
 	@ApiResponse(responseCode = "200", description = "OK")
-	// TODO: Consider moving this to GET /api/v1/rooms/{roomId}/place-candidates?provider=KAKAO&keyword=...
 	@GetMapping("/external")
 	CommonResponse<List<PlaceCandidateResponse>> searchExternalCandidates(
 			@PathVariable String roomId,

@@ -3,6 +3,7 @@ package com.hufs.capstone.backend.link.application;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hufs.capstone.backend.external.processing.dto.ProcessingJobResultResponse;
+import com.hufs.capstone.backend.external.processing.dto.ProcessingJobResultResponse.ResolvedPlaceResponse;
 import com.hufs.capstone.backend.external.processing.dto.ProcessingJobResponse;
 import com.hufs.capstone.backend.link.application.dto.ProcessingResultSnapshot;
 import com.hufs.capstone.backend.link.domain.LinkAnalysisStatus;
@@ -80,17 +81,27 @@ public class LinkSyncMappingPolicy {
 	}
 
 	private ProcessingResultSnapshot toResultSnapshot(ProcessingJobResultResponse response) {
-		ProcessingJobResultResponse.ExtractionResultResponse extraction = response.extractionResult();
+		ResolvedPlaceResponse representativePlace = representativePlace(response);
 		List<PlaceCandidateSnapshot> extractedPlaces =
-				placeCandidateSnapshotMapper.fromProcessingCandidates(response.selectedPlaces());
+				placeCandidateSnapshotMapper.fromProcessingCandidates(response.resolvedPlaces());
 		return new ProcessingResultSnapshot(
-				trimToNull(response.caption()),
-				extraction == null ? null : trimToNull(extraction.storeName()),
-				extraction == null ? null : trimToNull(extraction.address()),
-				extraction == null ? null : trimToNull(extraction.certainty()),
+				trimToNull(response.captionRaw()),
+				representativePlace == null ? null : trimToNull(representativePlace.placeName()),
+				representativePlace == null ? null : representativeAddress(representativePlace),
+				null,
 				placeCandidateSnapshotMapper.write(extractedPlaces),
 				writeJson(response)
 		);
+	}
+
+	private static ResolvedPlaceResponse representativePlace(ProcessingJobResultResponse response) {
+		List<ResolvedPlaceResponse> resolvedPlaces = response.resolvedPlaces();
+		return resolvedPlaces == null || resolvedPlaces.isEmpty() ? null : resolvedPlaces.get(0);
+	}
+
+	private static String representativeAddress(ResolvedPlaceResponse place) {
+		String address = trimToNull(place.address());
+		return address == null ? trimToNull(place.roadAddress()) : address;
 	}
 
 	private String writeJson(Object value) {

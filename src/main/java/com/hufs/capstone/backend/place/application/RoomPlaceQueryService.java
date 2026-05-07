@@ -133,11 +133,9 @@ public class RoomPlaceQueryService {
 		}
 		return new BusinessHoursResult(
 				readBusinessHours(cache.getBusinessHoursJson()),
-				cache.getBusinessHoursRaw(),
 				cache.getBusinessHoursStatus(),
 				cache.getBusinessHoursFetchedAt(),
-				cache.getBusinessHoursExpiresAt(),
-				cache.getBusinessHoursSource()
+				cache.getBusinessHoursExpiresAt()
 		);
 	}
 

@@ -17,8 +17,8 @@ public record PlaceCandidateSnapshot(
 		BigDecimal latitude,
 		String placeUrl,
 		BigDecimal confidence,
-		String sourceKeyword,
-		String sourceSentence,
-		String rawCandidate
+		String query,
+		String evidenceText,
+		String originalText
 ) {
 }

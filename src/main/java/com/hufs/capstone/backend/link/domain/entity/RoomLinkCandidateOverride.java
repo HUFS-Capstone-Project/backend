@@ -80,7 +80,7 @@ public class RoomLinkCandidateOverride extends AuditableEntity {
 	private String placeUrl;
 
 	@Column(length = 255)
-	private String sourceKeyword;
+	private String query;
 
 	@Version
 	@Column(nullable = false)
@@ -125,7 +125,7 @@ public class RoomLinkCandidateOverride extends AuditableEntity {
 		this.longitude = snapshot.longitude();
 		this.latitude = snapshot.latitude();
 		this.placeUrl = trimToNull(snapshot.placeUrl());
-		this.sourceKeyword = trimToNull(snapshot.sourceKeyword());
+		this.query = trimToNull(snapshot.query());
 	}
 
 	public PlaceSnapshot toSnapshot() {
@@ -142,7 +142,7 @@ public class RoomLinkCandidateOverride extends AuditableEntity {
 				latitude,
 				placeUrl,
 				null,
-				sourceKeyword,
+				query,
 				null,
 				null
 		);

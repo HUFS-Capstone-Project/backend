@@ -6,10 +6,8 @@ import java.time.Instant;
 
 public record BusinessHoursResult(
 		JsonNode businessHours,
-		String businessHoursRaw,
 		BusinessHoursStatus businessHoursStatus,
 		Instant businessHoursFetchedAt,
-		Instant businessHoursExpiresAt,
-		String businessHoursSource
+		Instant businessHoursExpiresAt
 ) {
 }

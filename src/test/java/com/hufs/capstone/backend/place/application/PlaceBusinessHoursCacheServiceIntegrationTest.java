@@ -47,24 +47,24 @@ class PlaceBusinessHoursCacheServiceIntegrationTest {
 
 	@Test
 	void shouldKeepBusinessHoursStatusWhenProcessingRequestFails() {
-		cacheService.upsertRemotePlace(successPlace("job-1"), BusinessHoursRequestStatus.SUCCEEDED);
+		cacheService.upsertRemotePlace(successPlace(), "job-1", BusinessHoursRequestStatus.SUCCEEDED);
 
 		cacheService.markRequestFailure(
 				event(),
-				BusinessHoursRequestStatus.REQUEST_FAILED,
+				BusinessHoursRequestStatus.FAILED,
 				"connect failed"
 		);
 
 		PlaceBusinessHours cache = repository.findByKakaoPlaceId("13298463").orElseThrow();
-		assertThat(cache.getBusinessHoursStatus()).isEqualTo(BusinessHoursStatus.SUCCESS);
-		assertThat(cache.getLastRequestStatus()).isEqualTo(BusinessHoursRequestStatus.REQUEST_FAILED);
+		assertThat(cache.getBusinessHoursStatus()).isEqualTo(BusinessHoursStatus.SUCCEEDED);
+		assertThat(cache.getLastRequestStatus()).isEqualTo(BusinessHoursRequestStatus.FAILED);
 		assertThat(cache.getLastError()).isEqualTo("connect failed");
 	}
 
 	@Test
 	void shouldUpsertSingleRowWhenSameKakaoPlaceIsProcessedConcurrently() throws Exception {
 		runConcurrently(() -> {
-			cacheService.upsertRemotePlace(pendingPlace("job-1"), BusinessHoursRequestStatus.SUCCEEDED);
+			cacheService.upsertRemotePlace(pendingPlace(), "job-1", BusinessHoursRequestStatus.SUCCEEDED);
 			return null;
 		}, 2);
 
@@ -74,7 +74,7 @@ class PlaceBusinessHoursCacheServiceIntegrationTest {
 
 	@Test
 	void shouldFindOnlyPendingOrFetchingRowsWithJobIdAfterPollingInterval() {
-		cacheService.upsertRemotePlace(pendingPlace("job-1"), BusinessHoursRequestStatus.SUCCEEDED);
+		cacheService.upsertRemotePlace(pendingPlace(), "job-1", BusinessHoursRequestStatus.SUCCEEDED);
 
 		List<PlaceBusinessHours> tooEarly = repository.findPollable(
 				EnumSet.of(BusinessHoursStatus.PENDING, BusinessHoursStatus.FETCHING),
@@ -92,41 +92,31 @@ class PlaceBusinessHoursCacheServiceIntegrationTest {
 		assertThat(due.get(0).getBusinessHoursJobId()).isEqualTo("job-1");
 	}
 
-	private BusinessHoursPlaceResponse successPlace(String jobId) {
+	private BusinessHoursPlaceResponse successPlace() {
 		return new BusinessHoursPlaceResponse(
 				"13298463",
-				"https://place.map.kakao.com/13298463",
 				"Test Place",
+				"https://place.map.kakao.com/13298463",
+				BusinessHoursStatus.SUCCEEDED,
 				objectMapper.createObjectNode().putArray("daily_hours"),
-				"Thu 09:00 ~ 23:30",
-				BusinessHoursStatus.SUCCESS,
 				OffsetDateTime.parse("2026-05-07T10:00:03Z"),
 				OffsetDateTime.parse("2026-05-21T10:00:03Z"),
-				"kakao_place_crawl",
-				jobId,
 				null,
-				null,
-				null,
-				1L
+				null
 		);
 	}
 
-	private BusinessHoursPlaceResponse pendingPlace(String jobId) {
+	private BusinessHoursPlaceResponse pendingPlace() {
 		return new BusinessHoursPlaceResponse(
 				"13298463",
-				"https://place.map.kakao.com/13298463",
 				"Test Place",
-				null,
-				null,
+				"https://place.map.kakao.com/13298463",
 				BusinessHoursStatus.PENDING,
 				null,
 				null,
 				null,
-				jobId,
 				null,
-				null,
-				null,
-				1L
+				null
 		);
 	}
 

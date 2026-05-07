@@ -34,11 +34,9 @@ public record RoomPlaceResult(
 		Long createdBy,
 		Instant createdAt,
 		JsonNode businessHours,
-		String businessHoursRaw,
 		String businessHoursStatus,
 		Instant businessHoursFetchedAt,
-		Instant businessHoursExpiresAt,
-		String businessHoursSource
+		Instant businessHoursExpiresAt
 ) {
 
 	public static RoomPlaceResult from(RoomPlace roomPlace) {
@@ -78,13 +76,11 @@ public record RoomPlaceResult(
 				roomPlace.getCreatedByUserId(),
 				roomPlace.getCreatedAt(),
 				businessHours == null ? null : businessHours.businessHours(),
-				businessHours == null ? null : businessHours.businessHoursRaw(),
 				businessHours == null || businessHours.businessHoursStatus() == null
 						? null
 						: businessHours.businessHoursStatus().name(),
 				businessHours == null ? null : businessHours.businessHoursFetchedAt(),
-				businessHours == null ? null : businessHours.businessHoursExpiresAt(),
-				businessHours == null ? null : businessHours.businessHoursSource()
+				businessHours == null ? null : businessHours.businessHoursExpiresAt()
 		);
 	}
 }

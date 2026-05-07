@@ -359,22 +359,19 @@ class LinkConcurrencyIntegrationTest {
 		assertThat(reloaded.getExtractionStoreName()).isEqualTo("Coffee Mansion");
 		assertThat(reloaded.getExtractionAddress()).isEqualTo("Seoul Jongno-gu");
 		assertThat(reloaded.getExtractedPlacesJson()).contains("Coffee Mansion");
-		assertThat(reloaded.getProcessingResultJson()).contains("selected_places");
+		assertThat(reloaded.getProcessingResultJson()).contains("resolved_places");
 	}
 
 	@Test
-	void shouldStoreSucceededResultWithoutCandidatePlacesWhenSelectedPlacesIsEmpty() {
+	void shouldStoreSucceededResultWithoutCandidatePlacesWhenResolvedPlacesIsEmpty() {
 		Link link = saveProcessingLink("https://example.com/post/no-place", "job-no-place", roomA);
 		when(processingClient.getJob("job-no-place"))
 				.thenReturn(new ProcessingJobResponse("job-no-place", "succeeded", null, ROOM_A_PUBLIC_ID, null, null, null));
 		when(processingClient.getJobResult("job-no-place"))
 				.thenReturn(new ProcessingJobResultResponse(
 						"job-no-place",
-						"https://example.com/post/no-place",
-						"instagram",
 						"SUCCEEDED",
 						"caption without selected place",
-						null,
 						null,
 						List.of(),
 						null,
@@ -1002,10 +999,7 @@ class LinkConcurrencyIntegrationTest {
 		return new ProcessingJobResultResponse(
 				null,
 				null,
-				null,
-				null,
 				caption,
-				null,
 				null,
 				null,
 				null,
@@ -1014,49 +1008,33 @@ class LinkConcurrencyIntegrationTest {
 	}
 
 	private static ProcessingJobResultResponse succeededResultWithPlaces(
-			ProcessingJobResultResponse.PlaceCandidateResponse... places
+			ProcessingJobResultResponse.ResolvedPlaceResponse... places
 	) {
-		ProcessingJobResultResponse.ExtractionResultResponse extraction =
-				new ProcessingJobResultResponse.ExtractionResultResponse(
-						"Coffee Mansion",
-						"Seoul Jongno-gu",
-						"Coffee Mansion",
-						"Seoul Jongno-gu",
-						"high"
-				);
-		List<ProcessingJobResultResponse.PlaceCandidateResponse> selectedPlaces = List.of(places);
+		List<ProcessingJobResultResponse.ResolvedPlaceResponse> resolvedPlaces = List.of(places);
 		return new ProcessingJobResultResponse(
 				"job-place",
-				"https://example.com/post/place",
-				"instagram",
 				"SUCCEEDED",
 				"caption ready",
 				null,
-				extraction,
-				selectedPlaces,
+				resolvedPlaces,
 				null,
 				null
 		);
 	}
 
-	private static ProcessingJobResultResponse.PlaceCandidateResponse place(String kakaoPlaceId, String placeName) {
+	private static ProcessingJobResultResponse.ResolvedPlaceResponse place(String kakaoPlaceId, String placeName) {
 		String effectiveKakaoPlaceId = kakaoPlaceId == null ? null : kakaoPlaceId;
-		return new ProcessingJobResultResponse.PlaceCandidateResponse(
+		return new ProcessingJobResultResponse.ResolvedPlaceResponse(
 				effectiveKakaoPlaceId,
 				placeName,
-				"Food > Cafe",
-				"CE7",
-				"Cafe",
-				"02-000-0000",
 				"Seoul Jongno-gu",
 				"Seoul Road 1",
-				"126.972000000000",
-				"37.570000000000",
+				new BigDecimal("126.972000000000"),
+				new BigDecimal("37.570000000000"),
+				"Food > Cafe",
+				"CE7",
 				effectiveKakaoPlaceId == null ? null : "https://place.map.kakao.com/" + effectiveKakaoPlaceId,
-				new BigDecimal("0.95"),
-				placeName,
-				placeName,
-				placeName
+				"02-000-0000"
 		);
 	}
 

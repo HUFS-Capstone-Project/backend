@@ -19,7 +19,7 @@ class PlaceBusinessHoursRefreshPolicyTest {
 
 	@Test
 	void shouldTreatNullExpiresAtAsExpired() {
-		PlaceBusinessHours cache = cache(BusinessHoursStatus.SUCCESS, null, null);
+		PlaceBusinessHours cache = cache(BusinessHoursStatus.SUCCEEDED, null, null);
 
 		assertThat(policy.shouldRequest(cache, Instant.parse("2026-05-07T00:00:00Z"))).isTrue();
 	}
@@ -37,11 +37,11 @@ class PlaceBusinessHoursRefreshPolicyTest {
 		Instant now = Instant.parse("2026-05-07T00:00:00Z");
 
 		assertThat(policy.shouldRequest(
-				cache(BusinessHoursStatus.SUCCESS, "job-1", Instant.parse("2026-05-08T00:00:00Z")),
+				cache(BusinessHoursStatus.SUCCEEDED, "job-1", Instant.parse("2026-05-08T00:00:00Z")),
 				now
 		)).isFalse();
 		assertThat(policy.shouldRequest(
-				cache(BusinessHoursStatus.SUCCESS, "job-1", Instant.parse("2026-05-07T00:00:00Z")),
+				cache(BusinessHoursStatus.SUCCEEDED, "job-1", Instant.parse("2026-05-07T00:00:00Z")),
 				now
 		)).isTrue();
 	}

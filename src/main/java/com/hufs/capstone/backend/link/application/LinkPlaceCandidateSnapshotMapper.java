@@ -3,9 +3,8 @@ package com.hufs.capstone.backend.link.application;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.hufs.capstone.backend.external.processing.dto.ProcessingJobResultResponse.PlaceCandidateResponse;
+import com.hufs.capstone.backend.external.processing.dto.ProcessingJobResultResponse.ResolvedPlaceResponse;
 import com.hufs.capstone.backend.link.domain.vo.PlaceCandidateSnapshot;
-import java.math.BigDecimal;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
@@ -21,7 +20,7 @@ public class LinkPlaceCandidateSnapshotMapper {
 		this.objectMapper = objectMapper;
 	}
 
-	public List<PlaceCandidateSnapshot> fromProcessingCandidates(List<PlaceCandidateResponse> candidates) {
+	public List<PlaceCandidateSnapshot> fromProcessingCandidates(List<ResolvedPlaceResponse> candidates) {
 		if (candidates == null || candidates.isEmpty()) {
 			return List.of();
 		}
@@ -49,7 +48,7 @@ public class LinkPlaceCandidateSnapshotMapper {
 		}
 	}
 
-	private PlaceCandidateSnapshot fromProcessingCandidate(PlaceCandidateResponse candidate) {
+	private PlaceCandidateSnapshot fromProcessingCandidate(ResolvedPlaceResponse candidate) {
 		if (candidate == null) {
 			return new PlaceCandidateSnapshot(
 					null, null, null, null, null, null, null, null, null, null, null, null, null, null, null
@@ -60,30 +59,18 @@ public class LinkPlaceCandidateSnapshotMapper {
 				trimToNull(candidate.placeName()),
 				trimToNull(candidate.categoryName()),
 				trimToNull(candidate.categoryGroupCode()),
-				trimToNull(candidate.categoryGroupName()),
+				null,
 				trimToNull(candidate.phone()),
-				trimToNull(candidate.addressName()),
-				trimToNull(candidate.roadAddressName()),
-				parseDecimal(candidate.x(), "selected_places.x"),
-				parseDecimal(candidate.y(), "selected_places.y"),
+				trimToNull(candidate.address()),
+				trimToNull(candidate.roadAddress()),
+				candidate.longitude(),
+				candidate.latitude(),
 				trimToNull(candidate.placeUrl()),
-				candidate.confidence(),
-				trimToNull(candidate.sourceKeyword()),
-				trimToNull(candidate.sourceSentence()),
-				trimToNull(candidate.rawCandidate())
+				null,
+				null,
+				null,
+				null
 		);
-	}
-
-	private static BigDecimal parseDecimal(String value, String fieldName) {
-		String trimmed = trimToNull(value);
-		if (trimmed == null) {
-			return null;
-		}
-		try {
-			return new BigDecimal(trimmed);
-		} catch (NumberFormatException ex) {
-			throw new IllegalArgumentException(fieldName + " must be a decimal.", ex);
-		}
 	}
 
 	private static String trimToNull(String value) {

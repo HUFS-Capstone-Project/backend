@@ -54,13 +54,13 @@ public class RoomPlaceSource extends AuditableEntity {
 	private BigDecimal confidence;
 
 	@Column(length = 255)
-	private String sourceKeyword;
+	private String query;
 
 	@Column(length = 500)
-	private String sourceSentence;
+	private String evidenceText;
 
 	@Column(columnDefinition = "text")
-	private String rawCandidate;
+	private String originalText;
 
 	private RoomPlaceSource(
 			RoomPlace roomPlace,
@@ -74,9 +74,9 @@ public class RoomPlaceSource extends AuditableEntity {
 		this.sourceType = sourceType;
 		this.createdByUserId = createdByUserId;
 		this.confidence = snapshot.confidence();
-		this.sourceKeyword = trimToNull(snapshot.sourceKeyword());
-		this.sourceSentence = trimToNull(snapshot.sourceSentence());
-		this.rawCandidate = trimToNull(snapshot.rawCandidate());
+		this.query = trimToNull(snapshot.query());
+		this.evidenceText = trimToNull(snapshot.evidenceText());
+		this.originalText = trimToNull(snapshot.originalText());
 	}
 
 	public static RoomPlaceSource create(

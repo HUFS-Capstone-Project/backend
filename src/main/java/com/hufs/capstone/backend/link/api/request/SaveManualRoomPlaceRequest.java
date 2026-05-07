@@ -46,10 +46,7 @@ public record SaveManualRoomPlaceRequest(
 		String phone,
 
 		@Size(max = 2048)
-		String placeUrl,
-
-		@Size(max = 255)
-		String sourceKeyword
+	String placeUrl
 ) {
 
 	public PlaceSnapshot toSnapshot() {
@@ -66,7 +63,7 @@ public record SaveManualRoomPlaceRequest(
 				latitude,
 				placeUrl,
 				null,
-				sourceKeyword,
+				null,
 				null,
 				null
 		);

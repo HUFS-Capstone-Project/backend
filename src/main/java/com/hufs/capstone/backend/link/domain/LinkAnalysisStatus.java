@@ -13,7 +13,7 @@ public enum LinkAnalysisStatus {
 
 	private static final Set<String> REQUESTED_VALUES = Set.of("REQUESTED", "CREATED", "PENDING", "QUEUED");
 	private static final Set<String> PROCESSING_VALUES = Set.of("PROCESSING", "RUNNING", "IN_PROGRESS", "STARTED");
-	private static final Set<String> SUCCEEDED_VALUES = Set.of("SUCCEEDED", "SUCCESS", "COMPLETED", "DONE", "FINISHED");
+	private static final Set<String> SUCCEEDED_VALUES = Set.of("SUCCEEDED", "COMPLETED", "DONE", "FINISHED");
 	private static final Set<String> FAILED_VALUES = Set.of("FAILED", "FAILURE", "ERROR", "CANCELED", "CANCELLED", "ABORTED");
 
 	public boolean isTerminal() {

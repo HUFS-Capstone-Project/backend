@@ -6,7 +6,6 @@ import com.hufs.capstone.backend.external.processing.ProcessingClientException;
 import com.hufs.capstone.backend.external.processing.dto.BusinessHoursJobCreateRequest;
 import com.hufs.capstone.backend.external.processing.dto.BusinessHoursJobCreateResponse;
 import com.hufs.capstone.backend.place.domain.enums.BusinessHoursRequestStatus;
-import com.hufs.capstone.backend.place.domain.enums.BusinessHoursStatus;
 import com.hufs.capstone.backend.place.infrastructure.config.BusinessHoursAsyncConfig;
 import java.net.URI;
 import lombok.RequiredArgsConstructor;
@@ -53,7 +52,7 @@ public class BusinessHoursRequestedEventListener {
 			);
 			placeBusinessHoursCacheService.markRequestFailure(
 					event,
-					BusinessHoursRequestStatus.REQUEST_FAILED,
+					BusinessHoursRequestStatus.FAILED,
 					ex.getMessage()
 			);
 		}
@@ -63,18 +62,22 @@ public class BusinessHoursRequestedEventListener {
 		if (response == null || response.place() == null) {
 			placeBusinessHoursCacheService.markRequestFailure(
 					event,
-					BusinessHoursRequestStatus.REQUEST_FAILED,
+					BusinessHoursRequestStatus.FAILED,
 					"Business hours response does not contain place."
 			);
 			return;
 		}
 		if (response.cacheHit() && response.place().businessHoursExpiresAt() == null) {
 			log.info(
-					"Business hours cacheHit response has null expiresAt. kakaoPlaceId={}",
+					"Business hours cache_hit response has null expiresAt. kakaoPlaceId={}",
 					response.place().kakaoPlaceId()
 			);
 		}
-		placeBusinessHoursCacheService.upsertRemotePlace(response.place(), BusinessHoursRequestStatus.SUCCEEDED);
+		placeBusinessHoursCacheService.upsertRemotePlace(
+				response.place(),
+				response.job() == null ? null : response.job().jobId(),
+				BusinessHoursRequestStatus.SUCCEEDED
+		);
 	}
 
 	private void handleProcessingClientException(BusinessHoursRequestedEvent event, ProcessingClientException ex) {
@@ -87,12 +90,12 @@ public class BusinessHoursRequestedEventListener {
 			return;
 		}
 		if (ex.hasStatus(503) && isEnqueueFailed(ex)) {
-			placeBusinessHoursCacheService.markEnqueueFailed(event, errorMessage(ex));
+			placeBusinessHoursCacheService.markFailed(event, errorMessage(ex));
 			return;
 		}
 		BusinessHoursRequestStatus status = ex.getErrorType() == ProcessingClientErrorType.CLIENT_ERROR
 				? BusinessHoursRequestStatus.INVALID_REQUEST
-				: BusinessHoursRequestStatus.REQUEST_FAILED;
+				: BusinessHoursRequestStatus.FAILED;
 		placeBusinessHoursCacheService.markRequestFailure(event, status, errorMessage(ex));
 	}
 
@@ -113,7 +116,8 @@ public class BusinessHoursRequestedEventListener {
 
 	private static boolean isEnqueueFailed(ProcessingClientException ex) {
 		return ex.getProcessingErrorCode() == null
-				|| BusinessHoursStatus.ENQUEUE_FAILED.name().equals(ex.getProcessingErrorCode());
+				|| "ENQUEUE_FAILED".equals(ex.getProcessingErrorCode())
+				|| "FAILED".equals(ex.getProcessingErrorCode());
 	}
 
 	private static String errorMessage(ProcessingClientException ex) {

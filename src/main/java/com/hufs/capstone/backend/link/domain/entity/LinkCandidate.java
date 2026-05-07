@@ -72,13 +72,13 @@ public class LinkCandidate extends AuditableEntity {
 	private BigDecimal confidence;
 
 	@Column(length = 255)
-	private String sourceKeyword;
+	private String query;
 
 	@Column(length = 500)
-	private String sourceSentence;
+	private String evidenceText;
 
 	@Column(columnDefinition = "text")
-	private String rawCandidate;
+	private String originalText;
 
 	private LinkCandidate(Link link, Integer candidateOrder, PlaceCandidateSnapshot snapshot) {
 		this.link = link;
@@ -107,9 +107,9 @@ public class LinkCandidate extends AuditableEntity {
 				latitude,
 				placeUrl,
 				confidence,
-				sourceKeyword,
-				sourceSentence,
-				rawCandidate
+				query,
+				evidenceText,
+				originalText
 		);
 	}
 
@@ -126,9 +126,9 @@ public class LinkCandidate extends AuditableEntity {
 		this.latitude = snapshot.latitude();
 		this.placeUrl = trimToNull(snapshot.placeUrl());
 		this.confidence = snapshot.confidence();
-		this.sourceKeyword = trimToNull(snapshot.sourceKeyword());
-		this.sourceSentence = trimToNull(snapshot.sourceSentence());
-		this.rawCandidate = trimToNull(snapshot.rawCandidate());
+		this.query = trimToNull(snapshot.query());
+		this.evidenceText = trimToNull(snapshot.evidenceText());
+		this.originalText = trimToNull(snapshot.originalText());
 	}
 
 	private static String trimToNull(String value) {

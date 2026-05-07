@@ -1,17 +1,17 @@
 package com.hufs.capstone.backend.external.processing.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import java.time.OffsetDateTime;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record BusinessHoursJobResponse(
+		@JsonProperty("job_id")
 		String jobId,
-		String kakaoPlaceId,
-		String placeUrl,
+		@JsonProperty("status")
 		BusinessHoursJobStatus status,
+		@JsonProperty("error_code")
 		String errorCode,
-		String errorMessage,
-		OffsetDateTime createdAt,
-		OffsetDateTime updatedAt
+		@JsonProperty("error_message")
+		String errorMessage
 ) {
 }

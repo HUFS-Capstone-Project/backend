@@ -123,10 +123,10 @@ public class PlaceBusinessHours extends AuditableEntity {
 		this.lastRequestStatus = lastRequestStatus;
 	}
 
-	public void markEnqueueFailed(String placeUrl, String placeName, String lastError) {
+	public void markFailed(String placeUrl, String placeName, String lastError) {
 		applyPlaceSnapshot(placeUrl, placeName);
-		this.businessHoursStatus = BusinessHoursStatus.ENQUEUE_FAILED;
-		this.lastRequestStatus = BusinessHoursRequestStatus.ENQUEUE_FAILED;
+		this.businessHoursStatus = BusinessHoursStatus.FAILED;
+		this.lastRequestStatus = BusinessHoursRequestStatus.FAILED;
 		this.lastError = trimToNull(lastError);
 	}
 

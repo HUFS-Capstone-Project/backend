@@ -55,8 +55,16 @@ public class BusinessHoursPollingScheduler {
 					|| isRunning(response.job().status())) {
 				return;
 			}
+			if (response.job().status() == BusinessHoursJobStatus.FAILED) {
+				placeBusinessHoursCacheService.markFailed(toEventSnapshot(row), jobFailureMessage(response));
+				return;
+			}
 			if (response.place() != null) {
-				placeBusinessHoursCacheService.upsertRemotePlace(response.place(), BusinessHoursRequestStatus.SUCCEEDED);
+				placeBusinessHoursCacheService.upsertRemotePlace(
+						response.place(),
+						response.job().jobId(),
+						BusinessHoursRequestStatus.SUCCEEDED
+				);
 				return;
 			}
 			processingBusinessHoursClient.getPlace(row.getKakaoPlaceId())
@@ -67,21 +75,33 @@ public class BusinessHoursPollingScheduler {
 		} catch (ProcessingClientException ex) {
 			placeBusinessHoursCacheService.markRequestFailure(
 					toEventSnapshot(row),
-					BusinessHoursRequestStatus.REQUEST_FAILED,
+					BusinessHoursRequestStatus.FAILED,
 					ex.getProcessingErrorCode() == null ? ex.getMessage() : ex.getProcessingErrorCode()
 			);
 		} catch (RuntimeException ex) {
 			log.warn("Business hours polling failed. kakaoPlaceId={}", row.getKakaoPlaceId(), ex);
 			placeBusinessHoursCacheService.markRequestFailure(
 					toEventSnapshot(row),
-					BusinessHoursRequestStatus.REQUEST_FAILED,
+					BusinessHoursRequestStatus.FAILED,
 					ex.getMessage()
 			);
 		}
 	}
 
 	private static boolean isRunning(BusinessHoursJobStatus status) {
-		return status == BusinessHoursJobStatus.PENDING || status == BusinessHoursJobStatus.FETCHING;
+		return status == BusinessHoursJobStatus.QUEUED || status == BusinessHoursJobStatus.PROCESSING;
+	}
+
+	private static String jobFailureMessage(BusinessHoursJobLookupResponse response) {
+		String errorCode = response.job().errorCode();
+		String errorMessage = response.job().errorMessage();
+		if (errorCode != null && !errorCode.isBlank() && errorMessage != null && !errorMessage.isBlank()) {
+			return errorCode + ": " + errorMessage;
+		}
+		if (errorCode != null && !errorCode.isBlank()) {
+			return errorCode;
+		}
+		return errorMessage;
 	}
 
 	private static BusinessHoursRequestedEvent toEventSnapshot(PlaceBusinessHours row) {

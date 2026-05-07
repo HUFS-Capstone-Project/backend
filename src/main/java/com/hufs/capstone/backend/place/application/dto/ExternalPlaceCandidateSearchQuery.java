@@ -35,7 +35,7 @@ public record ExternalPlaceCandidateSearchQuery(
 		);
 	}
 
-	public String kakaoQuery() {
+	public String kakaoSearchQuery() {
 		if (region == null) {
 			return keyword;
 		}

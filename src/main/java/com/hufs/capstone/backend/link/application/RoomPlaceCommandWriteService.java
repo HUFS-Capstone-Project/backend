@@ -210,9 +210,9 @@ public class RoomPlaceCommandWriteService {
 				candidate.latitude(),
 				candidate.placeUrl(),
 				candidate.confidence(),
-				candidate.sourceKeyword(),
-				candidate.sourceSentence(),
-				candidate.rawCandidate()
+				candidate.query(),
+				candidate.evidenceText(),
+				candidate.originalText()
 		);
 	}
 

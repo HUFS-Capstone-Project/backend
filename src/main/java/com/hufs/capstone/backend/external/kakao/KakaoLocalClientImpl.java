@@ -24,6 +24,7 @@ import reactor.core.publisher.Mono;
 public class KakaoLocalClientImpl implements KakaoLocalClient {
 
 	private static final String KEYWORD_SEARCH_PATH = "/v2/local/search/keyword.json";
+	private static final String KAKAO_QUERY_PARAM = "query";
 
 	private final WebClient kakaoLocalWebClient;
 
@@ -40,7 +41,7 @@ public class KakaoLocalClientImpl implements KakaoLocalClient {
 			response = kakaoLocalWebClient.get()
 					.uri(uriBuilder -> {
 						uriBuilder.path(KEYWORD_SEARCH_PATH)
-								.queryParam("query", query.kakaoQuery())
+								.queryParam(KAKAO_QUERY_PARAM, query.kakaoSearchQuery())
 								.queryParam("size", query.limit());
 						if (query.categoryGroupCode() != null) {
 							uriBuilder.queryParam("category_group_code", query.categoryGroupCode());

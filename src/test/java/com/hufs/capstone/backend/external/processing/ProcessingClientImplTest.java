@@ -4,9 +4,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hufs.capstone.backend.external.processing.dto.BusinessHoursJobCreateRequest;
+import com.hufs.capstone.backend.external.processing.dto.BusinessHoursJobCreateResponse;
+import com.hufs.capstone.backend.external.processing.dto.BusinessHoursJobStatus;
 import com.hufs.capstone.backend.external.processing.dto.CreateProcessingJobResponse;
 import com.hufs.capstone.backend.external.processing.dto.ProcessingJobResultResponse;
 import com.hufs.capstone.backend.external.processing.dto.ProcessingJobResponse;
+import com.hufs.capstone.backend.place.domain.enums.BusinessHoursStatus;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
@@ -82,7 +86,7 @@ class ProcessingClientImplTest {
 			if (path.endsWith("/result")) {
 				resultPath.set(path);
 				writeJson(exchange, HttpStatus.OK.value(), """
-						{"job_id":"job-1","status":"SUCCEEDED","caption":"done","selected_places":[]}
+						{"job_id":"job-1","status":"SUCCEEDED","caption_raw":"done","resolved_places":[]}
 						""");
 				return;
 			}
@@ -96,29 +100,84 @@ class ProcessingClientImplTest {
 		ProcessingJobResultResponse result = client(3000).getJobResult("job-1");
 
 		assertThat(job.status()).isEqualTo("PROCESSING");
-		assertThat(result.caption()).isEqualTo("done");
+		assertThat(result.captionRaw()).isEqualTo("done");
 		assertThat(jobPath.get()).isEqualTo("/api/v1/jobs/job-1");
 		assertThat(resultPath.get()).isEqualTo("/api/v1/jobs/job-1/result");
 	}
 
 	@Test
-	void resultResponseShouldReadSelectedPlacesAndIgnoreLegacySelectedPlace() throws Exception {
+	void resultResponseShouldReadResolvedPlacesAndInstagramMeta() throws Exception {
 		ObjectMapper objectMapper = new ObjectMapper();
 
 		ProcessingJobResultResponse result = objectMapper.readValue("""
 				{
 				  "job_id":"job-1",
 				  "status":"SUCCEEDED",
-				  "caption":"done",
-				  "selected_place":{"kakao_place_id":"legacy"},
-				  "selected_places":[
-				    {"kakao_place_id":"123","place_name":"Coffee Mansion"}
-				  ]
+				  "caption_raw":"done",
+				  "instagram_meta":{"like_count":123,"comment_count":45},
+				  "resolved_places":[
+				    {
+				      "kakao_place_id":"123",
+				      "place_name":"Coffee Mansion",
+				      "address":"서울 중구 세종대로 1",
+				      "road_address":"서울 중구 세종대로 2",
+				      "longitude":127.060138952594,
+				      "latitude":37.5959759766929,
+				      "category_name":"음식점 > 카페 > 커피전문점",
+				      "category_group_code":"CE7",
+				      "place_url":"https://place.map.kakao.com/123",
+				      "phone":"02-0000-0000"
+				    }
+				  ],
+				  "error_code":null,
+				  "error_message":null
 				}
 				""", ProcessingJobResultResponse.class);
 
-		assertThat(result.selectedPlaces()).hasSize(1);
-		assertThat(result.selectedPlaces().get(0).kakaoPlaceId()).isEqualTo("123");
+		assertThat(result.instagramMeta().likeCount()).isEqualTo(123);
+		assertThat(result.instagramMeta().commentCount()).isEqualTo(45);
+		assertThat(result.resolvedPlaces()).hasSize(1);
+		assertThat(result.resolvedPlaces().get(0).kakaoPlaceId()).isEqualTo("123");
+		assertThat(result.resolvedPlaces().get(0).longitude()).isEqualByComparingTo("127.060138952594");
+		assertThat(result.resolvedPlaces().get(0).latitude()).isEqualByComparingTo("37.5959759766929");
+		assertThat(result.resolvedPlaces().get(0).categoryGroupCode()).isEqualTo("CE7");
+	}
+
+	@Test
+	void businessHoursDtosShouldUseSnakeCaseContract() throws Exception {
+		ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
+
+		String requestJson = objectMapper.writeValueAsString(new BusinessHoursJobCreateRequest(
+				"123",
+				"https://place.map.kakao.com/123",
+				"Coffee Mansion"
+		));
+		BusinessHoursJobCreateResponse response = objectMapper.readValue("""
+				{
+				  "cache_hit":false,
+				  "job":{"job_id":"job-1","status":"SUCCESS","error_code":null,"error_message":null},
+				  "place":{
+				    "kakao_place_id":"123",
+				    "place_name":"Coffee Mansion",
+				    "place_url":"https://place.map.kakao.com/123",
+				    "business_hours_status":"SUCCESS",
+				    "business_hours":{"daily_hours":[]},
+				    "business_hours_fetched_at":"2026-05-07T10:00:03Z",
+				    "business_hours_expires_at":"2026-05-21T10:00:03Z",
+				    "error_code":null,
+				    "error_message":null
+				  }
+				}
+				""", BusinessHoursJobCreateResponse.class);
+
+		assertThat(requestJson).contains("\"kakao_place_id\":\"123\"");
+		assertThat(requestJson).contains("\"place_url\":\"https://place.map.kakao.com/123\"");
+		assertThat(requestJson).contains("\"place_name\":\"Coffee Mansion\"");
+		assertThat(response.cacheHit()).isFalse();
+		assertThat(response.job().jobId()).isEqualTo("job-1");
+		assertThat(response.job().status()).isEqualTo(BusinessHoursJobStatus.SUCCEEDED);
+		assertThat(response.place().businessHoursStatus()).isEqualTo(BusinessHoursStatus.SUCCEEDED);
+		assertThat(response.place().businessHours().path("daily_hours").isArray()).isTrue();
 	}
 
 	@Test

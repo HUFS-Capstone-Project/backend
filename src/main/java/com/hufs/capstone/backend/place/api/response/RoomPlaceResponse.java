@@ -33,11 +33,9 @@ public record RoomPlaceResponse(
 		Long createdBy,
 		Instant createdAt,
 		JsonNode businessHours,
-		String businessHoursRaw,
 		String businessHoursStatus,
 		Instant businessHoursFetchedAt,
-		Instant businessHoursExpiresAt,
-		String businessHoursSource
+		Instant businessHoursExpiresAt
 ) {
 
 	public static RoomPlaceResponse from(RoomPlaceResult result) {
@@ -68,11 +66,9 @@ public record RoomPlaceResponse(
 				result.createdBy(),
 				result.createdAt(),
 				result.businessHours(),
-				result.businessHoursRaw(),
 				result.businessHoursStatus(),
 				result.businessHoursFetchedAt(),
-				result.businessHoursExpiresAt(),
-				result.businessHoursSource()
+				result.businessHoursExpiresAt()
 		);
 	}
 }

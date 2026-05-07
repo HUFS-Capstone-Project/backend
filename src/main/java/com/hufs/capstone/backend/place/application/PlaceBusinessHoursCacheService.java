@@ -30,15 +30,23 @@ public class PlaceBusinessHoursCacheService {
 	private final ObjectMapper objectMapper;
 
 	public void upsertRemotePlace(BusinessHoursPlaceResponse place, BusinessHoursRequestStatus requestStatus) {
+		upsertRemotePlace(place, null, requestStatus);
+	}
+
+	public void upsertRemotePlace(
+			BusinessHoursPlaceResponse place,
+			String businessHoursJobId,
+			BusinessHoursRequestStatus requestStatus
+	) {
 		if (place == null || isBlank(place.kakaoPlaceId())) {
 			return;
 		}
 		String businessHoursJson = serializeBusinessHours(place);
-		retryUpsert(() -> upsertRemotePlaceOnce(place, businessHoursJson, requestStatus));
+		retryUpsert(() -> upsertRemotePlaceOnce(place, businessHoursJson, businessHoursJobId, requestStatus));
 	}
 
-	public void markEnqueueFailed(BusinessHoursRequestedEvent event, String lastError) {
-		retryUpsert(() -> updateOnce(event.kakaoPlaceId(), cache -> cache.markEnqueueFailed(
+	public void markFailed(BusinessHoursRequestedEvent event, String lastError) {
+		retryUpsert(() -> updateOnce(event.kakaoPlaceId(), cache -> cache.markFailed(
 				event.placeUrl(),
 				event.placeName(),
 				lastError
@@ -67,21 +75,35 @@ public class PlaceBusinessHoursCacheService {
 	private void upsertRemotePlaceOnce(
 			BusinessHoursPlaceResponse place,
 			String businessHoursJson,
+			String businessHoursJobId,
 			BusinessHoursRequestStatus requestStatus
 	) {
 		updateOnce(place.kakaoPlaceId(), cache -> cache.applyRemotePlace(
 				place.placeUrl(),
 				place.placeName(),
 				businessHoursJson,
-				place.businessHoursRaw(),
+				null,
 				place.businessHoursStatus(),
 				toInstant(place.businessHoursFetchedAt()),
 				toInstant(place.businessHoursExpiresAt()),
-				place.businessHoursSource(),
-				place.businessHoursJobId(),
-				place.lastError(),
+				null,
+				businessHoursJobId,
+				errorDetails(place),
 				requestStatus
 		), place.placeUrl(), place.placeName());
+	}
+
+	private static String errorDetails(BusinessHoursPlaceResponse place) {
+		if (!isBlank(place.errorCode()) && !isBlank(place.errorMessage())) {
+			return place.errorCode() + ": " + place.errorMessage();
+		}
+		if (!isBlank(place.errorCode())) {
+			return place.errorCode();
+		}
+		if (!isBlank(place.errorMessage())) {
+			return place.errorMessage();
+		}
+		return null;
 	}
 
 	private void updateOnce(
@@ -112,7 +134,7 @@ public class PlaceBusinessHoursCacheService {
 				log.debug("Business hours cache upsert retry. attempt={}/{}", attempt, MAX_UPSERT_ATTEMPTS, ex);
 			}
 		}
-		throw lastException;
+		throw lastException == null ? new IllegalStateException("Business hours cache upsert failed.") : lastException;
 	}
 
 	private TransactionTemplate requiresNewTransactionTemplate() {

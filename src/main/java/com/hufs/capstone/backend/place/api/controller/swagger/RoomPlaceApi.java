@@ -5,6 +5,7 @@ import com.hufs.capstone.backend.place.api.request.UpdateRoomPlaceMemoRequest;
 import com.hufs.capstone.backend.place.api.response.RoomPlacePageResponse;
 import com.hufs.capstone.backend.place.api.response.RoomPlaceResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
@@ -30,6 +31,7 @@ public interface RoomPlaceApi {
 	@GetMapping
 	CommonResponse<RoomPlacePageResponse> searchRoomPlaces(
 			@PathVariable String roomId,
+			@Parameter(description = "저장된 장소 목록 검색어. 장소명, 주소, 카테고리명, 메모에서 부분 검색합니다.")
 			@RequestParam(required = false) String keyword,
 			@RequestParam(required = false) String category,
 			@RequestParam(required = false) String categoryCode,
