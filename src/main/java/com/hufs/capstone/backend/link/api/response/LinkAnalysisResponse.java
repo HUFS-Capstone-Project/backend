@@ -10,6 +10,7 @@ import java.util.List;
 public record LinkAnalysisResponse(
 		Long linkId,
 		LinkAnalysisStatus status,
+		String captionRaw,
 		List<PlaceResponse> candidatePlaces,
 		String errorCode,
 		String errorMessage
@@ -19,6 +20,7 @@ public record LinkAnalysisResponse(
 		return new LinkAnalysisResponse(
 				result.linkId(),
 				result.status(),
+				result.captionRaw(),
 				result.candidatePlaces().stream()
 						.map(PlaceResponse::from)
 						.toList(),
