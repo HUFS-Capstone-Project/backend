@@ -1,8 +1,5 @@
 package com.hufs.capstone.backend.place.application;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
 import com.hufs.capstone.backend.place.application.dto.BusinessHoursResult;
@@ -42,7 +39,7 @@ public class RoomPlaceQueryService {
 	private final RoomPlaceRepository roomPlaceRepository;
 	private final RegionQueryService regionQueryService;
 	private final PlaceBusinessHoursRepository placeBusinessHoursRepository;
-	private final ObjectMapper objectMapper;
+	private final BusinessHoursDisplayResolver businessHoursDisplayResolver;
 
 	@Transactional(readOnly = true)
 	public RoomPlacePageResult searchRoomPlaces(
@@ -132,22 +129,11 @@ public class RoomPlaceQueryService {
 			return null;
 		}
 		return new BusinessHoursResult(
-				readBusinessHours(cache.getBusinessHoursJson()),
+				businessHoursDisplayResolver.resolve(cache.getBusinessHoursJson(), cache.getBusinessHoursStatus()),
 				cache.getBusinessHoursStatus(),
 				cache.getBusinessHoursFetchedAt(),
 				cache.getBusinessHoursExpiresAt()
 		);
-	}
-
-	private JsonNode readBusinessHours(String businessHoursJson) {
-		if (businessHoursJson == null || businessHoursJson.isBlank()) {
-			return null;
-		}
-		try {
-			return objectMapper.readTree(businessHoursJson);
-		} catch (JsonProcessingException ex) {
-			throw new BusinessException(ErrorCode.E500_INTERNAL, "Business hours cache JSON is malformed.", ex);
-		}
 	}
 
 	private static String trimToNull(String value) {

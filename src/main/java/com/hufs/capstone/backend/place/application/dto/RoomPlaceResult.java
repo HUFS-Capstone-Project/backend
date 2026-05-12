@@ -1,6 +1,5 @@
 package com.hufs.capstone.backend.place.application.dto;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.hufs.capstone.backend.place.domain.entity.Place;
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
 import com.hufs.capstone.backend.place.domain.enums.RoomPlaceSourceType;
@@ -33,8 +32,8 @@ public record RoomPlaceResult(
 		String sourceUrl,
 		Long createdBy,
 		Instant createdAt,
-		JsonNode businessHours,
 		String businessHoursStatus,
+		BusinessHoursDisplayResult businessHours,
 		Instant businessHoursFetchedAt,
 		Instant businessHoursExpiresAt
 ) {
@@ -75,10 +74,10 @@ public record RoomPlaceResult(
 				sourceUrl,
 				roomPlace.getCreatedByUserId(),
 				roomPlace.getCreatedAt(),
-				businessHours == null ? null : businessHours.businessHours(),
 				businessHours == null || businessHours.businessHoursStatus() == null
 						? null
 						: businessHours.businessHoursStatus().name(),
+				businessHours == null ? null : businessHours.businessHours(),
 				businessHours == null ? null : businessHours.businessHoursFetchedAt(),
 				businessHours == null ? null : businessHours.businessHoursExpiresAt()
 		);
