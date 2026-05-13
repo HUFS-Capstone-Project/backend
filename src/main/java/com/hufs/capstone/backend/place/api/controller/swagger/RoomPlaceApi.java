@@ -38,6 +38,8 @@ public interface RoomPlaceApi {
 			@RequestParam(required = false) String tagCode,
 			@RequestParam(required = false) String sidoCode,
 			@RequestParam(required = false) String sigunguCode,
+			@Parameter(description = "저장자 userId. 지정하면 해당 방 멤버가 저장한 장소만 조회합니다.")
+			@RequestParam(required = false) Long createdBy,
 			@RequestParam(required = false) Integer page,
 			@RequestParam(required = false) Integer size,
 			@RequestParam(required = false) Integer limit

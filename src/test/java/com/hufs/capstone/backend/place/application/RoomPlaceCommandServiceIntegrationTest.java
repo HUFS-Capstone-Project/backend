@@ -281,6 +281,44 @@ class RoomPlaceCommandServiceIntegrationTest {
 	}
 
 	@Test
+	void shouldFilterRoomPlacesByCreator() {
+		Long friendUserId = 200L;
+		roomMemberRepository.saveAndFlush(RoomMember.join(room, friendUserId));
+		saveExternalForTest(USER_ID, foodSnapshot("123456789", "My Place"));
+		saveExternalForTest(friendUserId, cafeSnapshot("222222222", "Friend Place"));
+
+		RoomPlacePageResult myPlaces = roomPlaceQueryService.searchRoomPlaces(
+				USER_ID,
+				ROOM_PUBLIC_ID,
+				null,
+				null,
+				null,
+				null,
+				null,
+				USER_ID,
+				0,
+				20,
+				null
+		);
+		RoomPlacePageResult friendPlaces = roomPlaceQueryService.searchRoomPlaces(
+				USER_ID,
+				ROOM_PUBLIC_ID,
+				null,
+				null,
+				null,
+				null,
+				null,
+				friendUserId,
+				0,
+				20,
+				null
+		);
+
+		assertThat(myPlaces.items()).extracting("name").containsExactly("My Place");
+		assertThat(friendPlaces.items()).extracting("name").containsExactly("Friend Place");
+	}
+
+	@Test
 	void shouldNormalizeRegionAndFilterRoomPlacesBySidoAndSigungu() {
 		saveExternalForTest(regionalSnapshot(
 				"111111111",
@@ -440,11 +478,15 @@ class RoomPlaceCommandServiceIntegrationTest {
 	}
 
 	private RoomPlaceSaveResult saveExternalForTest(PlaceSnapshot snapshot) {
+		return saveExternalForTest(USER_ID, snapshot);
+	}
+
+	private RoomPlaceSaveResult saveExternalForTest(Long userId, PlaceSnapshot snapshot) {
 		return transactionTemplate.execute(status -> new RoomPlaceSaveResult(
 				null,
 				roomPlaceStorageService.saveAll(
 						roomRepository.findById(room.getId()).orElseThrow(),
-						USER_ID,
+						userId,
 						List.of(snapshot),
 						null,
 						RoomPlaceSourceType.EXTERNAL_SEARCH,

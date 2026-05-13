@@ -33,6 +33,7 @@ public class RoomPlaceController implements RoomPlaceApi {
 			@RequestParam(required = false) String tagCode,
 			@RequestParam(required = false) String sidoCode,
 			@RequestParam(required = false) String sigunguCode,
+			@RequestParam(required = false) Long createdBy,
 			@RequestParam(required = false) Integer page,
 			@RequestParam(required = false) Integer size,
 			@RequestParam(required = false) Integer limit
@@ -46,6 +47,7 @@ public class RoomPlaceController implements RoomPlaceApi {
 				tagCode,
 				sidoCode,
 				sigunguCode,
+				createdBy,
 				page,
 				limit,
 				size

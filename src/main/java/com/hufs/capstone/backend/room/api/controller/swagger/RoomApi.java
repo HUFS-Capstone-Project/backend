@@ -8,6 +8,7 @@ import com.hufs.capstone.backend.room.api.request.UpdateRoomPinRequest;
 import com.hufs.capstone.backend.room.api.response.CreateRoomResponse;
 import com.hufs.capstone.backend.room.api.response.JoinRoomResponse;
 import com.hufs.capstone.backend.room.api.response.RoomDetailResponse;
+import com.hufs.capstone.backend.room.api.response.RoomMemberProfileResponse;
 import com.hufs.capstone.backend.room.api.response.RoomSummaryResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -63,6 +64,15 @@ public interface RoomApi {
 	@ApiResponse(responseCode = "200", description = "OK")
 	@GetMapping("/{roomId}")
 	CommonResponse<RoomDetailResponse> getRoom(@PathVariable String roomId);
+
+	@Operation(
+			tags = {"Room"},
+			summary = "방 멤버 목록 조회 API",
+			description = "현재 로그인한 사용자가 참여 중인 방의 멤버 프로필 목록을 조회합니다."
+	)
+	@ApiResponse(responseCode = "200", description = "OK")
+	@GetMapping("/{roomId}/members")
+	CommonResponse<List<RoomMemberProfileResponse>> getRoomMembers(@PathVariable String roomId);
 
 	@Operation(
 			tags = {"Room"},

@@ -10,6 +10,7 @@ import com.hufs.capstone.backend.room.api.request.UpdateRoomPinRequest;
 import com.hufs.capstone.backend.room.api.response.CreateRoomResponse;
 import com.hufs.capstone.backend.room.api.response.JoinRoomResponse;
 import com.hufs.capstone.backend.room.api.response.RoomDetailResponse;
+import com.hufs.capstone.backend.room.api.response.RoomMemberProfileResponse;
 import com.hufs.capstone.backend.room.api.response.RoomSummaryResponse;
 import com.hufs.capstone.backend.room.application.RoomCommandService;
 import com.hufs.capstone.backend.room.application.RoomQueryService;
@@ -67,6 +68,15 @@ public class RoomController implements RoomApi {
 		Long userId = SecurityUtils.currentUserIdOrThrow();
 		RoomDetailResult result = roomQueryService.getRoomDetail(userId, roomId);
 		return CommonResponse.ok(RoomDetailResponse.from(result));
+	}
+
+	@Override
+	public CommonResponse<List<RoomMemberProfileResponse>> getRoomMembers(@PathVariable String roomId) {
+		Long userId = SecurityUtils.currentUserIdOrThrow();
+		List<RoomMemberProfileResponse> response = roomQueryService.getRoomMembers(userId, roomId).stream()
+				.map(RoomMemberProfileResponse::from)
+				.toList();
+		return CommonResponse.ok(response);
 	}
 
 	@Override

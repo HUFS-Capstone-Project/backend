@@ -14,12 +14,12 @@ import com.hufs.capstone.backend.region.application.RegionQueryService;
 import com.hufs.capstone.backend.region.application.dto.RegionFilter;
 import com.hufs.capstone.backend.room.application.RoomAccessService;
 import com.hufs.capstone.backend.room.domain.entity.Room;
-import lombok.RequiredArgsConstructor;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -54,7 +54,37 @@ public class RoomPlaceQueryService {
 			Integer limit,
 			Integer size
 	) {
+		return searchRoomPlaces(
+				userId,
+				roomId,
+				keyword,
+				categoryCode,
+				tagCode,
+				sidoCode,
+				sigunguCode,
+				null,
+				page,
+				limit,
+				size
+		);
+	}
+
+	@Transactional(readOnly = true)
+	public RoomPlacePageResult searchRoomPlaces(
+			Long userId,
+			String roomId,
+			String keyword,
+			String categoryCode,
+			String tagCode,
+			String sidoCode,
+			String sigunguCode,
+			Long createdBy,
+			Integer page,
+			Integer limit,
+			Integer size
+	) {
 		Room room = roomAccessService.requireMemberRoom(roomId, userId);
+		validateCreatedByFilter(room, createdBy);
 		int normalizedPage = page == null ? DEFAULT_PAGE : page;
 		int normalizedLimit = resolveLimit(limit, size);
 		if (normalizedPage < 0) {
@@ -73,6 +103,7 @@ public class RoomPlaceQueryService {
 				normalizeTagCode(tagCode),
 				regionFilter.sidoCode(),
 				regionFilter.sigunguCode(),
+				createdBy,
 				PageRequest.of(normalizedPage, normalizedLimit, Sort.by(Sort.Direction.DESC, "createdAt", "id"))
 		);
 		Map<String, PlaceBusinessHours> cachesByKakaoPlaceId = findCaches(result.getContent());
@@ -98,6 +129,12 @@ public class RoomPlaceQueryService {
 		PlaceBusinessHours cache = placeBusinessHoursRepository.findByKakaoPlaceId(roomPlace.getKakaoPlaceId())
 				.orElse(null);
 		return RoomPlaceResult.from(roomPlace, toBusinessHoursResult(cache), sourceUrl(roomPlace));
+	}
+
+	private void validateCreatedByFilter(Room room, Long createdBy) {
+		if (createdBy != null) {
+			roomAccessService.getMembershipOrThrow(room, createdBy);
+		}
 	}
 
 	private String sourceUrl(RoomPlace roomPlace) {

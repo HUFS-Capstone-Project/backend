@@ -17,6 +17,7 @@ public interface RoomPlaceSearchRepository {
 			String tagCode,
 			String sidoCode,
 			String sigunguCode,
+			Long createdBy,
 			Pageable pageable
 	);
 

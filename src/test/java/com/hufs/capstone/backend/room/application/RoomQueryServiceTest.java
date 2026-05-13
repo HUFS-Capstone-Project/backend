@@ -9,8 +9,11 @@ import com.hufs.capstone.backend.global.exception.ErrorCode;
 import com.hufs.capstone.backend.room.api.response.RoomDetailResponse;
 import com.hufs.capstone.backend.room.api.response.RoomSummaryResponse;
 import com.hufs.capstone.backend.room.application.dto.RoomDetailResult;
+import com.hufs.capstone.backend.room.application.dto.RoomMemberProfileResult;
 import com.hufs.capstone.backend.room.application.dto.RoomSummaryResult;
 import com.hufs.capstone.backend.room.application.port.RoomLinkCountPort;
+import com.hufs.capstone.backend.room.application.port.RoomMemberUserProfilePort;
+import com.hufs.capstone.backend.room.application.port.RoomMemberUserProfilePort.RoomMemberUserProfile;
 import com.hufs.capstone.backend.room.application.port.RoomPlaceCountPort;
 import com.hufs.capstone.backend.room.domain.entity.Room;
 import com.hufs.capstone.backend.room.domain.entity.RoomMember;
@@ -40,6 +43,9 @@ class RoomQueryServiceTest {
 
 	@Mock
 	private RoomPlaceCountPort roomPlaceCountPort;
+
+	@Mock
+	private RoomMemberUserProfilePort roomMemberUserProfilePort;
 
 	@InjectMocks
 	private RoomQueryService roomQueryService;
@@ -124,6 +130,32 @@ class RoomQueryServiceTest {
 		assertThatThrownBy(() -> roomQueryService.getRoomDetail(USER_ID, room.getPublicId()))
 				.isInstanceOf(BusinessException.class)
 				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.E403_FORBIDDEN));
+	}
+
+	@Test
+	void getRoomMembersShouldReturnMemberProfiles() {
+		Room room = room("11111111-1111-1111-1111-111111111111", "Test Room");
+		RoomMember me = RoomMember.join(room, USER_ID);
+		RoomMember friend = RoomMember.join(room, 200L);
+		ReflectionTestUtils.setField(me, "createdAt", Instant.parse("2026-04-16T00:00:00Z"));
+		ReflectionTestUtils.setField(friend, "createdAt", Instant.parse("2026-04-17T00:00:00Z"));
+		when(roomAccessService.requireMemberRoom(room.getPublicId(), USER_ID)).thenReturn(room);
+		when(roomMemberRepository.findByRoomIdOrderByCreatedAtAscIdAsc(room.getId())).thenReturn(List.of(me, friend));
+		when(roomMemberUserProfilePort.findActiveProfiles(List.of(USER_ID, 200L))).thenReturn(List.of(
+				new RoomMemberUserProfile(USER_ID, "me", "https://example.com/me.png"),
+				new RoomMemberUserProfile(200L, "friend", "https://example.com/friend.png")
+		));
+
+		List<RoomMemberProfileResult> result = roomQueryService.getRoomMembers(USER_ID, room.getPublicId());
+
+		assertThat(result).hasSize(2);
+		assertThat(result.get(0).userId()).isEqualTo(USER_ID);
+		assertThat(result.get(0).nickname()).isEqualTo("me");
+		assertThat(result.get(0).profileImageUrl()).isEqualTo("https://example.com/me.png");
+		assertThat(result.get(0).me()).isTrue();
+		assertThat(result.get(1).userId()).isEqualTo(200L);
+		assertThat(result.get(1).nickname()).isEqualTo("friend");
+		assertThat(result.get(1).me()).isFalse();
 	}
 
 	private static Room room(String publicId, String name) {

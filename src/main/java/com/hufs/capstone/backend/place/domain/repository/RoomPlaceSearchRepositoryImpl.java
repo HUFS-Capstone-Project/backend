@@ -40,6 +40,7 @@ public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository 
 			String tagCode,
 			String sidoCode,
 			String sigunguCode,
+			Long createdBy,
 			Pageable pageable
 	) {
 		List<RoomPlace> content = baseRoomPlaceQuery()
@@ -49,7 +50,8 @@ public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository 
 						categoryCodeEq(categoryCode),
 						tagCodeEq(tagCode),
 						sidoCodeEq(sidoCode),
-						sigunguCodeEq(sigunguCode)
+						sigunguCodeEq(sigunguCode),
+						createdByEq(createdBy)
 				)
 				.orderBy(ROOM_PLACE.createdAt.desc(), ROOM_PLACE.id.desc())
 				.offset(pageable.getOffset())
@@ -68,7 +70,8 @@ public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository 
 						categoryCodeEq(categoryCode),
 						tagCodeEq(tagCode),
 						sidoCodeEq(sidoCode),
-						sigunguCodeEq(sigunguCode)
+						sigunguCodeEq(sigunguCode),
+						createdByEq(createdBy)
 				)
 				.fetchOne();
 		return new PageImpl<>(content, pageable, total == null ? 0 : total);
@@ -132,6 +135,10 @@ public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository 
 
 	private static BooleanExpression sigunguCodeEq(String sigunguCode) {
 		return StringUtils.hasText(sigunguCode) ? ROOM_PLACE.sigunguCode.eq(sigunguCode) : null;
+	}
+
+	private static BooleanExpression createdByEq(Long createdBy) {
+		return createdBy == null ? null : ROOM_PLACE.createdByUserId.eq(createdBy);
 	}
 
 	private static BooleanExpression keywordContains(String keyword, String initialKeyword) {

@@ -2,6 +2,7 @@ package com.hufs.capstone.backend.room.domain.repository;
 
 import com.hufs.capstone.backend.room.domain.entity.Room;
 import com.hufs.capstone.backend.room.domain.entity.RoomMember;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -13,5 +14,6 @@ public interface RoomMemberRepository extends JpaRepository<RoomMember, Long>, R
 
 	long countByRoomId(Long roomId);
 
+	List<RoomMember> findByRoomIdOrderByCreatedAtAscIdAsc(Long roomId);
 }
 
