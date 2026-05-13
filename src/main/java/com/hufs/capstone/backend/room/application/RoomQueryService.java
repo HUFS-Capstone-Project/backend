@@ -11,6 +11,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 @Service
 @RequiredArgsConstructor
@@ -23,7 +24,13 @@ public class RoomQueryService {
 
 	@Transactional(readOnly = true)
 	public List<RoomSummaryResult> getMyRooms(Long userId) {
-		return roomMemberRepository.findMyRooms(userId).stream()
+		return getMyRooms(userId, null);
+	}
+
+	@Transactional(readOnly = true)
+	public List<RoomSummaryResult> getMyRooms(Long userId, String keyword) {
+		String normalizedKeyword = StringUtils.hasText(keyword) ? keyword.trim() : null;
+		return roomMemberRepository.findMyRooms(userId, normalizedKeyword).stream()
 				.map(this::toRoomSummary)
 				.toList();
 	}

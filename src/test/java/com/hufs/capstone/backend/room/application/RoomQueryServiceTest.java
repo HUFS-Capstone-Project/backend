@@ -49,7 +49,7 @@ class RoomQueryServiceTest {
 		Room room = room("11111111-1111-1111-1111-111111111111", "Test Room");
 		RoomMember member = RoomMember.join(room, USER_ID);
 		member.updatePinned(true);
-		when(roomMemberRepository.findMyRooms(USER_ID)).thenReturn(List.of(member));
+		when(roomMemberRepository.findMyRooms(USER_ID, null)).thenReturn(List.of(member));
 		when(roomMemberRepository.countByRoomId(room.getId())).thenReturn(3L);
 		when(roomLinkCountPort.countLinksInRoom(room.getId())).thenReturn(2L);
 		when(roomPlaceCountPort.countPlacesInRoom(room.getId())).thenReturn(7L);
@@ -66,6 +66,29 @@ class RoomQueryServiceTest {
 		assertThat(result.get(0).memberCount()).isEqualTo(3L);
 		assertThat(result.get(0).linkCount()).isEqualTo(2L);
 		assertThat(result.get(0).placeCount()).isEqualTo(7L);
+	}
+
+	@Test
+	void getMyRoomsShouldTrimKeyword() {
+		Room room = room("11111111-1111-1111-1111-111111111111", "Dinner Room");
+		RoomMember member = RoomMember.join(room, USER_ID);
+		when(roomMemberRepository.findMyRooms(USER_ID, "dinner")).thenReturn(List.of(member));
+
+		List<RoomSummaryResult> result = roomQueryService.getMyRooms(USER_ID, "  dinner  ");
+
+		assertThat(result).hasSize(1);
+		assertThat(result.get(0).roomName()).isEqualTo("Dinner Room");
+	}
+
+	@Test
+	void getMyRoomsShouldTreatBlankKeywordAsEmptySearch() {
+		Room room = room("11111111-1111-1111-1111-111111111111", "Test Room");
+		RoomMember member = RoomMember.join(room, USER_ID);
+		when(roomMemberRepository.findMyRooms(USER_ID, null)).thenReturn(List.of(member));
+
+		List<RoomSummaryResult> result = roomQueryService.getMyRooms(USER_ID, "   ");
+
+		assertThat(result).hasSize(1);
 	}
 
 	@Test

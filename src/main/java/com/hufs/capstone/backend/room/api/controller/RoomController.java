@@ -25,6 +25,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -51,9 +52,11 @@ public class RoomController implements RoomApi {
 	}
 
 	@Override
-	public CommonResponse<List<RoomSummaryResponse>> getMyRooms() {
+	public CommonResponse<List<RoomSummaryResponse>> getMyRooms(
+			@RequestParam(name = "keyword", required = false) String keyword
+	) {
 		Long userId = SecurityUtils.currentUserIdOrThrow();
-		List<RoomSummaryResponse> response = roomQueryService.getMyRooms(userId).stream()
+		List<RoomSummaryResponse> response = roomQueryService.getMyRooms(userId, keyword).stream()
 				.map(RoomSummaryResponse::from)
 				.toList();
 		return CommonResponse.ok(response);
