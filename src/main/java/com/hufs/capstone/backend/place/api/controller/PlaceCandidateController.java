@@ -19,7 +19,7 @@ public class PlaceCandidateController implements PlaceCandidateApi {
 	private final PlaceCandidateQueryService placeCandidateQueryService;
 
 	@Override
-	public CommonResponse<List<PlaceCandidateResponse>> searchExternalCandidates(
+	public CommonResponse<List<PlaceCandidateResponse>> searchCandidates(
 			@PathVariable String roomId,
 			@RequestParam String keyword,
 			@RequestParam(required = false) String region,

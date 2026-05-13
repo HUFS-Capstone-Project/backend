@@ -2,6 +2,7 @@ package com.hufs.capstone.backend.place.application;
 
 import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
+import com.hufs.capstone.backend.place.application.dto.ResolvedPlaceCategory;
 import com.hufs.capstone.backend.place.application.dto.ResolvedPlaceTaxonomy;
 import com.hufs.capstone.backend.place.domain.KakaoCategoryGroupPolicy;
 import com.hufs.capstone.backend.place.domain.entity.PlaceCategory;
@@ -15,10 +16,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.stereotype.Component;
 
-@Service
+@Component
 @RequiredArgsConstructor
 public class PlaceTaxonomyResolver {
 
@@ -27,20 +27,44 @@ public class PlaceTaxonomyResolver {
 	private final PlaceCategoryRepository placeCategoryRepository;
 	private final PlaceTagRepository placeTagRepository;
 
-	@Transactional(readOnly = true)
 	public ResolvedPlaceTaxonomy resolve(String kakaoCategoryGroupCode, String kakaoCategoryName) {
-		String categoryCode = KakaoCategoryGroupPolicy.resolveServiceCategoryCode(kakaoCategoryGroupCode);
-		PlaceCategory category = placeCategoryRepository.findByCode(categoryCode)
-				.orElseThrow(() -> taxonomyConfigurationError("Missing place category: " + categoryCode));
-		List<PlaceTag> activeTags = placeTagRepository.findActiveTaxonomyTags().stream()
-				.filter(tag -> category.getId().equals(tag.getCategory().getId()))
-				.toList();
+		TaxonomyOverride override = resolveOverride(kakaoCategoryGroupCode, kakaoCategoryName);
+		String categoryCode = resolveCategoryCode(kakaoCategoryGroupCode, override);
+		PlaceCategory category = findCategory(categoryCode);
+		List<PlaceTag> activeTags = findActiveTags(category);
 		PlaceTag fallbackTag = activeTags.stream()
 				.filter(tag -> KakaoCategoryGroupPolicy.FALLBACK_TAG_CODE.equals(tag.getCode()))
 				.findFirst()
 				.orElseThrow(() -> taxonomyConfigurationError("Missing fallback place tag: " + categoryCode + ".MISC"));
-		PlaceTag matchedTag = matchTag(kakaoCategoryName, activeTags, fallbackTag);
+		PlaceTag matchedTag = override == null
+				? matchTag(kakaoCategoryName, activeTags, fallbackTag)
+				: findOverrideTag(activeTags, override);
 		return new ResolvedPlaceTaxonomy(category, matchedTag);
+	}
+
+	public ResolvedPlaceCategory resolveCategory(String kakaoCategoryGroupCode, String kakaoCategoryName) {
+		TaxonomyOverride override = resolveOverride(kakaoCategoryGroupCode, kakaoCategoryName);
+		return ResolvedPlaceCategory.from(findCategory(resolveCategoryCode(kakaoCategoryGroupCode, override)));
+	}
+
+	private PlaceCategory findCategory(String categoryCode) {
+		return placeCategoryRepository.findByCode(categoryCode)
+				.orElseThrow(() -> taxonomyConfigurationError("Missing place category: " + categoryCode));
+	}
+
+	private List<PlaceTag> findActiveTags(PlaceCategory category) {
+		return placeTagRepository.findActiveTaxonomyTags().stream()
+				.filter(tag -> category.getId().equals(tag.getCategory().getId()))
+				.toList();
+	}
+
+	private PlaceTag findOverrideTag(List<PlaceTag> activeTags, TaxonomyOverride override) {
+		return activeTags.stream()
+				.filter(tag -> override.tagCode().equals(tag.getCode()))
+				.findFirst()
+				.orElseThrow(() -> taxonomyConfigurationError(
+						"Missing override place tag: " + override.categoryCode() + "." + override.tagCode()
+				));
 	}
 
 	private PlaceTag matchTag(String kakaoCategoryName, List<PlaceTag> activeTags, PlaceTag fallbackTag) {
@@ -88,7 +112,41 @@ public class PlaceTaxonomyResolver {
 				.toList();
 	}
 
+	private static TaxonomyOverride resolveOverride(String kakaoCategoryGroupCode, String kakaoCategoryName) {
+		if (!KakaoCategoryGroupPolicy.KAKAO_CAFE.equals(normalizeCategoryGroupCode(kakaoCategoryGroupCode))) {
+			return null;
+		}
+		String normalizedCategoryName = normalizeForMatch(kakaoCategoryName);
+		if (normalizedCategoryName == null) {
+			return null;
+		}
+		if (normalizedCategoryName.contains("보드카페")) {
+			return new TaxonomyOverride(KakaoCategoryGroupPolicy.SERVICE_CATEGORY_ACTIVITY, "BOARD_GAME_CAFE");
+		}
+		if (normalizedCategoryName.contains("만화카페")) {
+			return new TaxonomyOverride(KakaoCategoryGroupPolicy.SERVICE_CATEGORY_ACTIVITY, "COMIC_CAFE");
+		}
+		return null;
+	}
+
+	private static String resolveCategoryCode(String kakaoCategoryGroupCode, TaxonomyOverride override) {
+		return override == null
+				? KakaoCategoryGroupPolicy.resolveServiceCategoryCode(kakaoCategoryGroupCode)
+				: override.categoryCode();
+	}
+
+	private static String normalizeCategoryGroupCode(String value) {
+		if (value == null) {
+			return null;
+		}
+		String trimmed = value.trim();
+		return trimmed.isEmpty() ? null : trimmed.toUpperCase(Locale.ROOT);
+	}
+
 	private static BusinessException taxonomyConfigurationError(String message) {
 		return new BusinessException(ErrorCode.E500_INTERNAL, message);
+	}
+
+	private record TaxonomyOverride(String categoryCode, String tagCode) {
 	}
 }

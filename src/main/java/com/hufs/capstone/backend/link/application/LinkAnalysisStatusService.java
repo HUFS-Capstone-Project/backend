@@ -30,7 +30,7 @@ public class LinkAnalysisStatusService {
 	private final LinkSyncOrchestrator linkSyncOrchestrator;
 	private final LinkAnalysisStatusResolver linkAnalysisStatusResolver;
 	private final LinkAnalysisStatusWriteService linkAnalysisStatusWriteService;
-	private final LinkAnalysisResultMapper linkAnalysisResultMapper;
+	private final LinkAnalysisResultAssembler linkAnalysisResultAssembler;
 	private final RoomPlaceRepository roomPlaceRepository;
 	private final LinkCandidateRepository linkCandidateRepository;
 	private final RoomLinkRepository roomLinkRepository;
@@ -53,7 +53,7 @@ public class LinkAnalysisStatusService {
 		List<RoomPlace> savedPlaces = kakaoPlaceIds.isEmpty()
 				? List.of()
 				: roomPlaceRepository.findExistingByRoomIdAndKakaoPlaceIds(room.getId(), kakaoPlaceIds);
-		return linkAnalysisResultMapper.withSavedStatus(result, savedPlaces);
+		return linkAnalysisResultAssembler.withSavedStatus(result, savedPlaces);
 	}
 
 	private LinkAnalysisResult applyRoomCandidateContext(
@@ -73,7 +73,7 @@ public class LinkAnalysisStatusService {
 		List<RoomPlace> savedPlaces = effectiveKakaoPlaceIds.isEmpty()
 				? List.of()
 				: roomPlaceRepository.findExistingByRoomIdAndKakaoPlaceIds(room.getId(), effectiveKakaoPlaceIds);
-		return linkAnalysisResultMapper.withRoomCandidateContext(result, originalCandidates, overrides, savedPlaces);
+		return linkAnalysisResultAssembler.withRoomCandidateContext(result, originalCandidates, overrides, savedPlaces);
 	}
 
 	private static String effectiveKakaoPlaceId(LinkCandidate candidate, List<RoomLinkCandidateOverride> overrides) {
@@ -93,7 +93,7 @@ public class LinkAnalysisStatusService {
 
 		LinkAnalysisStatusResolver.Resolution resolution = linkAnalysisStatusResolver.resolve(snapshot, syncSnapshot);
 		if (!resolution.requiresWrite()) {
-			return linkAnalysisResultMapper.from(snapshot);
+			return linkAnalysisResultAssembler.from(snapshot);
 		}
 		return linkAnalysisStatusWriteService.applySyncSnapshot(
 				linkId,

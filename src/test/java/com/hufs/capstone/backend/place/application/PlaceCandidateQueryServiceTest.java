@@ -1,12 +1,14 @@
 package com.hufs.capstone.backend.place.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 import com.hufs.capstone.backend.external.kakao.KakaoLocalClient;
 import com.hufs.capstone.backend.place.application.dto.ExternalPlaceCandidateSearchQuery;
 import com.hufs.capstone.backend.place.application.dto.PlaceCandidateResult;
+import com.hufs.capstone.backend.place.application.dto.ResolvedPlaceCategory;
 import com.hufs.capstone.backend.place.domain.entity.Place;
 import com.hufs.capstone.backend.place.domain.entity.PlaceCategory;
 import com.hufs.capstone.backend.place.domain.entity.PlaceTag;
@@ -39,12 +41,20 @@ class PlaceCandidateQueryServiceTest {
 	@Mock
 	private RoomPlaceRepository roomPlaceRepository;
 
+	@Mock
+	private PlaceTaxonomyReadService placeTaxonomyReadService;
+
 	private PlaceCandidateQueryService service;
 	private Room room;
 
 	@BeforeEach
 	void setUp() {
-		service = new PlaceCandidateQueryService(roomAccessService, kakaoLocalClient, roomPlaceRepository);
+		service = new PlaceCandidateQueryService(
+				roomAccessService,
+				kakaoLocalClient,
+				roomPlaceRepository,
+				placeTaxonomyReadService
+		);
 		room = Room.create("room-public-id", "Room", "INVITE123", 100L);
 		ReflectionTestUtils.setField(room, "id", 1L);
 	}
@@ -58,6 +68,8 @@ class PlaceCandidateQueryServiceTest {
 		RoomPlace existingRoomPlace = existingRoomPlace(existingCandidate);
 		when(roomAccessService.requireMemberRoom("room-public-id", 100L)).thenReturn(room);
 		when(kakaoLocalClient.searchByKeyword(query)).thenReturn(List.of(existingCandidate, newCandidate, missingIdCandidate));
+		when(placeTaxonomyReadService.resolveCategory(any(), any()))
+				.thenReturn(new ResolvedPlaceCategory("CAFE", "카페"));
 		when(roomPlaceRepository.findExistingByRoomIdAndSourceExternalPlaceIds(
 				eq(1L),
 				eq(PlaceSource.KAKAO),
@@ -75,6 +87,8 @@ class PlaceCandidateQueryServiceTest {
 		assertThat(results.get(1).selectable()).isTrue();
 		assertThat(results.get(1).disabledReason()).isNull();
 		assertThat(results.get(1).placeUrl()).isEqualTo("https://place.map.kakao.com/456");
+		assertThat(results.get(1).serviceCategoryCode()).isEqualTo("CAFE");
+		assertThat(results.get(1).serviceCategoryName()).isEqualTo("카페");
 		assertThat(results.get(2).selectable()).isFalse();
 		assertThat(results.get(2).disabledReason()).isEqualTo(PlaceCandidateDisabledReason.MISSING_KAKAO_PLACE_ID);
 	}

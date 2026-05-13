@@ -14,6 +14,8 @@ public record PlaceCandidateResult(
 		String categoryName,
 		String categoryGroupCode,
 		String categoryGroupName,
+		String serviceCategoryCode,
+		String serviceCategoryName,
 		String phone,
 		String placeUrl,
 		String source,
@@ -23,20 +25,25 @@ public record PlaceCandidateResult(
 		PlaceCandidateDisabledReason disabledReason
 ) {
 
-	public static PlaceCandidateResult selectable(PlaceSnapshot snapshot) {
-		return from(snapshot, false, null, true, null);
+	public static PlaceCandidateResult selectable(PlaceSnapshot snapshot, ResolvedPlaceCategory serviceCategory) {
+		return from(snapshot, serviceCategory, false, null, true, null);
 	}
 
-	public static PlaceCandidateResult missingKakaoPlaceId(PlaceSnapshot snapshot) {
-		return from(snapshot, false, null, false, PlaceCandidateDisabledReason.MISSING_KAKAO_PLACE_ID);
+	public static PlaceCandidateResult missingKakaoPlaceId(PlaceSnapshot snapshot, ResolvedPlaceCategory serviceCategory) {
+		return from(snapshot, serviceCategory, false, null, false, PlaceCandidateDisabledReason.MISSING_KAKAO_PLACE_ID);
 	}
 
-	public static PlaceCandidateResult alreadyInRoom(PlaceSnapshot snapshot, Long roomPlaceId) {
-		return from(snapshot, true, roomPlaceId, false, PlaceCandidateDisabledReason.ALREADY_IN_ROOM);
+	public static PlaceCandidateResult alreadyInRoom(
+			PlaceSnapshot snapshot,
+			ResolvedPlaceCategory serviceCategory,
+			Long roomPlaceId
+	) {
+		return from(snapshot, serviceCategory, true, roomPlaceId, false, PlaceCandidateDisabledReason.ALREADY_IN_ROOM);
 	}
 
 	private static PlaceCandidateResult from(
 			PlaceSnapshot snapshot,
+			ResolvedPlaceCategory serviceCategory,
 			boolean alreadyInRoom,
 			Long roomPlaceId,
 			boolean selectable,
@@ -52,6 +59,8 @@ public record PlaceCandidateResult(
 				snapshot.categoryName(),
 				snapshot.categoryGroupCode(),
 				snapshot.categoryGroupName(),
+				serviceCategory.code(),
+				serviceCategory.name(),
 				snapshot.phone(),
 				snapshot.placeUrl(),
 				snapshot.source().name(),

@@ -5,7 +5,11 @@ import com.hufs.capstone.backend.link.application.dto.LinkPlaceResult;
 import com.hufs.capstone.backend.link.domain.entity.Link;
 import com.hufs.capstone.backend.link.domain.entity.LinkCandidate;
 import com.hufs.capstone.backend.link.domain.entity.RoomLinkCandidateOverride;
+import com.hufs.capstone.backend.link.domain.vo.PlaceCandidateSnapshot;
+import com.hufs.capstone.backend.place.application.PlaceTaxonomyReadService;
+import com.hufs.capstone.backend.place.application.dto.ResolvedPlaceCategory;
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
+import com.hufs.capstone.backend.place.domain.vo.PlaceSnapshot;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -13,18 +17,23 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
 @Component
-public class LinkAnalysisResultMapper {
+public class LinkAnalysisResultAssembler {
 
 	private final LinkPlaceCandidateSnapshotMapper placeCandidateSnapshotMapper;
+	private final PlaceTaxonomyReadService placeTaxonomyReadService;
 
-	public LinkAnalysisResultMapper(LinkPlaceCandidateSnapshotMapper placeCandidateSnapshotMapper) {
+	public LinkAnalysisResultAssembler(
+			LinkPlaceCandidateSnapshotMapper placeCandidateSnapshotMapper,
+			PlaceTaxonomyReadService placeTaxonomyReadService
+	) {
 		this.placeCandidateSnapshotMapper = placeCandidateSnapshotMapper;
+		this.placeTaxonomyReadService = placeTaxonomyReadService;
 	}
 
 	public LinkAnalysisResult from(Link link) {
 		List<LinkPlaceResult> candidatePlaces = placeCandidateSnapshotMapper.read(link.getExtractedPlacesJson())
 				.stream()
-				.map(LinkPlaceResult::fromCandidate)
+				.map(candidate -> LinkPlaceResult.fromCandidate(candidate, resolveCategory(candidate)))
 				.toList();
 		return new LinkAnalysisResult(
 				link.getId(),
@@ -55,8 +64,8 @@ public class LinkAnalysisResultMapper {
 				.map(candidate -> {
 					RoomLinkCandidateOverride override = overrideByCandidateId.get(candidate.getId());
 					return override == null
-							? LinkPlaceResult.fromCandidate(candidate)
-							: LinkPlaceResult.fromOverride(candidate, override);
+							? LinkPlaceResult.fromCandidate(candidate, resolveCategory(candidate.toSnapshot()))
+							: LinkPlaceResult.fromOverride(candidate, override, resolveCategory(override.toSnapshot()));
 				})
 				.toList();
 		LinkAnalysisResult overlaidResult = new LinkAnalysisResult(
@@ -101,6 +110,14 @@ public class LinkAnalysisResultMapper {
 			return candidate;
 		}
 		return LinkPlaceResult.alreadyInRoom(candidate, savedPlace);
+	}
+
+	private ResolvedPlaceCategory resolveCategory(PlaceCandidateSnapshot candidate) {
+		return placeTaxonomyReadService.resolveCategory(candidate.categoryGroupCode(), candidate.categoryName());
+	}
+
+	private ResolvedPlaceCategory resolveCategory(PlaceSnapshot snapshot) {
+		return placeTaxonomyReadService.resolveCategory(snapshot.categoryGroupCode(), snapshot.categoryName());
 	}
 
 }

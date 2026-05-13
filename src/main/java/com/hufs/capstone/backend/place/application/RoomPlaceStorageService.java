@@ -33,7 +33,7 @@ public class RoomPlaceStorageService {
 	private final PlaceRepository placeRepository;
 	private final RoomPlaceRepository roomPlaceRepository;
 	private final RoomPlaceSourceRepository roomPlaceSourceRepository;
-	private final PlaceTaxonomyResolver placeTaxonomyResolver;
+	private final PlaceTaxonomyReadService placeTaxonomyReadService;
 	private final RegionAddressResolver regionAddressResolver;
 	private final PlaceBusinessHoursRepository placeBusinessHoursRepository;
 	private final PlaceBusinessHoursRefreshPolicy placeBusinessHoursRefreshPolicy;
@@ -142,7 +142,7 @@ public class RoomPlaceStorageService {
 		Place existing = placeRepository.findBySourceAndExternalPlaceId(snapshot.source(), externalPlaceId)
 				.orElse(null);
 		if (existing == null || snapshot.hasTaxonomySignal()) {
-			taxonomy = placeTaxonomyResolver.resolve(snapshot.categoryGroupCode(), snapshot.categoryName());
+			taxonomy = placeTaxonomyReadService.resolveTaxonomy(snapshot.categoryGroupCode(), snapshot.categoryName());
 		}
 		if (existing == null) {
 			Place place = Place.create(snapshot, taxonomy.category(), taxonomy.tag());

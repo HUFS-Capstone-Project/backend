@@ -100,7 +100,7 @@ public class PlaceTaxonomySeedDataInitializer implements ApplicationRunner {
 
 	private void seedActivityTags(PlaceCategory category, Map<String, PlaceTagGroup> groups) {
 		upsertTag(category, groups.get(GROUP_EXPERIENCE), "THEME_PARK", "테마파크", 1);
-		upsertTag(category, groups.get(GROUP_EXPERIENCE), "BOARD_GAME_CAFE", "보드게임카페", 2);
+		upsertTag(category, groups.get(GROUP_EXPERIENCE), "BOARD_GAME_CAFE", "보드카페", 2);
 		upsertTag(category, groups.get(GROUP_EXPERIENCE), "ESCAPE_ROOM_CAFE", "방탈출카페", 3);
 		upsertTag(category, groups.get(GROUP_EXPERIENCE), "SPORTS", "스포츠", 4);
 

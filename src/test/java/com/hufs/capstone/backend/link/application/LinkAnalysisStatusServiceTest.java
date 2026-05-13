@@ -55,7 +55,7 @@ class LinkAnalysisStatusServiceTest {
 	private LinkAnalysisStatusWriteService linkAnalysisStatusWriteService;
 
 	@Mock
-	private LinkAnalysisResultMapper linkAnalysisResultMapper;
+	private LinkAnalysisResultAssembler linkAnalysisResultAssembler;
 
 	@Mock
 	private RoomPlaceRepository roomPlaceRepository;
@@ -106,7 +106,7 @@ class LinkAnalysisStatusServiceTest {
 		Room room = room();
 		when(linkAnalysisAuthorizationService.requireAnalysisRequest(USER_ID, ROOM_PUBLIC_ID, 10L))
 				.thenReturn(analysisRequest(10L, snapshot, room));
-		when(linkAnalysisResultMapper.withSavedStatus(synced, List.of())).thenReturn(synced);
+		when(linkAnalysisResultAssembler.withSavedStatus(synced, List.of())).thenReturn(synced);
 		when(linkAnalysisCacheCoordinator.getOrLoad(eq(10L), any())).thenAnswer(invocation -> {
 			@SuppressWarnings("unchecked")
 			Supplier<LinkAnalysisResult> loader = invocation.getArgument(1, Supplier.class);
@@ -138,8 +138,8 @@ class LinkAnalysisStatusServiceTest {
 				.thenReturn(analysisRequest(11L, terminal, room));
 		when(linkRepository.findById(11L)).thenReturn(Optional.of(terminal));
 		when(linkAnalysisStatusResolver.resolve(terminal, null)).thenReturn(resolution);
-		when(linkAnalysisResultMapper.from(terminal)).thenReturn(mapped);
-		when(linkAnalysisResultMapper.withSavedStatus(mapped, List.of())).thenReturn(mapped);
+		when(linkAnalysisResultAssembler.from(terminal)).thenReturn(mapped);
+		when(linkAnalysisResultAssembler.withSavedStatus(mapped, List.of())).thenReturn(mapped);
 		when(linkAnalysisCacheCoordinator.getOrLoad(eq(11L), any())).thenAnswer(invocation -> {
 			@SuppressWarnings("unchecked")
 			Supplier<LinkAnalysisResult> loader = invocation.getArgument(1, Supplier.class);
@@ -169,7 +169,7 @@ class LinkAnalysisStatusServiceTest {
 		Room room = room();
 		when(linkAnalysisAuthorizationService.requireAnalysisRequest(USER_ID, ROOM_PUBLIC_ID, 12L))
 				.thenReturn(analysisRequest(12L, link, room));
-		when(linkAnalysisResultMapper.withSavedStatus(cached, List.of())).thenReturn(cached);
+		when(linkAnalysisResultAssembler.withSavedStatus(cached, List.of())).thenReturn(cached);
 		when(linkAnalysisCacheCoordinator.getOrLoad(eq(12L), any())).thenReturn(cached);
 
 		LinkAnalysisResult result = linkAnalysisStatusService.getLinkAnalysisResult(USER_ID, ROOM_PUBLIC_ID, 12L);

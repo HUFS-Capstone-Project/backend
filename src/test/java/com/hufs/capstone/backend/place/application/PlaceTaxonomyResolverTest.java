@@ -85,6 +85,36 @@ class PlaceTaxonomyResolverTest {
 	}
 
 	@Test
+	void shouldOverrideKakaoCafeBoardCafeToActivityBoardGameCafe() {
+		PlaceTag boardGameCafe = tag(30L, activity, "BOARD_GAME_CAFE", "BOARD_GAME_CAFE", 1);
+		PlaceTag misc = tag(31L, activity, "MISC", "MISC", 9);
+		when(placeTagRepository.findActiveTaxonomyTags()).thenReturn(List.of(boardGameCafe, misc));
+
+		ResolvedPlaceTaxonomy result = resolver.resolve(
+				"CE7",
+				"가정,생활 > 여가시설 > 보드카페 > 레드버튼"
+		);
+
+		assertThat(result.category().getCode()).isEqualTo("ACTIVITY");
+		assertThat(result.tag().getCode()).isEqualTo("BOARD_GAME_CAFE");
+	}
+
+	@Test
+	void shouldOverrideKakaoCafeComicCafeToActivityComicCafe() {
+		PlaceTag comicCafe = tag(30L, activity, "COMIC_CAFE", "COMIC_CAFE", 1);
+		PlaceTag misc = tag(31L, activity, "MISC", "MISC", 9);
+		when(placeTagRepository.findActiveTaxonomyTags()).thenReturn(List.of(comicCafe, misc));
+
+		ResolvedPlaceTaxonomy result = resolver.resolve(
+				"CE7",
+				"가정,생활 > 여가시설 > 만화방 > 만화카페 > 놀이"
+		);
+
+		assertThat(result.category().getCode()).isEqualTo("ACTIVITY");
+		assertThat(result.tag().getCode()).isEqualTo("COMIC_CAFE");
+	}
+
+	@Test
 	void shouldFallbackToActivityCategoryWhenGroupIsUnknownOrMissing() {
 		PlaceTag park = tag(30L, activity, "PARK", "공원", 1);
 		PlaceTag misc = tag(31L, activity, "MISC", "기타", 9);

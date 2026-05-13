@@ -26,7 +26,7 @@ public class LinkAnalysisStatusWriteService {
 	private static final int MAX_CAS_RETRY = 3;
 
 	private final LinkRepository linkRepository;
-	private final LinkAnalysisResultMapper linkAnalysisResultMapper;
+	private final LinkAnalysisResultAssembler linkAnalysisResultAssembler;
 	private final LinkPlaceCandidateSnapshotMapper placeCandidateSnapshotMapper;
 	private final LinkCandidateSyncService linkCandidateSyncService;
 	private final ApplicationEventPublisher eventPublisher;
@@ -44,12 +44,12 @@ public class LinkAnalysisStatusWriteService {
 					.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "Link not found."));
 
 			if (current.isTerminal()) {
-				return linkAnalysisResultMapper.from(current);
+				return linkAnalysisResultAssembler.from(current);
 			}
 
 			CasPlan plan = CasPlan.from(current, targetStatus, result, errorCode, errorMessage);
 			if (!plan.changed()) {
-				return linkAnalysisResultMapper.from(current);
+				return linkAnalysisResultAssembler.from(current);
 			}
 
 			int updated = executeCasUpdate(current.getId(), current.getVersion(), plan);
@@ -63,14 +63,14 @@ public class LinkAnalysisStatusWriteService {
 					);
 				}
 				eventPublisher.publishEvent(new LinkStatusSyncedEvent(refreshed.getId()));
-				return linkAnalysisResultMapper.from(refreshed);
+				return linkAnalysisResultAssembler.from(refreshed);
 			}
 		}
 
 		log.warn("CAS update conflict. Returning latest link analysis status. linkId={}, targetStatus={}", linkId, targetStatus);
 		Link latest = linkRepository.findById(linkId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "Link not found."));
-		return linkAnalysisResultMapper.from(latest);
+		return linkAnalysisResultAssembler.from(latest);
 	}
 
 	private int executeCasUpdate(Long linkId, Long expectedVersion, CasPlan plan) {

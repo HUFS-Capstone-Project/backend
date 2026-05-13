@@ -3,6 +3,7 @@ package com.hufs.capstone.backend.place.application;
 import com.hufs.capstone.backend.external.kakao.KakaoLocalClient;
 import com.hufs.capstone.backend.place.application.dto.ExternalPlaceCandidateSearchQuery;
 import com.hufs.capstone.backend.place.application.dto.PlaceCandidateResult;
+import com.hufs.capstone.backend.place.application.dto.ResolvedPlaceCategory;
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
 import com.hufs.capstone.backend.place.domain.enums.PlaceSource;
 import com.hufs.capstone.backend.place.domain.repository.RoomPlaceRepository;
@@ -23,6 +24,7 @@ public class PlaceCandidateQueryService {
 	private final RoomAccessService roomAccessService;
 	private final KakaoLocalClient kakaoLocalClient;
 	private final RoomPlaceRepository roomPlaceRepository;
+	private final PlaceTaxonomyReadService placeTaxonomyReadService;
 
 	public List<PlaceCandidateResult> searchExternalCandidates(
 			Long userId,
@@ -59,17 +61,21 @@ public class PlaceCandidateQueryService {
 		);
 	}
 
-	private static PlaceCandidateResult toCandidateResult(
+	private PlaceCandidateResult toCandidateResult(
 			PlaceSnapshot candidate,
 			Map<String, RoomPlace> existingByExternalPlaceId
 	) {
+		ResolvedPlaceCategory serviceCategory = placeTaxonomyReadService.resolveCategory(
+				candidate.categoryGroupCode(),
+				candidate.categoryName()
+		);
 		if (!candidate.hasKakaoPlaceId()) {
-			return PlaceCandidateResult.missingKakaoPlaceId(candidate);
+			return PlaceCandidateResult.missingKakaoPlaceId(candidate, serviceCategory);
 		}
 		RoomPlace existing = existingByExternalPlaceId.get(candidate.externalPlaceId());
 		if (existing != null) {
-			return PlaceCandidateResult.alreadyInRoom(candidate, existing.getId());
+			return PlaceCandidateResult.alreadyInRoom(candidate, serviceCategory, existing.getId());
 		}
-		return PlaceCandidateResult.selectable(candidate);
+		return PlaceCandidateResult.selectable(candidate, serviceCategory);
 	}
 }

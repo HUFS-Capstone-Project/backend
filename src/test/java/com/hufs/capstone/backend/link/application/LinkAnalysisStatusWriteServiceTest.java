@@ -33,7 +33,7 @@ class LinkAnalysisStatusWriteServiceTest {
 	private ApplicationEventPublisher eventPublisher;
 
 	@Mock
-	private LinkAnalysisResultMapper linkAnalysisResultMapper;
+	private LinkAnalysisResultAssembler linkAnalysisResultAssembler;
 
 	@Mock
 	private LinkPlaceCandidateSnapshotMapper placeCandidateSnapshotMapper;
@@ -50,7 +50,7 @@ class LinkAnalysisStatusWriteServiceTest {
 		terminal.markSucceeded("done");
 		LinkAnalysisResult mapped = result(1L, LinkAnalysisStatus.SUCCEEDED, "done", null, null);
 		when(linkRepository.findById(1L)).thenReturn(Optional.of(terminal));
-		when(linkAnalysisResultMapper.from(terminal)).thenReturn(mapped);
+		when(linkAnalysisResultAssembler.from(terminal)).thenReturn(mapped);
 
 		LinkAnalysisResult result = linkAnalysisStatusWriteService.applySyncSnapshot(
 				1L,
@@ -89,7 +89,7 @@ class LinkAnalysisStatusWriteServiceTest {
 		when(linkRepository.findById(2L))
 				.thenReturn(Optional.of(processing))
 				.thenReturn(Optional.of(synced));
-		when(linkAnalysisResultMapper.from(synced)).thenReturn(mapped);
+		when(linkAnalysisResultAssembler.from(synced)).thenReturn(mapped);
 		stubCasUpdate(1);
 
 		LinkAnalysisResult result = linkAnalysisStatusWriteService.applySyncSnapshot(
@@ -120,7 +120,7 @@ class LinkAnalysisStatusWriteServiceTest {
 				.thenReturn(Optional.of(processing))
 				.thenReturn(Optional.of(processing))
 				.thenReturn(Optional.of(latest));
-		when(linkAnalysisResultMapper.from(latest)).thenReturn(mapped);
+		when(linkAnalysisResultAssembler.from(latest)).thenReturn(mapped);
 		stubCasUpdate(0);
 
 		LinkAnalysisResult result = linkAnalysisStatusWriteService.applySyncSnapshot(
@@ -148,7 +148,7 @@ class LinkAnalysisStatusWriteServiceTest {
 		when(linkRepository.findById(4L))
 				.thenReturn(Optional.of(processing))
 				.thenReturn(Optional.of(failed));
-		when(linkAnalysisResultMapper.from(failed)).thenReturn(mapped);
+		when(linkAnalysisResultAssembler.from(failed)).thenReturn(mapped);
 		stubCasUpdate(1);
 
 		LinkAnalysisResult result = linkAnalysisStatusWriteService.applySyncSnapshot(

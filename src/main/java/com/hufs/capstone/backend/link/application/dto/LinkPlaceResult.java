@@ -3,6 +3,7 @@ package com.hufs.capstone.backend.link.application.dto;
 import com.hufs.capstone.backend.link.domain.entity.LinkCandidate;
 import com.hufs.capstone.backend.link.domain.entity.RoomLinkCandidateOverride;
 import com.hufs.capstone.backend.link.domain.vo.PlaceCandidateSnapshot;
+import com.hufs.capstone.backend.place.application.dto.ResolvedPlaceCategory;
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
 import java.math.BigDecimal;
 
@@ -14,6 +15,8 @@ public record LinkPlaceResult(
 		String categoryName,
 		String categoryGroupCode,
 		String categoryGroupName,
+		String serviceCategoryCode,
+		String serviceCategoryName,
 		String addressName,
 		String roadAddressName,
 		BigDecimal longitude,
@@ -33,11 +36,12 @@ public record LinkPlaceResult(
 		DisabledReason disabledReason
 ) {
 
-	public static LinkPlaceResult fromCandidate(PlaceCandidateSnapshot candidate) {
+	public static LinkPlaceResult fromCandidate(PlaceCandidateSnapshot candidate, ResolvedPlaceCategory serviceCategory) {
 		boolean hasKakaoPlaceId = candidate.kakaoPlaceId() != null && !candidate.kakaoPlaceId().isBlank();
 		return fromCandidate(
 				null,
 				candidate,
+				serviceCategory,
 				false,
 				hasKakaoPlaceId,
 				true,
@@ -48,11 +52,12 @@ public record LinkPlaceResult(
 		);
 	}
 
-	public static LinkPlaceResult fromCandidate(LinkCandidate candidate) {
+	public static LinkPlaceResult fromCandidate(LinkCandidate candidate, ResolvedPlaceCategory serviceCategory) {
 		boolean hasKakaoPlaceId = candidate.getKakaoPlaceId() != null && !candidate.getKakaoPlaceId().isBlank();
 		return fromCandidate(
 				candidate.getId(),
 				candidate.toSnapshot(),
+				serviceCategory,
 				false,
 				hasKakaoPlaceId,
 				true,
@@ -63,7 +68,11 @@ public record LinkPlaceResult(
 		);
 	}
 
-	public static LinkPlaceResult fromOverride(LinkCandidate candidate, RoomLinkCandidateOverride override) {
+	public static LinkPlaceResult fromOverride(
+			LinkCandidate candidate,
+			RoomLinkCandidateOverride override,
+			ResolvedPlaceCategory serviceCategory
+	) {
 		return new LinkPlaceResult(
 				candidate.getId(),
 				override.getId(),
@@ -72,6 +81,8 @@ public record LinkPlaceResult(
 				override.getCategoryName(),
 				override.getCategoryGroupCode(),
 				override.getCategoryGroupName(),
+				serviceCategory.code(),
+				serviceCategory.name(),
 				override.getAddress(),
 				override.getRoadAddress(),
 				override.getLongitude(),
@@ -92,20 +103,6 @@ public record LinkPlaceResult(
 		);
 	}
 
-	public static LinkPlaceResult alreadyInRoom(PlaceCandidateSnapshot candidate, RoomPlace roomPlace) {
-		return fromCandidate(
-				null,
-				candidate,
-				true,
-				false,
-				true,
-				false,
-				true,
-				roomPlace.getId(),
-				DisabledReason.ALREADY_IN_ROOM
-		);
-	}
-
 	public static LinkPlaceResult alreadyInRoom(LinkPlaceResult candidate, RoomPlace roomPlace) {
 		return new LinkPlaceResult(
 				candidate.candidateId(),
@@ -115,6 +112,8 @@ public record LinkPlaceResult(
 				candidate.categoryName(),
 				candidate.categoryGroupCode(),
 				candidate.categoryGroupName(),
+				candidate.serviceCategoryCode(),
+				candidate.serviceCategoryName(),
 				candidate.addressName(),
 				candidate.roadAddressName(),
 				candidate.longitude(),
@@ -138,6 +137,7 @@ public record LinkPlaceResult(
 	private static LinkPlaceResult fromCandidate(
 			Long candidateId,
 			PlaceCandidateSnapshot candidate,
+			ResolvedPlaceCategory serviceCategory,
 			boolean alreadyInRoom,
 			boolean selectable,
 			boolean originalCandidate,
@@ -146,40 +146,16 @@ public record LinkPlaceResult(
 			Long roomPlaceId,
 			DisabledReason disabledReason
 	) {
-		return fromCandidate(
-				candidateId,
-				candidate,
-				alreadyInRoom,
-				selectable,
-				originalCandidate,
-				corrected,
-				editable,
-				roomPlaceId,
-				disabledReason,
-				null
-		);
-	}
-
-	private static LinkPlaceResult fromCandidate(
-			Long candidateId,
-			PlaceCandidateSnapshot candidate,
-			boolean alreadyInRoom,
-			boolean selectable,
-			boolean originalCandidate,
-			boolean corrected,
-			boolean editable,
-			Long roomPlaceId,
-			DisabledReason disabledReason,
-			Long overrideId
-	) {
 		return new LinkPlaceResult(
 				candidateId,
-				overrideId,
+				null,
 				candidate.kakaoPlaceId(),
 				candidate.placeName(),
 				candidate.categoryName(),
 				candidate.categoryGroupCode(),
 				candidate.categoryGroupName(),
+				serviceCategory.code(),
+				serviceCategory.name(),
 				candidate.addressName(),
 				candidate.roadAddressName(),
 				candidate.longitude(),
