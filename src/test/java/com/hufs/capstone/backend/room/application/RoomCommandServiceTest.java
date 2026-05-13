@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 
 import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
+import com.hufs.capstone.backend.room.api.response.CreateRoomResponse;
 import com.hufs.capstone.backend.room.application.dto.CreateRoomResult;
 import com.hufs.capstone.backend.room.application.dto.JoinRoomResult;
 import com.hufs.capstone.backend.room.application.event.RoomDeletedEvent;
@@ -71,6 +72,8 @@ class RoomCommandServiceTest {
 
 		assertThat(result.roomName()).isEqualTo("Test Room");
 		assertThat(result.inviteCode()).isEqualTo("INVITE123456");
+		assertThat(result.avatarSeed()).startsWith("room-avatar:");
+		assertThat(CreateRoomResponse.from(result).avatarSeed()).isEqualTo(result.avatarSeed());
 		assertThat(result.pinned()).isFalse();
 		verify(roomMemberRepository).saveAndFlush(any(RoomMember.class));
 	}
@@ -137,6 +140,7 @@ class RoomCommandServiceTest {
 	@Test
 	void renameRoomShouldTrimAndRename() {
 		Room room = room("11111111-1111-1111-1111-111111111111");
+		String avatarSeed = room.getAvatarSeed();
 		RoomMember member = RoomMember.join(room, USER_ID);
 		when(roomAccessService.getRoomOrThrow(room.getPublicId())).thenReturn(room);
 		when(roomAccessService.getMembershipOrThrow(room, USER_ID)).thenReturn(member);
@@ -144,6 +148,7 @@ class RoomCommandServiceTest {
 		roomCommandService.renameRoom(USER_ID, room.getPublicId(), "  New Room Name  ");
 
 		assertThat(room.getName()).isEqualTo("New Room Name");
+		assertThat(room.getAvatarSeed()).isEqualTo(avatarSeed);
 	}
 
 	@Test

@@ -6,6 +6,7 @@ public record RoomDetailResult(
 		String roomId,
 		String roomName,
 		String inviteCode,
+		String avatarSeed,
 		boolean pinned,
 		long memberCount,
 		long linkCount,

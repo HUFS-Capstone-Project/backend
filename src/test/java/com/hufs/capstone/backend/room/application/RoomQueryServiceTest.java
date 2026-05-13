@@ -6,6 +6,8 @@ import static org.mockito.Mockito.when;
 
 import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
+import com.hufs.capstone.backend.room.api.response.RoomDetailResponse;
+import com.hufs.capstone.backend.room.api.response.RoomSummaryResponse;
 import com.hufs.capstone.backend.room.application.dto.RoomDetailResult;
 import com.hufs.capstone.backend.room.application.dto.RoomSummaryResult;
 import com.hufs.capstone.backend.room.application.port.RoomLinkCountPort;
@@ -58,6 +60,8 @@ class RoomQueryServiceTest {
 		assertThat(result.get(0).roomId()).isEqualTo(room.getPublicId());
 		assertThat(result.get(0).roomName()).isEqualTo("Test Room");
 		assertThat(result.get(0).inviteCode()).isEqualTo("INVITE123456");
+		assertThat(result.get(0).avatarSeed()).isEqualTo(room.getAvatarSeed());
+		assertThat(RoomSummaryResponse.from(result.get(0)).avatarSeed()).isEqualTo(room.getAvatarSeed());
 		assertThat(result.get(0).pinned()).isTrue();
 		assertThat(result.get(0).memberCount()).isEqualTo(3L);
 		assertThat(result.get(0).linkCount()).isEqualTo(2L);
@@ -80,6 +84,8 @@ class RoomQueryServiceTest {
 		assertThat(result.roomId()).isEqualTo(room.getPublicId());
 		assertThat(result.pinned()).isTrue();
 		assertThat(result.inviteCode()).isEqualTo("INVITE123456");
+		assertThat(result.avatarSeed()).isEqualTo(room.getAvatarSeed());
+		assertThat(RoomDetailResponse.from(result).avatarSeed()).isEqualTo(room.getAvatarSeed());
 		assertThat(result.memberCount()).isEqualTo(3L);
 		assertThat(result.linkCount()).isEqualTo(5L);
 		assertThat(result.placeCount()).isEqualTo(9L);

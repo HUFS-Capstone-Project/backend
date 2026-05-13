@@ -7,6 +7,7 @@ public record CreateRoomResponse(
 		String roomId,
 		String roomName,
 		String inviteCode,
+		String avatarSeed,
 		boolean pinned,
 		Instant createdAt
 ) {
@@ -16,6 +17,7 @@ public record CreateRoomResponse(
 				result.roomId(),
 				result.roomName(),
 				result.inviteCode(),
+				result.avatarSeed(),
 				result.pinned(),
 				result.createdAt()
 		);

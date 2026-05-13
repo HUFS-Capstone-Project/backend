@@ -45,6 +45,7 @@ public class RoomCommandServiceImpl implements RoomCommandService {
 				room.getPublicId(),
 				room.getName(),
 				room.getInviteCode(),
+				room.getAvatarSeed(),
 				false,
 				room.getCreatedAt()
 		);
@@ -79,6 +80,7 @@ public class RoomCommandServiceImpl implements RoomCommandService {
 		return new JoinRoomResult(
 				room.getPublicId(),
 				room.getName(),
+				room.getAvatarSeed(),
 				false,
 				room.getCreatedAt()
 		);

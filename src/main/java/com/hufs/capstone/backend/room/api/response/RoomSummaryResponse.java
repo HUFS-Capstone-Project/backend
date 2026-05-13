@@ -7,6 +7,7 @@ public record RoomSummaryResponse(
 		String roomId,
 		String roomName,
 		String inviteCode,
+		String avatarSeed,
 		boolean pinned,
 		Instant createdAt,
 		long memberCount,
@@ -19,6 +20,7 @@ public record RoomSummaryResponse(
 				result.roomId(),
 				result.roomName(),
 				result.inviteCode(),
+				result.avatarSeed(),
 				result.pinned(),
 				result.createdAt(),
 				result.memberCount(),
@@ -27,4 +29,3 @@ public record RoomSummaryResponse(
 		);
 	}
 }
-

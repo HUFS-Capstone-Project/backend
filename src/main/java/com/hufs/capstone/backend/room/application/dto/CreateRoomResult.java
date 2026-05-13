@@ -6,6 +6,7 @@ public record CreateRoomResult(
 		String roomId,
 		String roomName,
 		String inviteCode,
+		String avatarSeed,
 		boolean pinned,
 		Instant createdAt
 ) {

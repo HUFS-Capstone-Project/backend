@@ -6,6 +6,7 @@ public record RoomSummaryResult(
 		String roomId,
 		String roomName,
 		String inviteCode,
+		String avatarSeed,
 		boolean pinned,
 		Instant createdAt,
 		long memberCount,
@@ -13,4 +14,3 @@ public record RoomSummaryResult(
 		long placeCount
 ) {
 }
-
