@@ -6,9 +6,11 @@ import com.hufs.capstone.backend.global.exception.ErrorCode;
 import com.hufs.capstone.backend.global.response.CommonResponse;
 import com.hufs.capstone.backend.user.api.controller.swagger.UserProfileApi;
 import com.hufs.capstone.backend.user.api.request.CompleteOnboardingRequest;
+import com.hufs.capstone.backend.user.api.request.UpdateNicknameRequest;
 import com.hufs.capstone.backend.user.api.response.UserProfileResponse;
 import com.hufs.capstone.backend.user.application.UserProfileService;
 import com.hufs.capstone.backend.user.application.dto.CompleteOnboardingCommand;
+import com.hufs.capstone.backend.user.application.dto.UpdateNicknameCommand;
 import com.hufs.capstone.backend.user.application.dto.UserProfileResult;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -42,6 +44,19 @@ public class UserProfileController implements UserProfileApi {
 						request.privacyPolicyAgreed(),
 						request.marketingNotificationAgreed()
 				)
+		);
+		return CommonResponse.ok(UserProfileResponse.from(result));
+	}
+
+	@Override
+	public CommonResponse<UserProfileResponse> updateNickname(
+			@Valid @RequestBody UpdateNicknameRequest request,
+			String csrfToken,
+			@AuthenticationPrincipal AuthUserPrincipal principal
+	) {
+		UserProfileResult result = userProfileService.updateNickname(
+				extractUserId(principal),
+				new UpdateNicknameCommand(request.nickname())
 		);
 		return CommonResponse.ok(UserProfileResponse.from(result));
 	}

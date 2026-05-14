@@ -3,6 +3,7 @@ package com.hufs.capstone.backend.user.application;
 import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
 import com.hufs.capstone.backend.user.application.dto.CompleteOnboardingCommand;
+import com.hufs.capstone.backend.user.application.dto.UpdateNicknameCommand;
 import com.hufs.capstone.backend.user.application.dto.UserProfileResult;
 import com.hufs.capstone.backend.user.domain.entity.User;
 import com.hufs.capstone.backend.user.domain.repository.UserRepository;
@@ -37,6 +38,13 @@ public class UserProfileService {
 				command.marketingNotificationAgreed(),
 				Instant.now()
 		);
+		return UserProfileResult.from(user);
+	}
+
+	@Transactional
+	public UserProfileResult updateNickname(Long userId, UpdateNicknameCommand command) {
+		User user = getUserOrThrow(userId);
+		user.updateNickname(command.nickname());
 		return UserProfileResult.from(user);
 	}
 

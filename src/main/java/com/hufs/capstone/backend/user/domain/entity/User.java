@@ -105,6 +105,10 @@ public class User extends SoftDeletableEntity {
 		this.profileImageUrl = profileImageUrl;
 	}
 
+	public void updateNickname(String nickname) {
+		this.nickname = nickname;
+	}
+
 	public void changeStatus(UserStatus status) {
 		this.status = status;
 	}

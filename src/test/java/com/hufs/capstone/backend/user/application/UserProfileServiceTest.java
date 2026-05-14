@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
 import com.hufs.capstone.backend.user.application.dto.CompleteOnboardingCommand;
+import com.hufs.capstone.backend.user.application.dto.UpdateNicknameCommand;
 import com.hufs.capstone.backend.user.application.dto.UserProfileResult;
 import com.hufs.capstone.backend.user.domain.entity.User;
 import com.hufs.capstone.backend.user.domain.repository.UserRepository;
@@ -72,6 +73,34 @@ class UserProfileServiceTest {
 		assertThatThrownBy(() -> userProfileService.completeOnboarding(
 				1L,
 				new CompleteOnboardingCommand("nickname", true, true, false)
+		))
+				.isInstanceOf(BusinessException.class)
+				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.E404_NOT_FOUND));
+		verify(userRepository).findByIdAndDeletedAtIsNull(1L);
+	}
+
+	@Test
+	void updateNicknameShouldChangeUserNickname() {
+		User user = registeredUser(1L);
+		when(userRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.of(user));
+
+		UserProfileResult response = userProfileService.updateNickname(
+				1L,
+				new UpdateNicknameCommand("updated")
+		);
+
+		assertThat(response.id()).isEqualTo(1L);
+		assertThat(response.nickname()).isEqualTo("updated");
+		assertThat(user.getNickname()).isEqualTo("updated");
+	}
+
+	@Test
+	void updateNicknameShouldThrowWhenUserNotFound() {
+		when(userRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> userProfileService.updateNickname(
+				1L,
+				new UpdateNicknameCommand("updated")
 		))
 				.isInstanceOf(BusinessException.class)
 				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.E404_NOT_FOUND));
