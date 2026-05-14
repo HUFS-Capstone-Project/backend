@@ -28,12 +28,10 @@ public class PlaceTaxonomyQueryServiceImpl implements PlaceTaxonomyQueryService 
 	private static final int DEFAULT_GROUP_SORT_ORDER = 0;
 	private static final String CAFE_CATEGORY_CODE = "CAFE";
 	private static final String BAKERY_TAG_CODE = "BAKERY";
-	private static final String CAFE_MISC_TAG_CODE = "MISC";
 	private static final String ALL_TAG_CODE = "ALL";
 	private static final String ALL_TAG_NAME = "전체";
 	private static final int ALL_TAG_SORT_ORDER = 0;
 	private static final String BAKERY_DISPLAY_NAME = "베이커리";
-	private static final String CAFE_MISC_DISPLAY_NAME = "커피·디저트";
 
 	private final PlaceCategoryRepository placeCategoryRepository;
 	private final PlaceTagRepository placeTagRepository;
@@ -97,9 +95,6 @@ public class PlaceTaxonomyQueryServiceImpl implements PlaceTaxonomyQueryService 
 		}
 		if (BAKERY_TAG_CODE.equals(tag.getCode())) {
 			return BAKERY_DISPLAY_NAME;
-		}
-		if (CAFE_MISC_TAG_CODE.equals(tag.getCode())) {
-			return CAFE_MISC_DISPLAY_NAME;
 		}
 		return tag.getName();
 	}

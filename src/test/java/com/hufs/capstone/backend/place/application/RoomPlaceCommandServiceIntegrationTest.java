@@ -239,7 +239,8 @@ class RoomPlaceCommandServiceIntegrationTest {
 		PlaceTaxonomyResult result = placeTaxonomyQueryService.getPlaceTaxonomy();
 
 		assertThat(tagOf(result, "CAFE", "BAKERY").name()).isEqualTo("베이커리");
-		assertThat(tagOf(result, "CAFE", "MISC").name()).isEqualTo("커피·디저트");
+		assertThat(tagOf(result, "CAFE", "COFFEE_DESSERT").name()).isEqualTo("커피·디저트");
+		assertThat(tagOf(result, "CAFE", "MISC").name()).isEqualTo("기타");
 	}
 
 	@Test

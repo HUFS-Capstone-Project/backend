@@ -94,8 +94,10 @@ public class PlaceTaxonomySeedDataInitializer implements ApplicationRunner {
 
 	private void seedCafeTags(PlaceCategory category) {
 		deactivateTag(category, "CONFECTIONERY");
+		deactivateTag(category, "OTHER");
 		upsertTag(category, null, "BAKERY", "제과,베이커리", 1);
-		upsertTag(category, null, "MISC", "기타", 2);
+		upsertTag(category, null, "COFFEE_DESSERT", "커피·디저트", 2);
+		upsertTag(category, null, "MISC", "기타", 3);
 	}
 
 	private void seedActivityTags(PlaceCategory category, Map<String, PlaceTagGroup> groups) {
@@ -104,8 +106,9 @@ public class PlaceTaxonomySeedDataInitializer implements ApplicationRunner {
 		upsertTag(category, groups.get(GROUP_EXPERIENCE), "ESCAPE_ROOM_CAFE", "방탈출카페", 3);
 		upsertTag(category, groups.get(GROUP_EXPERIENCE), "SPORTS", "스포츠", 4);
 
-		upsertTag(category, groups.get(GROUP_CULTURE), "CULTURE_ART", "문화예술", 1);
+		upsertTag(category, groups.get(GROUP_CULTURE), "CULTURE_ART", "문화·예술", 1);
 		upsertTag(category, groups.get(GROUP_CULTURE), "COMIC_CAFE", "만화카페", 2);
+		upsertTag(category, groups.get(GROUP_CULTURE), "PHOTO_STUDIO", "포토스튜디오", 3);
 
 		upsertTag(category, groups.get(GROUP_REST), "PARK", "공원", 1);
 		upsertTag(category, groups.get(GROUP_REST), "SAUNA", "찜질방", 2);

@@ -23,6 +23,16 @@ import org.springframework.stereotype.Component;
 public class PlaceTaxonomyResolver {
 
 	private static final String SEPARATOR_PATTERN = "[\\s>/,·ㆍ|\\-_/()\\[\\]{}]+";
+	private static final String CAFE_COFFEE_DESSERT_TAG_CODE = "COFFEE_DESSERT";
+	private static final String PHOTO_STUDIO_TAG_CODE = "PHOTO_STUDIO";
+	private static final List<String> PHOTO_STUDIO_KEYWORDS = List.of(
+			"사진",
+			"사진관",
+			"셀프사진",
+			"포토",
+			"포토스튜디오",
+			"사진스튜디오"
+	);
 
 	private final PlaceCategoryRepository placeCategoryRepository;
 	private final PlaceTagRepository placeTagRepository;
@@ -113,20 +123,53 @@ public class PlaceTaxonomyResolver {
 	}
 
 	private static TaxonomyOverride resolveOverride(String kakaoCategoryGroupCode, String kakaoCategoryName) {
-		if (!KakaoCategoryGroupPolicy.KAKAO_CAFE.equals(normalizeCategoryGroupCode(kakaoCategoryGroupCode))) {
-			return null;
-		}
 		String normalizedCategoryName = normalizeForMatch(kakaoCategoryName);
 		if (normalizedCategoryName == null) {
 			return null;
 		}
+
+		if (containsAny(normalizedCategoryName, PHOTO_STUDIO_KEYWORDS)) {
+			return new TaxonomyOverride(
+					KakaoCategoryGroupPolicy.SERVICE_CATEGORY_ACTIVITY,
+					PHOTO_STUDIO_TAG_CODE
+			);
+		}
+		if (!KakaoCategoryGroupPolicy.KAKAO_CAFE.equals(normalizeCategoryGroupCode(kakaoCategoryGroupCode))) {
+			return null;
+		}
+		return resolveCafeOverride(normalizedCategoryName);
+	}
+
+	private static TaxonomyOverride resolveCafeOverride(String normalizedCategoryName) {
 		if (normalizedCategoryName.contains("보드카페")) {
 			return new TaxonomyOverride(KakaoCategoryGroupPolicy.SERVICE_CATEGORY_ACTIVITY, "BOARD_GAME_CAFE");
 		}
-		if (normalizedCategoryName.contains("만화카페")) {
+		if (normalizedCategoryName.contains("만화카페") || normalizedCategoryName.contains("만화방")) {
 			return new TaxonomyOverride(KakaoCategoryGroupPolicy.SERVICE_CATEGORY_ACTIVITY, "COMIC_CAFE");
 		}
+		if (normalizedCategoryName.contains("제과") || normalizedCategoryName.contains("베이커리")) {
+			return new TaxonomyOverride(KakaoCategoryGroupPolicy.SERVICE_CATEGORY_CAFE, "BAKERY");
+		}
+		if (isCoffeeDessertCafe(normalizedCategoryName)) {
+			return new TaxonomyOverride(
+					KakaoCategoryGroupPolicy.SERVICE_CATEGORY_CAFE,
+					CAFE_COFFEE_DESSERT_TAG_CODE
+			);
+		}
 		return null;
+	}
+
+	private static boolean isCoffeeDessertCafe(String normalizedCategoryName) {
+		return normalizedCategoryName.equals("카페")
+				|| normalizedCategoryName.equals("음식점카페")
+				|| normalizedCategoryName.contains("커피전문점")
+				|| normalizedCategoryName.contains("디저트카페");
+	}
+
+	private static boolean containsAny(String normalizedCategoryName, List<String> keywords) {
+		return keywords.stream()
+				.map(PlaceTaxonomyResolver::normalizeForMatch)
+				.anyMatch(normalizedCategoryName::contains);
 	}
 
 	private static String resolveCategoryCode(String kakaoCategoryGroupCode, TaxonomyOverride override) {
