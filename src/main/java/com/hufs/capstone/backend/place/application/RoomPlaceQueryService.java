@@ -6,19 +6,28 @@ import com.hufs.capstone.backend.place.application.dto.BusinessHoursResult;
 import com.hufs.capstone.backend.place.application.dto.MyRoomPlacePageResult;
 import com.hufs.capstone.backend.place.application.dto.MyRoomPlaceResult;
 import com.hufs.capstone.backend.place.application.dto.RoomPlacePageResult;
+import com.hufs.capstone.backend.place.application.dto.RoomPlaceMemoResult;
 import com.hufs.capstone.backend.place.application.dto.RoomPlaceResult;
 import com.hufs.capstone.backend.place.domain.entity.PlaceBusinessHours;
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
+import com.hufs.capstone.backend.place.domain.entity.RoomPlaceMemo;
 import com.hufs.capstone.backend.place.domain.repository.PlaceBusinessHoursRepository;
+import com.hufs.capstone.backend.place.domain.repository.RoomPlaceMemoRepository;
 import com.hufs.capstone.backend.place.domain.repository.RoomPlaceRepository;
 import com.hufs.capstone.backend.place.domain.vo.PlaceSearchText;
 import com.hufs.capstone.backend.region.application.RegionQueryService;
 import com.hufs.capstone.backend.region.application.dto.RegionFilter;
 import com.hufs.capstone.backend.room.application.RoomAccessService;
+import com.hufs.capstone.backend.room.application.port.RoomMemberUserProfilePort;
+import com.hufs.capstone.backend.room.application.port.RoomMemberUserProfilePort.RoomMemberUserProfile;
 import com.hufs.capstone.backend.room.domain.entity.Room;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +48,8 @@ public class RoomPlaceQueryService {
 
 	private final RoomAccessService roomAccessService;
 	private final RoomPlaceRepository roomPlaceRepository;
+	private final RoomPlaceMemoRepository roomPlaceMemoRepository;
+	private final RoomMemberUserProfilePort roomMemberUserProfilePort;
 	private final RegionQueryService regionQueryService;
 	private final PlaceBusinessHoursRepository placeBusinessHoursRepository;
 	private final BusinessHoursDisplayResolver businessHoursDisplayResolver;
@@ -108,12 +119,17 @@ public class RoomPlaceQueryService {
 				createdBy,
 				PageRequest.of(normalizedPage, normalizedLimit, Sort.by(Sort.Direction.DESC, "createdAt", "id"))
 		);
-		Map<String, PlaceBusinessHours> cachesByKakaoPlaceId = findCaches(result.getContent());
+		List<RoomPlace> roomPlaces = result.getContent();
+		Map<String, PlaceBusinessHours> cachesByKakaoPlaceId = findCaches(roomPlaces);
+		Map<Long, List<RoomPlaceMemoResult>> memosByRoomPlaceId = findMemoResults(roomPlaces);
 		return new RoomPlacePageResult(
-				result.getContent().stream()
+				roomPlaces.stream()
 						.map(roomPlace -> RoomPlaceResult.from(
 								roomPlace,
-								toBusinessHoursResult(cachesByKakaoPlaceId.get(roomPlace.getKakaoPlaceId()))
+								toBusinessHoursResult(cachesByKakaoPlaceId.get(roomPlace.getKakaoPlaceId())),
+								null,
+								memosByRoomPlaceId.get(roomPlace.getId()),
+								userId
 						))
 						.toList(),
 				normalizedPage,
@@ -130,7 +146,14 @@ public class RoomPlaceQueryService {
 				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "Room place not found."));
 		PlaceBusinessHours cache = placeBusinessHoursRepository.findByKakaoPlaceId(roomPlace.getKakaoPlaceId())
 				.orElse(null);
-		return RoomPlaceResult.from(roomPlace, toBusinessHoursResult(cache), sourceUrl(roomPlace));
+		Map<Long, List<RoomPlaceMemoResult>> memosByRoomPlaceId = findMemoResults(List.of(roomPlace));
+		return RoomPlaceResult.from(
+				roomPlace,
+				toBusinessHoursResult(cache),
+				sourceUrl(roomPlace),
+				memosByRoomPlaceId.get(roomPlace.getId()),
+				userId
+		);
 	}
 
 	@Transactional(readOnly = true)
@@ -165,12 +188,20 @@ public class RoomPlaceQueryService {
 				regionFilter.sigunguCode(),
 				PageRequest.of(normalizedPage, normalizedLimit, Sort.by(Sort.Direction.DESC, "createdAt", "id"))
 		);
-		Map<String, PlaceBusinessHours> cachesByKakaoPlaceId = findCaches(result.getContent());
+		List<RoomPlace> roomPlaces = result.getContent();
+		Map<String, PlaceBusinessHours> cachesByKakaoPlaceId = findCaches(roomPlaces);
+		Map<Long, List<RoomPlaceMemoResult>> memosByRoomPlaceId = findMemoResults(roomPlaces);
 		return new MyRoomPlacePageResult(
-				result.getContent().stream()
-						.map(roomPlace -> MyRoomPlaceResult.from(
-								roomPlace,
-								toBusinessHoursResult(cachesByKakaoPlaceId.get(roomPlace.getKakaoPlaceId()))
+				roomPlaces.stream()
+						.map(roomPlace -> new MyRoomPlaceResult(
+								RoomPlaceResult.from(
+										roomPlace,
+										toBusinessHoursResult(cachesByKakaoPlaceId.get(roomPlace.getKakaoPlaceId())),
+										null,
+										memosByRoomPlaceId.get(roomPlace.getId()),
+										userId
+								),
+								MyRoomPlaceResult.RoomResult.from(roomPlace.getRoom())
 						))
 						.toList(),
 				normalizedPage,
@@ -208,6 +239,82 @@ public class RoomPlaceQueryService {
 						Function.identity(),
 						(first, second) -> first
 				));
+	}
+
+	private Map<Long, List<RoomPlaceMemoResult>> findMemoResults(Collection<RoomPlace> roomPlaces) {
+		if (roomPlaces == null || roomPlaces.isEmpty()) {
+			return Map.of();
+		}
+		List<Long> roomPlaceIds = roomPlaces.stream()
+				.map(RoomPlace::getId)
+				.toList();
+		List<RoomPlaceMemo> memos = roomPlaceMemoRepository.findByRoomPlaceIdInOrderByUpdatedAtAscIdAsc(roomPlaceIds);
+		Set<Long> authorUserIds = new LinkedHashSet<>();
+		memos.forEach(memo -> authorUserIds.add(memo.getUserId()));
+		roomPlaces.stream()
+				.filter(roomPlace -> roomPlace.getMemo() != null)
+				.forEach(roomPlace -> authorUserIds.add(roomPlace.getCreatedByUserId()));
+		Map<Long, RoomMemberUserProfile> profilesByUserId = findProfiles(authorUserIds);
+		Map<Long, List<RoomPlaceMemoResult>> resultsByRoomPlaceId = new HashMap<>();
+		memos.forEach(memo -> resultsByRoomPlaceId
+				.computeIfAbsent(memo.getRoomPlaceId(), ignored -> new ArrayList<>())
+				.add(toMemoResult(memo, profilesByUserId)));
+		roomPlaces.stream()
+				.filter(roomPlace -> roomPlace.getMemo() != null)
+				.forEach(roomPlace -> appendLegacyMemoIfAbsent(roomPlace, resultsByRoomPlaceId, profilesByUserId));
+		return resultsByRoomPlaceId.entrySet().stream()
+				.collect(Collectors.toMap(
+						Map.Entry::getKey,
+						entry -> List.copyOf(entry.getValue())
+				));
+	}
+
+	private Map<Long, RoomMemberUserProfile> findProfiles(Set<Long> userIds) {
+		if (userIds.isEmpty()) {
+			return Map.of();
+		}
+		return roomMemberUserProfilePort.findActiveProfiles(userIds).stream()
+				.collect(Collectors.toMap(
+						RoomMemberUserProfile::userId,
+						Function.identity(),
+						(first, second) -> first
+				));
+	}
+
+	private RoomPlaceMemoResult toMemoResult(
+			RoomPlaceMemo memo,
+			Map<Long, RoomMemberUserProfile> profilesByUserId
+	) {
+		RoomMemberUserProfile profile = profilesByUserId.get(memo.getUserId());
+		return new RoomPlaceMemoResult(
+				memo.getUserId(),
+				profile == null ? null : profile.nickname(),
+				profile == null ? null : profile.profileImageUrl(),
+				memo.getMemo(),
+				memo.getUpdatedAt()
+		);
+	}
+
+	private void appendLegacyMemoIfAbsent(
+			RoomPlace roomPlace,
+			Map<Long, List<RoomPlaceMemoResult>> resultsByRoomPlaceId,
+			Map<Long, RoomMemberUserProfile> profilesByUserId
+	) {
+		List<RoomPlaceMemoResult> results = resultsByRoomPlaceId
+				.computeIfAbsent(roomPlace.getId(), ignored -> new ArrayList<>());
+		boolean hasCreatedByMemo = results.stream()
+				.anyMatch(memo -> roomPlace.getCreatedByUserId().equals(memo.userId()));
+		if (hasCreatedByMemo) {
+			return;
+		}
+		RoomMemberUserProfile profile = profilesByUserId.get(roomPlace.getCreatedByUserId());
+		results.add(new RoomPlaceMemoResult(
+				roomPlace.getCreatedByUserId(),
+				profile == null ? null : profile.nickname(),
+				profile == null ? null : profile.profileImageUrl(),
+				roomPlace.getMemo(),
+				roomPlace.getUpdatedAt()
+		));
 	}
 
 	private BusinessHoursResult toBusinessHoursResult(PlaceBusinessHours cache) {

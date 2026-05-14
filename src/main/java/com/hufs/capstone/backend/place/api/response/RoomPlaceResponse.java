@@ -1,10 +1,12 @@
 package com.hufs.capstone.backend.place.api.response;
 
 import com.hufs.capstone.backend.place.application.dto.BusinessHoursDisplayResult;
+import com.hufs.capstone.backend.place.application.dto.RoomPlaceMemoResult;
 import com.hufs.capstone.backend.place.application.dto.RoomPlaceResult;
 import com.hufs.capstone.backend.place.domain.enums.RoomPlaceSourceType;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 
 public record RoomPlaceResponse(
 		Long roomPlaceId,
@@ -27,6 +29,7 @@ public record RoomPlaceResponse(
 		String sigunguCode,
 		String sigunguName,
 		String memo,
+		List<RoomPlaceMemoResponse> memos,
 		RoomPlaceSourceType sourceType,
 		Long sourceRoomLinkId,
 		String sourceUrl,
@@ -60,6 +63,9 @@ public record RoomPlaceResponse(
 				result.sigunguCode(),
 				result.sigunguName(),
 				result.memo(),
+				result.memos().stream()
+						.map(RoomPlaceMemoResponse::from)
+						.toList(),
 				result.sourceType(),
 				result.sourceRoomLinkId(),
 				result.sourceUrl(),
@@ -70,5 +76,24 @@ public record RoomPlaceResponse(
 				result.businessHoursFetchedAt(),
 				result.businessHoursExpiresAt()
 		);
+	}
+
+	public record RoomPlaceMemoResponse(
+			Long userId,
+			String nickname,
+			String profileImageUrl,
+			String memo,
+			Instant updatedAt
+	) {
+
+		public static RoomPlaceMemoResponse from(RoomPlaceMemoResult result) {
+			return new RoomPlaceMemoResponse(
+					result.userId(),
+					result.nickname(),
+					result.profileImageUrl(),
+					result.memo(),
+					result.updatedAt()
+			);
+		}
 	}
 }

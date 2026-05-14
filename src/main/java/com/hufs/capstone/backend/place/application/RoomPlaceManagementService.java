@@ -3,6 +3,8 @@ package com.hufs.capstone.backend.place.application;
 import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
+import com.hufs.capstone.backend.place.domain.entity.RoomPlaceMemo;
+import com.hufs.capstone.backend.place.domain.repository.RoomPlaceMemoRepository;
 import com.hufs.capstone.backend.place.domain.repository.RoomPlaceRepository;
 import com.hufs.capstone.backend.place.domain.repository.RoomPlaceSourceRepository;
 import com.hufs.capstone.backend.room.application.RoomAccessService;
@@ -17,19 +19,30 @@ public class RoomPlaceManagementService {
 
 	private final RoomAccessService roomAccessService;
 	private final RoomPlaceRepository roomPlaceRepository;
+	private final RoomPlaceMemoRepository roomPlaceMemoRepository;
 	private final RoomPlaceSourceRepository roomPlaceSourceRepository;
 
 	@Transactional
 	public void updateMemo(Long userId, String roomId, Long roomPlaceId, String memo) {
 		Room room = roomAccessService.requireMemberRoom(roomId, userId);
 		RoomPlace roomPlace = getRoomPlaceOrThrow(room.getId(), roomPlaceId);
-		roomPlace.updateMemo(memo);
+		String normalizedMemo = trimToNull(memo);
+		if (normalizedMemo == null) {
+			roomPlaceMemoRepository.deleteByRoomPlaceIdAndUserId(roomPlace.getId(), userId);
+			return;
+		}
+		roomPlaceMemoRepository.findByRoomPlaceIdAndUserId(roomPlace.getId(), userId)
+				.ifPresentOrElse(
+						roomPlaceMemo -> roomPlaceMemo.update(normalizedMemo),
+						() -> roomPlaceMemoRepository.save(RoomPlaceMemo.create(roomPlace, userId, normalizedMemo))
+			);
 	}
 
 	@Transactional
 	public void deleteRoomPlace(Long userId, String roomId, Long roomPlaceId) {
 		Room room = roomAccessService.requireMemberRoom(roomId, userId);
 		RoomPlace roomPlace = getRoomPlaceOrThrow(room.getId(), roomPlaceId);
+		roomPlaceMemoRepository.deleteByRoomPlaceId(roomPlace.getId());
 		roomPlaceSourceRepository.deleteByRoomPlaceId(roomPlace.getId());
 		roomPlaceRepository.delete(roomPlace);
 	}
@@ -37,5 +50,13 @@ public class RoomPlaceManagementService {
 	private RoomPlace getRoomPlaceOrThrow(Long roomId, Long roomPlaceId) {
 		return roomPlaceRepository.findByIdAndRoomId(roomPlaceId, roomId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "Room place not found."));
+	}
+
+	private static String trimToNull(String value) {
+		if (value == null) {
+			return null;
+		}
+		String trimmed = value.trim();
+		return trimmed.isEmpty() ? null : trimmed;
 	}
 }

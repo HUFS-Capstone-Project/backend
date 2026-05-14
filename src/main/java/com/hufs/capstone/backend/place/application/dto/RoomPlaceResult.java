@@ -5,6 +5,7 @@ import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
 import com.hufs.capstone.backend.place.domain.enums.RoomPlaceSourceType;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 
 public record RoomPlaceResult(
 		Long roomPlaceId,
@@ -27,6 +28,7 @@ public record RoomPlaceResult(
 		String sigunguCode,
 		String sigunguName,
 		String memo,
+		List<RoomPlaceMemoResult> memos,
 		RoomPlaceSourceType sourceType,
 		Long sourceRoomLinkId,
 		String sourceUrl,
@@ -39,15 +41,26 @@ public record RoomPlaceResult(
 ) {
 
 	public static RoomPlaceResult from(RoomPlace roomPlace) {
-		return from(roomPlace, null);
+		return from(roomPlace, null, null, List.of(), null);
 	}
 
 	public static RoomPlaceResult from(RoomPlace roomPlace, BusinessHoursResult businessHours) {
-		return from(roomPlace, businessHours, null);
+		return from(roomPlace, businessHours, null, List.of(), null);
 	}
 
 	public static RoomPlaceResult from(RoomPlace roomPlace, BusinessHoursResult businessHours, String sourceUrl) {
+		return from(roomPlace, businessHours, sourceUrl, List.of(), null);
+	}
+
+	public static RoomPlaceResult from(
+			RoomPlace roomPlace,
+			BusinessHoursResult businessHours,
+			String sourceUrl,
+			List<RoomPlaceMemoResult> memos,
+			Long currentUserId
+	) {
 		Place place = roomPlace.getPlace();
+		List<RoomPlaceMemoResult> normalizedMemos = memos == null ? List.of() : List.copyOf(memos);
 		return new RoomPlaceResult(
 				roomPlace.getId(),
 				place.getId(),
@@ -68,7 +81,8 @@ public record RoomPlaceResult(
 				roomPlace.getSidoName(),
 				roomPlace.getSigunguCode(),
 				roomPlace.getSigunguName(),
-				roomPlace.getMemo(),
+				currentUserMemo(normalizedMemos, currentUserId, roomPlace.getMemo()),
+				normalizedMemos,
 				roomPlace.getSourceType(),
 				roomPlace.getSourceRoomLinkId(),
 				sourceUrl,
@@ -81,5 +95,16 @@ public record RoomPlaceResult(
 				businessHours == null ? null : businessHours.businessHoursFetchedAt(),
 				businessHours == null ? null : businessHours.businessHoursExpiresAt()
 		);
+	}
+
+	private static String currentUserMemo(List<RoomPlaceMemoResult> memos, Long currentUserId, String fallbackMemo) {
+		if (currentUserId == null) {
+			return fallbackMemo;
+		}
+		return memos.stream()
+				.filter(memo -> currentUserId.equals(memo.userId()))
+				.map(RoomPlaceMemoResult::memo)
+				.findFirst()
+				.orElse(fallbackMemo);
 	}
 }

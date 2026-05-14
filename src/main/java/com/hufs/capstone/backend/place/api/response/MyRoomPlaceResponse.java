@@ -6,6 +6,7 @@ import com.hufs.capstone.backend.place.application.dto.RoomPlaceResult;
 import com.hufs.capstone.backend.place.domain.enums.RoomPlaceSourceType;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 
 public record MyRoomPlaceResponse(
 		Long roomPlaceId,
@@ -28,6 +29,7 @@ public record MyRoomPlaceResponse(
 		String sigunguCode,
 		String sigunguName,
 		String memo,
+		List<RoomPlaceResponse.RoomPlaceMemoResponse> memos,
 		RoomPlaceSourceType sourceType,
 		Long sourceRoomLinkId,
 		String sourceUrl,
@@ -63,6 +65,9 @@ public record MyRoomPlaceResponse(
 				place.sigunguCode(),
 				place.sigunguName(),
 				place.memo(),
+				place.memos().stream()
+						.map(RoomPlaceResponse.RoomPlaceMemoResponse::from)
+						.toList(),
 				place.sourceType(),
 				place.sourceRoomLinkId(),
 				place.sourceUrl(),

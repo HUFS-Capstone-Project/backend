@@ -23,6 +23,7 @@ import com.hufs.capstone.backend.place.domain.enums.BusinessHoursStatus;
 import com.hufs.capstone.backend.place.domain.enums.RoomPlaceSourceType;
 import com.hufs.capstone.backend.place.domain.repository.PlaceBusinessHoursRepository;
 import com.hufs.capstone.backend.place.domain.repository.PlaceRepository;
+import com.hufs.capstone.backend.place.domain.repository.RoomPlaceMemoRepository;
 import com.hufs.capstone.backend.place.domain.repository.RoomPlaceRepository;
 import com.hufs.capstone.backend.place.domain.repository.RoomPlaceSourceRepository;
 import com.hufs.capstone.backend.place.domain.vo.PlaceSnapshot;
@@ -30,6 +31,8 @@ import com.hufs.capstone.backend.room.domain.entity.Room;
 import com.hufs.capstone.backend.room.domain.entity.RoomMember;
 import com.hufs.capstone.backend.room.domain.repository.RoomMemberRepository;
 import com.hufs.capstone.backend.room.domain.repository.RoomRepository;
+import com.hufs.capstone.backend.user.domain.entity.User;
+import com.hufs.capstone.backend.user.domain.repository.UserRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -60,6 +63,9 @@ class RoomPlaceCommandServiceIntegrationTest {
 	private RoomPlaceStorageService roomPlaceStorageService;
 
 	@Autowired
+	private RoomPlaceManagementService roomPlaceManagementService;
+
+	@Autowired
 	private TransactionTemplate transactionTemplate;
 
 	@Autowired
@@ -70,6 +76,9 @@ class RoomPlaceCommandServiceIntegrationTest {
 
 	@Autowired
 	private RoomPlaceSourceRepository roomPlaceSourceRepository;
+
+	@Autowired
+	private RoomPlaceMemoRepository roomPlaceMemoRepository;
 
 	@Autowired
 	private PlaceRepository placeRepository;
@@ -86,11 +95,15 @@ class RoomPlaceCommandServiceIntegrationTest {
 	@Autowired
 	private RoomLinkRepository roomLinkRepository;
 
+	@Autowired
+	private UserRepository userRepository;
+
 	private Room room;
 
 	@BeforeEach
 	void setUp() {
 		placeBusinessHoursRepository.deleteAll();
+		roomPlaceMemoRepository.deleteAll();
 		roomPlaceSourceRepository.deleteAll();
 		roomPlaceRepository.deleteAll();
 		placeRepository.deleteAll();
@@ -98,6 +111,7 @@ class RoomPlaceCommandServiceIntegrationTest {
 		linkRepository.deleteAll();
 		roomMemberRepository.deleteAll();
 		roomRepository.deleteAll();
+		userRepository.deleteAll();
 		room = roomRepository.saveAndFlush(Room.create(ROOM_PUBLIC_ID, "Place Room", "INVITE333333", USER_ID));
 		roomMemberRepository.saveAndFlush(RoomMember.join(room, USER_ID));
 	}
@@ -105,6 +119,7 @@ class RoomPlaceCommandServiceIntegrationTest {
 	@AfterEach
 	void tearDown() {
 		placeBusinessHoursRepository.deleteAll();
+		roomPlaceMemoRepository.deleteAll();
 		roomPlaceSourceRepository.deleteAll();
 		roomPlaceRepository.deleteAll();
 		placeRepository.deleteAll();
@@ -112,6 +127,7 @@ class RoomPlaceCommandServiceIntegrationTest {
 		linkRepository.deleteAll();
 		roomMemberRepository.deleteAll();
 		roomRepository.deleteAll();
+		userRepository.deleteAll();
 	}
 
 	@Test
@@ -486,6 +502,42 @@ class RoomPlaceCommandServiceIntegrationTest {
 		assertThat(savedFromLink.places().get(0).alreadyInRoom()).isTrue();
 		assertThat(detail.sourceRoomLinkId()).isNull();
 		assertThat(detail.sourceUrl()).isNull();
+	}
+
+	@Test
+	void shouldKeepSeparateRoomPlaceMemosPerMemberAndExposeProfiles() {
+		User firstUser = userRepository.saveAndFlush(User.register(
+				"first@example.com",
+				true,
+				"First",
+				"https://example.com/first.png"
+		));
+		User secondUser = userRepository.saveAndFlush(User.register(
+				"second@example.com",
+				true,
+				"Second",
+				"https://example.com/second.png"
+		));
+		roomMemberRepository.saveAndFlush(RoomMember.join(room, firstUser.getId()));
+		roomMemberRepository.saveAndFlush(RoomMember.join(room, secondUser.getId()));
+		RoomPlaceSaveResult saved = saveExternalForTest(firstUser.getId(), foodSnapshot("123456789", "Memo Place"));
+		Long roomPlaceId = saved.places().get(0).roomPlaceId();
+
+		roomPlaceManagementService.updateMemo(firstUser.getId(), ROOM_PUBLIC_ID, roomPlaceId, "first memo");
+		roomPlaceManagementService.updateMemo(secondUser.getId(), ROOM_PUBLIC_ID, roomPlaceId, "second memo");
+
+		RoomPlaceResult detail = roomPlaceQueryService.getRoomPlace(firstUser.getId(), ROOM_PUBLIC_ID, roomPlaceId);
+
+		assertThat(detail.memo()).isEqualTo("first memo");
+		assertThat(detail.memos()).hasSize(2);
+		assertThat(detail.memos()).extracting("userId")
+				.containsExactly(firstUser.getId(), secondUser.getId());
+		assertThat(detail.memos()).extracting("nickname")
+				.containsExactly("First", "Second");
+		assertThat(detail.memos()).extracting("profileImageUrl")
+				.containsExactly("https://example.com/first.png", "https://example.com/second.png");
+		assertThat(detail.memos()).extracting("memo")
+				.containsExactly("first memo", "second memo");
 	}
 
 	@Test
