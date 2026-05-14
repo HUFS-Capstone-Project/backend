@@ -21,6 +21,17 @@ public interface RoomPlaceSearchRepository {
 			Pageable pageable
 	);
 
+	Page<RoomPlace> searchMyRoomPlaces(
+			Long userId,
+			String keyword,
+			String initialKeyword,
+			String categoryCode,
+			String tagCode,
+			String sidoCode,
+			String sigunguCode,
+			Pageable pageable
+	);
+
 	List<RoomPlace> findExistingByRoomIdAndKakaoPlaceIds(Long roomId, Collection<String> kakaoPlaceIds);
 
 	List<RoomPlace> findExistingByRoomIdAndSourceExternalPlaceIds(

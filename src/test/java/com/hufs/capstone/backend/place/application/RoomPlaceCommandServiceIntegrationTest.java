@@ -15,9 +15,13 @@ import com.hufs.capstone.backend.place.application.dto.PlaceTaxonomyTagResult;
 import com.hufs.capstone.backend.place.application.dto.RoomPlacePageResult;
 import com.hufs.capstone.backend.place.application.dto.RoomPlaceResult;
 import com.hufs.capstone.backend.place.application.dto.RoomPlaceSaveResult;
+import com.hufs.capstone.backend.place.application.dto.MyRoomPlacePageResult;
 import com.hufs.capstone.backend.place.domain.entity.Place;
+import com.hufs.capstone.backend.place.domain.entity.PlaceBusinessHours;
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
+import com.hufs.capstone.backend.place.domain.enums.BusinessHoursStatus;
 import com.hufs.capstone.backend.place.domain.enums.RoomPlaceSourceType;
+import com.hufs.capstone.backend.place.domain.repository.PlaceBusinessHoursRepository;
 import com.hufs.capstone.backend.place.domain.repository.PlaceRepository;
 import com.hufs.capstone.backend.place.domain.repository.RoomPlaceRepository;
 import com.hufs.capstone.backend.place.domain.repository.RoomPlaceSourceRepository;
@@ -27,6 +31,7 @@ import com.hufs.capstone.backend.room.domain.entity.RoomMember;
 import com.hufs.capstone.backend.room.domain.repository.RoomMemberRepository;
 import com.hufs.capstone.backend.room.domain.repository.RoomRepository;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -61,6 +66,9 @@ class RoomPlaceCommandServiceIntegrationTest {
 	private RoomPlaceRepository roomPlaceRepository;
 
 	@Autowired
+	private PlaceBusinessHoursRepository placeBusinessHoursRepository;
+
+	@Autowired
 	private RoomPlaceSourceRepository roomPlaceSourceRepository;
 
 	@Autowired
@@ -82,6 +90,7 @@ class RoomPlaceCommandServiceIntegrationTest {
 
 	@BeforeEach
 	void setUp() {
+		placeBusinessHoursRepository.deleteAll();
 		roomPlaceSourceRepository.deleteAll();
 		roomPlaceRepository.deleteAll();
 		placeRepository.deleteAll();
@@ -95,6 +104,7 @@ class RoomPlaceCommandServiceIntegrationTest {
 
 	@AfterEach
 	void tearDown() {
+		placeBusinessHoursRepository.deleteAll();
 		roomPlaceSourceRepository.deleteAll();
 		roomPlaceRepository.deleteAll();
 		placeRepository.deleteAll();
@@ -477,15 +487,174 @@ class RoomPlaceCommandServiceIntegrationTest {
 		assertThat(detail.sourceUrl()).isNull();
 	}
 
+	@Test
+	void shouldSearchMyRoomPlacesOnlyForCurrentMemberAndCreator() {
+		Long friendUserId = 200L;
+		roomMemberRepository.saveAndFlush(RoomMember.join(room, friendUserId));
+		Room inaccessibleRoom = roomRepository.saveAndFlush(Room.create(
+				"44444444-4444-4444-4444-444444444444",
+				"Hidden Room",
+				"INVITE444444",
+				USER_ID
+		));
+		saveExternalForTest(USER_ID, foodSnapshot("111111111", "My Accessible Place"));
+		saveExternalForTest(friendUserId, cafeSnapshot("222222222", "Friend Accessible Place"));
+		saveExternalForTest(inaccessibleRoom, USER_ID, noTaxonomySnapshot("333333333", "My Hidden Place"));
+
+		MyRoomPlacePageResult result = roomPlaceQueryService.searchMyRoomPlaces(
+				USER_ID,
+				null,
+				null,
+				null,
+				null,
+				null,
+				0,
+				20,
+				null
+		);
+
+		assertThat(result.items()).hasSize(1);
+		assertThat(result.items().get(0).place().name()).isEqualTo("My Accessible Place");
+		assertThat(result.items().get(0).room().roomId()).isEqualTo(ROOM_PUBLIC_ID);
+		assertThat(result.items().get(0).room().roomName()).isEqualTo("Place Room");
+	}
+
+	@Test
+	void shouldExposeSameKakaoPlaceInDifferentRoomsAsSeparateMyRoomPlaceItems() {
+		Room secondRoom = roomRepository.saveAndFlush(Room.create(
+				"55555555-5555-5555-5555-555555555555",
+				"Second Room",
+				"INVITE555555",
+				USER_ID
+		));
+		roomMemberRepository.saveAndFlush(RoomMember.join(secondRoom, USER_ID));
+		saveExternalForTest(USER_ID, foodSnapshot("123456789", "Shared Place"));
+		saveExternalForTest(secondRoom, USER_ID, foodSnapshot("123456789", "Shared Place"));
+
+		MyRoomPlacePageResult result = roomPlaceQueryService.searchMyRoomPlaces(
+				USER_ID,
+				null,
+				null,
+				null,
+				null,
+				null,
+				0,
+				20,
+				null
+		);
+
+		assertThat(result.items()).hasSize(2);
+		assertThat(result.items()).extracting(item -> item.place().kakaoPlaceId())
+				.containsExactly("123456789", "123456789");
+		assertThat(result.items()).extracting(item -> item.room().roomId())
+				.containsExactly(secondRoom.getPublicId(), ROOM_PUBLIC_ID);
+		assertThat(result.items()).extracting(item -> item.place().roomPlaceId())
+				.doesNotHaveDuplicates();
+	}
+
+	@Test
+	void shouldFilterAndPageMyRoomPlacesLikeRoomPlaceList() {
+		saveExternalForTest(foodSnapshot("123456789", "Donkatsu Place"));
+		saveExternalForTest(cafeSnapshot("222222222", "Bakery Cafe"));
+		saveExternalForTest(noTaxonomySnapshot("333333333", "Activity Place"));
+
+		MyRoomPlacePageResult foodPlaces = roomPlaceQueryService.searchMyRoomPlaces(
+				USER_ID,
+				null,
+				"FOOD",
+				"ALL",
+				null,
+				null,
+				0,
+				10,
+				null
+		);
+		MyRoomPlacePageResult cafePlaces = roomPlaceQueryService.searchMyRoomPlaces(
+				USER_ID,
+				"Bakery",
+				"CAFE",
+				null,
+				null,
+				null,
+				0,
+				10,
+				null
+		);
+		MyRoomPlacePageResult firstPage = roomPlaceQueryService.searchMyRoomPlaces(
+				USER_ID,
+				null,
+				null,
+				null,
+				null,
+				null,
+				0,
+				1,
+				null
+		);
+
+		assertThat(foodPlaces.items()).extracting(item -> item.place().name()).containsExactly("Donkatsu Place");
+		assertThat(cafePlaces.items()).extracting(item -> item.place().name()).containsExactly("Bakery Cafe");
+		assertThat(firstPage.items()).hasSize(1);
+		assertThat(firstPage.totalElements()).isEqualTo(3);
+		assertThat(firstPage.totalPages()).isEqualTo(3);
+	}
+
+	@Test
+	void shouldFillMyRoomPlaceBusinessHoursStatusFromBulkCache() {
+		saveExternalForTest(foodSnapshot("123456789", "Business Hours Place"));
+		PlaceBusinessHours cache = PlaceBusinessHours.create(
+				"123456789",
+				"https://place.map.kakao.com/123456789",
+				"Business Hours Place"
+		);
+		Instant fetchedAt = Instant.parse("2026-05-14T02:00:00Z");
+		Instant expiresAt = Instant.parse("2026-05-15T02:00:00Z");
+		cache.applyRemotePlace(
+				"https://place.map.kakao.com/123456789",
+				"Business Hours Place",
+				null,
+				null,
+				BusinessHoursStatus.SUCCEEDED,
+				fetchedAt,
+				expiresAt,
+				"test",
+				"job-123",
+				null,
+				null
+		);
+		placeBusinessHoursRepository.saveAndFlush(cache);
+
+		MyRoomPlacePageResult result = roomPlaceQueryService.searchMyRoomPlaces(
+				USER_ID,
+				null,
+				null,
+				null,
+				null,
+				null,
+				0,
+				20,
+				null
+		);
+
+		assertThat(result.items()).hasSize(1);
+		assertThat(result.items().get(0).place().businessHoursStatus()).isEqualTo("SUCCEEDED");
+		assertThat(result.items().get(0).place().businessHoursFetchedAt()).isEqualTo(fetchedAt);
+		assertThat(result.items().get(0).place().businessHoursExpiresAt()).isEqualTo(expiresAt);
+	}
+
 	private RoomPlaceSaveResult saveExternalForTest(PlaceSnapshot snapshot) {
 		return saveExternalForTest(USER_ID, snapshot);
 	}
 
 	private RoomPlaceSaveResult saveExternalForTest(Long userId, PlaceSnapshot snapshot) {
+		return saveExternalForTest(room, userId, snapshot);
+	}
+
+	private RoomPlaceSaveResult saveExternalForTest(Room targetRoom, Long userId, PlaceSnapshot snapshot) {
 		return transactionTemplate.execute(status -> new RoomPlaceSaveResult(
 				null,
 				roomPlaceStorageService.saveAll(
-						roomRepository.findById(room.getId()).orElseThrow(),
+						roomRepository.findById(targetRoom.getId()).orElseThrow(),
 						userId,
 						List.of(snapshot),
 						null,

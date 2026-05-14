@@ -6,8 +6,11 @@ import com.hufs.capstone.backend.place.domain.entity.QPlaceTag;
 import com.hufs.capstone.backend.place.domain.entity.QRoomPlace;
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
 import com.hufs.capstone.backend.place.domain.enums.PlaceSource;
+import com.hufs.capstone.backend.room.domain.entity.QRoom;
+import com.hufs.capstone.backend.room.domain.entity.QRoomMember;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.StringPath;
+import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
@@ -24,6 +27,8 @@ public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository 
 	private static final QPlace PLACE = QPlace.place;
 	private static final QPlaceCategory CATEGORY = QPlaceCategory.placeCategory;
 	private static final QPlaceTag TAG = QPlaceTag.placeTag;
+	private static final QRoom ROOM = QRoom.room;
+	private static final QRoomMember ROOM_MEMBER = QRoomMember.roomMember;
 
 	private final JPAQueryFactory queryFactory;
 
@@ -78,6 +83,51 @@ public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository 
 	}
 
 	@Override
+	public Page<RoomPlace> searchMyRoomPlaces(
+			Long userId,
+			String keyword,
+			String initialKeyword,
+			String categoryCode,
+			String tagCode,
+			String sidoCode,
+			String sigunguCode,
+			Pageable pageable
+	) {
+		List<RoomPlace> content = baseMyRoomPlaceQuery()
+				.where(
+						createdByEq(userId),
+						memberExists(userId),
+						keywordContains(keyword, initialKeyword),
+						categoryCodeEq(categoryCode),
+						tagCodeEq(tagCode),
+						sidoCodeEq(sidoCode),
+						sigunguCodeEq(sigunguCode)
+				)
+				.orderBy(ROOM_PLACE.createdAt.desc(), ROOM_PLACE.id.desc())
+				.offset(pageable.getOffset())
+				.limit(pageable.getPageSize())
+				.fetch();
+
+		Long total = queryFactory
+				.select(ROOM_PLACE.id.countDistinct())
+				.from(ROOM_PLACE)
+				.join(ROOM_PLACE.place, PLACE)
+				.join(PLACE.serviceCategory, CATEGORY)
+				.join(PLACE.serviceTag, TAG)
+				.where(
+						createdByEq(userId),
+						memberExists(userId),
+						keywordContains(keyword, initialKeyword),
+						categoryCodeEq(categoryCode),
+						tagCodeEq(tagCode),
+						sidoCodeEq(sidoCode),
+						sigunguCodeEq(sigunguCode)
+				)
+				.fetchOne();
+		return new PageImpl<>(content, pageable, total == null ? 0 : total);
+	}
+
+	@Override
 	public List<RoomPlace> findExistingByRoomIdAndKakaoPlaceIds(Long roomId, Collection<String> kakaoPlaceIds) {
 		if (kakaoPlaceIds == null || kakaoPlaceIds.isEmpty()) {
 			return List.of();
@@ -117,6 +167,16 @@ public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository 
 				.join(PLACE.serviceTag, TAG).fetchJoin();
 	}
 
+	private JPAQuery<RoomPlace> baseMyRoomPlaceQuery() {
+		return queryFactory
+				.selectFrom(ROOM_PLACE)
+				.distinct()
+				.join(ROOM_PLACE.room, ROOM).fetchJoin()
+				.join(ROOM_PLACE.place, PLACE).fetchJoin()
+				.join(PLACE.serviceCategory, CATEGORY).fetchJoin()
+				.join(PLACE.serviceTag, TAG).fetchJoin();
+	}
+
 	private static BooleanExpression roomIdEq(Long roomId) {
 		return ROOM_PLACE.room.id.eq(roomId);
 	}
@@ -139,6 +199,20 @@ public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository 
 
 	private static BooleanExpression createdByEq(Long createdBy) {
 		return createdBy == null ? null : ROOM_PLACE.createdByUserId.eq(createdBy);
+	}
+
+	private static BooleanExpression memberExists(Long userId) {
+		if (userId == null) {
+			return null;
+		}
+		return JPAExpressions
+				.selectOne()
+				.from(ROOM_MEMBER)
+				.where(
+						ROOM_MEMBER.room.eq(ROOM_PLACE.room),
+						ROOM_MEMBER.userId.eq(userId)
+				)
+				.exists();
 	}
 
 	private static BooleanExpression keywordContains(String keyword, String initialKeyword) {

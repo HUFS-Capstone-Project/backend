@@ -3,6 +3,8 @@ package com.hufs.capstone.backend.place.application;
 import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
 import com.hufs.capstone.backend.place.application.dto.BusinessHoursResult;
+import com.hufs.capstone.backend.place.application.dto.MyRoomPlacePageResult;
+import com.hufs.capstone.backend.place.application.dto.MyRoomPlaceResult;
 import com.hufs.capstone.backend.place.application.dto.RoomPlacePageResult;
 import com.hufs.capstone.backend.place.application.dto.RoomPlaceResult;
 import com.hufs.capstone.backend.place.domain.entity.PlaceBusinessHours;
@@ -129,6 +131,53 @@ public class RoomPlaceQueryService {
 		PlaceBusinessHours cache = placeBusinessHoursRepository.findByKakaoPlaceId(roomPlace.getKakaoPlaceId())
 				.orElse(null);
 		return RoomPlaceResult.from(roomPlace, toBusinessHoursResult(cache), sourceUrl(roomPlace));
+	}
+
+	@Transactional(readOnly = true)
+	public MyRoomPlacePageResult searchMyRoomPlaces(
+			Long userId,
+			String keyword,
+			String categoryCode,
+			String tagCode,
+			String sidoCode,
+			String sigunguCode,
+			Integer page,
+			Integer limit,
+			Integer size
+	) {
+		int normalizedPage = page == null ? DEFAULT_PAGE : page;
+		int normalizedLimit = resolveLimit(limit, size);
+		if (normalizedPage < 0) {
+			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "page must be greater than or equal to 0.");
+		}
+		if (normalizedLimit < 1 || normalizedLimit > MAX_LIMIT) {
+			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "limit must be between 1 and 100.");
+		}
+		RegionFilter regionFilter = regionQueryService.validateFilter(sidoCode, sigunguCode);
+		String normalizedKeyword = PlaceSearchText.normalizeKeyword(keyword);
+		Page<RoomPlace> result = roomPlaceRepository.searchMyRoomPlaces(
+				userId,
+				normalizedKeyword,
+				PlaceSearchText.initialKeyword(keyword),
+				trimToNull(categoryCode),
+				normalizeTagCode(tagCode),
+				regionFilter.sidoCode(),
+				regionFilter.sigunguCode(),
+				PageRequest.of(normalizedPage, normalizedLimit, Sort.by(Sort.Direction.DESC, "createdAt", "id"))
+		);
+		Map<String, PlaceBusinessHours> cachesByKakaoPlaceId = findCaches(result.getContent());
+		return new MyRoomPlacePageResult(
+				result.getContent().stream()
+						.map(roomPlace -> MyRoomPlaceResult.from(
+								roomPlace,
+								toBusinessHoursResult(cachesByKakaoPlaceId.get(roomPlace.getKakaoPlaceId()))
+						))
+						.toList(),
+				normalizedPage,
+				normalizedLimit,
+				result.getTotalElements(),
+				result.getTotalPages()
+		);
 	}
 
 	private void validateCreatedByFilter(Room room, Long createdBy) {
