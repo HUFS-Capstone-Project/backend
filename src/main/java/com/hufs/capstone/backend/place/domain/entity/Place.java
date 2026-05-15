@@ -79,9 +79,6 @@ public class Place extends AuditableEntity {
 	@Column(name = "search_text", length = 2000)
 	private String searchText;
 
-	@Column(name = "initial_consonants", length = 500)
-	private String initialConsonants;
-
 	@ManyToOne(fetch = FetchType.LAZY, optional = false)
 	@JoinColumn(name = "service_category_id", nullable = false)
 	private PlaceCategory serviceCategory;
@@ -151,15 +148,6 @@ public class Place extends AuditableEntity {
 				serviceCategory == null ? null : serviceCategory.getCode(),
 				serviceTag == null ? null : serviceTag.getName(),
 				serviceTag == null ? null : serviceTag.getCode()
-		);
-		this.initialConsonants = PlaceSearchText.buildInitialConsonants(
-				name,
-				address,
-				roadAddress,
-				categoryName,
-				categoryGroupName,
-				serviceCategory == null ? null : serviceCategory.getName(),
-				serviceTag == null ? null : serviceTag.getName()
 		);
 	}
 

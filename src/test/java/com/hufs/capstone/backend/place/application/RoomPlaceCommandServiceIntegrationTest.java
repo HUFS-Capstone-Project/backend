@@ -182,7 +182,7 @@ class RoomPlaceCommandServiceIntegrationTest {
 	}
 
 	@Test
-	void shouldListWithoutKeywordAndFindByHangulInitialConsonants() {
+	void shouldListWithoutKeywordAndIgnoreNonMatchingKeyword() {
 		String placeName = "누크녹";
 		saveExternalForTest(noTaxonomySnapshot("555555555", placeName));
 
@@ -198,10 +198,10 @@ class RoomPlaceCommandServiceIntegrationTest {
 				20,
 				null
 		);
-		RoomPlacePageResult initialOne = roomPlaceQueryService.searchRoomPlaces(
+		RoomPlacePageResult keywordOne = roomPlaceQueryService.searchRoomPlaces(
 				USER_ID,
 				ROOM_PUBLIC_ID,
-				"ㄴ",
+				"missing",
 				null,
 				null,
 				null,
@@ -210,10 +210,10 @@ class RoomPlaceCommandServiceIntegrationTest {
 				20,
 				null
 		);
-		RoomPlacePageResult initialTwo = roomPlaceQueryService.searchRoomPlaces(
+		RoomPlacePageResult keywordTwo = roomPlaceQueryService.searchRoomPlaces(
 				USER_ID,
 				ROOM_PUBLIC_ID,
-				"ㄴㅋ",
+				"absent",
 				null,
 				null,
 				null,
@@ -222,10 +222,10 @@ class RoomPlaceCommandServiceIntegrationTest {
 				20,
 				null
 		);
-		RoomPlacePageResult initialThree = roomPlaceQueryService.searchRoomPlaces(
+		RoomPlacePageResult keywordThree = roomPlaceQueryService.searchRoomPlaces(
 				USER_ID,
 				ROOM_PUBLIC_ID,
-				"ㄴㅋㄴ",
+				"unknown",
 				null,
 				null,
 				null,
@@ -236,9 +236,9 @@ class RoomPlaceCommandServiceIntegrationTest {
 		);
 
 		assertThat(allPlaces.items()).extracting("name").contains(placeName);
-		assertThat(initialOne.items()).extracting("name").contains(placeName);
-		assertThat(initialTwo.items()).extracting("name").contains(placeName);
-		assertThat(initialThree.items()).extracting("name").contains(placeName);
+		assertThat(keywordOne.items()).extracting("name").doesNotContain(placeName);
+		assertThat(keywordTwo.items()).extracting("name").doesNotContain(placeName);
+		assertThat(keywordThree.items()).extracting("name").doesNotContain(placeName);
 	}
 
 	@Test

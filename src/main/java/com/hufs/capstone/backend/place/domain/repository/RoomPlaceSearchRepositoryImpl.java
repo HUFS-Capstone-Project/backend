@@ -40,7 +40,6 @@ public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository 
 	public Page<RoomPlace> searchRoomPlaces(
 			Long roomId,
 			String keyword,
-			String initialKeyword,
 			String categoryCode,
 			String tagCode,
 			String sidoCode,
@@ -51,7 +50,7 @@ public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository 
 		List<RoomPlace> content = baseRoomPlaceQuery()
 				.where(
 						roomIdEq(roomId),
-						keywordContains(keyword, initialKeyword),
+						keywordContains(keyword),
 						categoryCodeEq(categoryCode),
 						tagCodeEq(tagCode),
 						sidoCodeEq(sidoCode),
@@ -71,7 +70,7 @@ public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository 
 				.join(PLACE.serviceTag, TAG)
 				.where(
 						roomIdEq(roomId),
-						keywordContains(keyword, initialKeyword),
+						keywordContains(keyword),
 						categoryCodeEq(categoryCode),
 						tagCodeEq(tagCode),
 						sidoCodeEq(sidoCode),
@@ -86,7 +85,6 @@ public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository 
 	public Page<RoomPlace> searchMyRoomPlaces(
 			Long userId,
 			String keyword,
-			String initialKeyword,
 			String categoryCode,
 			String tagCode,
 			String sidoCode,
@@ -97,7 +95,7 @@ public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository 
 				.where(
 						createdByEq(userId),
 						memberExists(userId),
-						keywordContains(keyword, initialKeyword),
+						keywordContains(keyword),
 						categoryCodeEq(categoryCode),
 						tagCodeEq(tagCode),
 						sidoCodeEq(sidoCode),
@@ -117,7 +115,7 @@ public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository 
 				.where(
 						createdByEq(userId),
 						memberExists(userId),
-						keywordContains(keyword, initialKeyword),
+						keywordContains(keyword),
 						categoryCodeEq(categoryCode),
 						tagCodeEq(tagCode),
 						sidoCodeEq(sidoCode),
@@ -215,20 +213,16 @@ public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository 
 				.exists();
 	}
 
-	private static BooleanExpression keywordContains(String keyword, String initialKeyword) {
+	private static BooleanExpression keywordContains(String keyword) {
 		if (!StringUtils.hasText(keyword)) {
 			return null;
 		}
-		BooleanExpression predicate = containsIgnoreCase(PLACE.searchText, keyword)
+		return containsIgnoreCase(PLACE.searchText, keyword)
 				.or(containsIgnoreCase(PLACE.name, keyword))
 				.or(containsIgnoreCase(PLACE.address, keyword))
 				.or(containsIgnoreCase(PLACE.roadAddress, keyword))
 				.or(containsIgnoreCase(PLACE.categoryName, keyword))
 				.or(containsIgnoreCase(ROOM_PLACE.memo, keyword));
-		if (StringUtils.hasText(initialKeyword)) {
-			predicate = predicate.or(PLACE.initialConsonants.contains(initialKeyword));
-		}
-		return predicate;
 	}
 
 	private static BooleanExpression containsIgnoreCase(StringPath path, String keyword) {

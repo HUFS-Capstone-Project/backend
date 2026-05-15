@@ -111,7 +111,6 @@ public class RoomPlaceQueryService {
 		Page<RoomPlace> result = roomPlaceRepository.searchRoomPlaces(
 				room.getId(),
 				normalizedKeyword,
-				PlaceSearchText.initialKeyword(keyword),
 				trimToNull(categoryCode),
 				normalizeTagCode(tagCode),
 				regionFilter.sidoCode(),
@@ -181,7 +180,6 @@ public class RoomPlaceQueryService {
 		Page<RoomPlace> result = roomPlaceRepository.searchMyRoomPlaces(
 				userId,
 				normalizedKeyword,
-				PlaceSearchText.initialKeyword(keyword),
 				trimToNull(categoryCode),
 				normalizeTagCode(tagCode),
 				regionFilter.sidoCode(),

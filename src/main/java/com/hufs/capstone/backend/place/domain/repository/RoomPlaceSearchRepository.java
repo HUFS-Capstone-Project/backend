@@ -12,7 +12,6 @@ public interface RoomPlaceSearchRepository {
 	Page<RoomPlace> searchRoomPlaces(
 			Long roomId,
 			String keyword,
-			String initialKeyword,
 			String categoryCode,
 			String tagCode,
 			String sidoCode,
@@ -24,7 +23,6 @@ public interface RoomPlaceSearchRepository {
 	Page<RoomPlace> searchMyRoomPlaces(
 			Long userId,
 			String keyword,
-			String initialKeyword,
 			String categoryCode,
 			String tagCode,
 			String sidoCode,
