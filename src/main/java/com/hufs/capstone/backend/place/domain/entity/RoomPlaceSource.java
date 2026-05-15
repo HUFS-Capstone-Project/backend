@@ -14,7 +14,6 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
-import java.math.BigDecimal;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -50,18 +49,6 @@ public class RoomPlaceSource extends AuditableEntity {
 	@Column(name = "created_by_user_id", nullable = false)
 	private Long createdByUserId;
 
-	@Column(precision = 5, scale = 4)
-	private BigDecimal confidence;
-
-	@Column(length = 255)
-	private String query;
-
-	@Column(length = 500)
-	private String evidenceText;
-
-	@Column(columnDefinition = "text")
-	private String originalText;
-
 	private RoomPlaceSource(
 			RoomPlace roomPlace,
 			RoomLink roomLink,
@@ -73,10 +60,6 @@ public class RoomPlaceSource extends AuditableEntity {
 		this.roomLink = roomLink;
 		this.sourceType = sourceType;
 		this.createdByUserId = createdByUserId;
-		this.confidence = snapshot.confidence();
-		this.query = trimToNull(snapshot.query());
-		this.evidenceText = trimToNull(snapshot.evidenceText());
-		this.originalText = trimToNull(snapshot.originalText());
 	}
 
 	public static RoomPlaceSource create(
@@ -90,13 +73,5 @@ public class RoomPlaceSource extends AuditableEntity {
 			throw new IllegalArgumentException("Room place source required values are missing.");
 		}
 		return new RoomPlaceSource(roomPlace, roomLink, sourceType, createdByUserId, snapshot);
-	}
-
-	private static String trimToNull(String value) {
-		if (value == null) {
-			return null;
-		}
-		String trimmed = value.trim();
-		return trimmed.isEmpty() ? null : trimmed;
 	}
 }

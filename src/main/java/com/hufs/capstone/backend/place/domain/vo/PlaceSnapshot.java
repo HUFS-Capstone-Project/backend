@@ -10,17 +10,12 @@ public record PlaceSnapshot(
 		String name,
 		String categoryName,
 		String categoryGroupCode,
-		String categoryGroupName,
 		String phone,
 		String address,
 		String roadAddress,
 		BigDecimal longitude,
 		BigDecimal latitude,
-		String placeUrl,
-		BigDecimal confidence,
-		String query,
-		String evidenceText,
-		String originalText
+		String placeUrl
 ) {
 
 	public static PlaceSnapshot kakao(
@@ -28,17 +23,12 @@ public record PlaceSnapshot(
 			String name,
 			String categoryName,
 			String categoryGroupCode,
-			String categoryGroupName,
 			String phone,
 			String address,
 			String roadAddress,
 			BigDecimal longitude,
 			BigDecimal latitude,
-			String placeUrl,
-			BigDecimal confidence,
-			String query,
-			String evidenceText,
-			String originalText
+			String placeUrl
 	) {
 		return new PlaceSnapshot(
 				PlaceSource.KAKAO,
@@ -47,17 +37,12 @@ public record PlaceSnapshot(
 				name,
 				categoryName,
 				categoryGroupCode,
-				categoryGroupName,
 				phone,
 				address,
 				roadAddress,
 				longitude,
 				latitude,
-				placeUrl,
-				confidence,
-				query,
-				evidenceText,
-				originalText
+				placeUrl
 		);
 	}
 

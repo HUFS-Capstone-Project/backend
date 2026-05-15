@@ -47,9 +47,6 @@ public class LinkCandidate extends AuditableEntity {
 	@Column(name = "category_group_code", length = 50)
 	private String categoryGroupCode;
 
-	@Column(name = "category_group_name", length = 100)
-	private String categoryGroupName;
-
 	@Column(length = 100)
 	private String phone;
 
@@ -67,18 +64,6 @@ public class LinkCandidate extends AuditableEntity {
 
 	@Column(name = "place_url", length = 2048)
 	private String placeUrl;
-
-	@Column(precision = 5, scale = 4)
-	private BigDecimal confidence;
-
-	@Column(length = 255)
-	private String query;
-
-	@Column(length = 500)
-	private String evidenceText;
-
-	@Column(columnDefinition = "text")
-	private String originalText;
 
 	private LinkCandidate(Link link, Integer candidateOrder, PlaceCandidateSnapshot snapshot) {
 		this.link = link;
@@ -99,17 +84,12 @@ public class LinkCandidate extends AuditableEntity {
 				placeName,
 				categoryName,
 				categoryGroupCode,
-				categoryGroupName,
 				phone,
 				addressName,
 				roadAddressName,
 				longitude,
 				latitude,
-				placeUrl,
-				confidence,
-				query,
-				evidenceText,
-				originalText
+				placeUrl
 		);
 	}
 
@@ -118,17 +98,12 @@ public class LinkCandidate extends AuditableEntity {
 		this.placeName = trimToNull(snapshot.placeName());
 		this.categoryName = trimToNull(snapshot.categoryName());
 		this.categoryGroupCode = trimToNull(snapshot.categoryGroupCode());
-		this.categoryGroupName = trimToNull(snapshot.categoryGroupName());
 		this.phone = trimToNull(snapshot.phone());
 		this.addressName = trimToNull(snapshot.addressName());
 		this.roadAddressName = trimToNull(snapshot.roadAddressName());
 		this.longitude = snapshot.longitude();
 		this.latitude = snapshot.latitude();
 		this.placeUrl = trimToNull(snapshot.placeUrl());
-		this.confidence = snapshot.confidence();
-		this.query = trimToNull(snapshot.query());
-		this.evidenceText = trimToNull(snapshot.evidenceText());
-		this.originalText = trimToNull(snapshot.originalText());
 	}
 
 	private static String trimToNull(String value) {

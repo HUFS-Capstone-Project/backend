@@ -16,7 +16,6 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
-import java.math.BigDecimal;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -62,18 +61,6 @@ public class RoomPlace extends AuditableEntity {
 	@JoinColumn(name = "source_room_link_id")
 	private RoomLink sourceRoomLink;
 
-	@Column(precision = 5, scale = 4)
-	private BigDecimal confidence;
-
-	@Column(length = 255)
-	private String query;
-
-	@Column(length = 500)
-	private String evidenceText;
-
-	@Column(columnDefinition = "text")
-	private String originalText;
-
 	@Column(name = "sido_code", length = 2)
 	private String sidoCode;
 
@@ -102,10 +89,6 @@ public class RoomPlace extends AuditableEntity {
 		this.memo = trimToNull(memo);
 		this.sourceType = sourceType;
 		this.sourceRoomLink = sourceRoomLink;
-		this.confidence = snapshot.confidence();
-		this.query = trimToNull(snapshot.query());
-		this.evidenceText = trimToNull(snapshot.evidenceText());
-		this.originalText = trimToNull(snapshot.originalText());
 		applyRegion(region);
 	}
 

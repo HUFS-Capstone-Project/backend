@@ -59,9 +59,6 @@ public class RoomLinkCandidateOverride extends AuditableEntity {
 	private String categoryGroupCode;
 
 	@Column(length = 100)
-	private String categoryGroupName;
-
-	@Column(length = 100)
 	private String phone;
 
 	@Column(length = 500)
@@ -78,9 +75,6 @@ public class RoomLinkCandidateOverride extends AuditableEntity {
 
 	@Column(length = 2048)
 	private String placeUrl;
-
-	@Column(length = 255)
-	private String query;
 
 	@Version
 	@Column(nullable = false)
@@ -118,14 +112,12 @@ public class RoomLinkCandidateOverride extends AuditableEntity {
 		this.name = trimToNull(snapshot.name());
 		this.categoryName = trimToNull(snapshot.categoryName());
 		this.categoryGroupCode = trimToNull(snapshot.categoryGroupCode());
-		this.categoryGroupName = trimToNull(snapshot.categoryGroupName());
 		this.phone = trimToNull(snapshot.phone());
 		this.address = trimToNull(snapshot.address());
 		this.roadAddress = trimToNull(snapshot.roadAddress());
 		this.longitude = snapshot.longitude();
 		this.latitude = snapshot.latitude();
 		this.placeUrl = trimToNull(snapshot.placeUrl());
-		this.query = trimToNull(snapshot.query());
 	}
 
 	public PlaceSnapshot toSnapshot() {
@@ -134,17 +126,12 @@ public class RoomLinkCandidateOverride extends AuditableEntity {
 				name,
 				categoryName,
 				categoryGroupCode,
-				categoryGroupName,
 				phone,
 				address,
 				roadAddress,
 				longitude,
 				latitude,
-				placeUrl,
-				null,
-				query,
-				null,
-				null
+				placeUrl
 		);
 	}
 

@@ -51,7 +51,7 @@ public class LinkPlaceCandidateSnapshotMapper {
 	private PlaceCandidateSnapshot fromProcessingCandidate(ResolvedPlaceResponse candidate) {
 		if (candidate == null) {
 			return new PlaceCandidateSnapshot(
-					null, null, null, null, null, null, null, null, null, null, null, null, null, null, null
+					null, null, null, null, null, null, null, null, null, null
 			);
 		}
 		return new PlaceCandidateSnapshot(
@@ -59,17 +59,12 @@ public class LinkPlaceCandidateSnapshotMapper {
 				trimToNull(candidate.placeName()),
 				trimToNull(candidate.categoryName()),
 				trimToNull(candidate.categoryGroupCode()),
-				null,
 				trimToNull(candidate.phone()),
 				trimToNull(candidate.address()),
 				trimToNull(candidate.roadAddress()),
 				candidate.longitude(),
 				candidate.latitude(),
-				trimToNull(candidate.placeUrl()),
-				null,
-				null,
-				null,
-				null
+				trimToNull(candidate.placeUrl())
 		);
 	}
 

@@ -84,17 +84,12 @@ public class KakaoLocalClientImpl implements KakaoLocalClient {
 				trimToNull(document.placeName()),
 				trimToNull(document.categoryName()),
 				trimToNull(document.categoryGroupCode()),
-				trimToNull(document.categoryGroupName()),
 				trimToNull(document.phone()),
 				trimToNull(document.addressName()),
 				trimToNull(document.roadAddressName()),
 				parseDecimal(document.x()),
 				parseDecimal(document.y()),
-				trimToNull(document.placeUrl()),
-				null,
-				null,
-				null,
-				null
+				trimToNull(document.placeUrl())
 		);
 	}
 

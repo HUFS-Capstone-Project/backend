@@ -1044,17 +1044,12 @@ class LinkConcurrencyIntegrationTest {
 				placeName,
 				"Food > Cafe",
 				"CE7",
-				"Cafe",
 				"02-111-1111",
 				"Seoul Dongdaemun-gu",
 				"HUFS Road 1",
 				new BigDecimal("127.058000000000"),
 				new BigDecimal("37.596000000000"),
-				"https://place.map.kakao.com/" + kakaoPlaceId,
-				null,
-				"A Twosome Place",
-				null,
-				null
+				"https://place.map.kakao.com/" + kakaoPlaceId
 		);
 	}
 

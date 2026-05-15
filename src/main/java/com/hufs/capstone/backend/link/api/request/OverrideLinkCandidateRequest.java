@@ -40,9 +40,6 @@ public record OverrideLinkCandidateRequest(
 		String categoryGroupCode,
 
 		@Size(max = 100)
-		String categoryGroupName,
-
-		@Size(max = 100)
 		String phone,
 
 		@Size(max = 2048)
@@ -55,17 +52,12 @@ public record OverrideLinkCandidateRequest(
 				name,
 				categoryName,
 				categoryGroupCode,
-				categoryGroupName,
 				phone,
 				address,
 				roadAddress,
 				longitude,
 				latitude,
-				placeUrl,
-				null,
-				null,
-				null,
-				null
+				placeUrl
 		);
 	}
 }

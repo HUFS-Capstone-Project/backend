@@ -9,16 +9,11 @@ public record PlaceCandidateSnapshot(
 		String placeName,
 		String categoryName,
 		String categoryGroupCode,
-		String categoryGroupName,
 		String phone,
 		String addressName,
 		String roadAddressName,
 		BigDecimal longitude,
 		BigDecimal latitude,
-		String placeUrl,
-		BigDecimal confidence,
-		String query,
-		String evidenceText,
-		String originalText
+		String placeUrl
 ) {
 }

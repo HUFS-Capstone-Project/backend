@@ -44,8 +44,7 @@ class LinkAnalysisResultAssemblerTest {
 				    "kakaoPlaceId": "123",
 				    "placeName": "Red Button",
 				    "categoryName": "\uAC00\uC815,\uC0DD\uD65C > \uC5EC\uAC00\uC2DC\uC124 > \uBCF4\uB4DC\uCE74\uD398 > \uB808\uB4DC\uBC84\uD2BC",
-				    "categoryGroupCode": "CE7",
-				    "categoryGroupName": "\uCE74\uD398"
+				    "categoryGroupCode": "CE7"
 				  }
 				]
 				""");

@@ -723,17 +723,12 @@ class RoomPlaceCommandServiceIntegrationTest {
 				name,
 				"음식점 > 일식 > 돈까스",
 				"FD6",
-				"음식점",
 				"02-000-0000",
 				"서울시 종로구",
 				"종로 1",
 				new BigDecimal("126.972000000000"),
 				new BigDecimal("37.570000000000"),
-				"https://place.map.kakao.com/" + kakaoPlaceId,
-				null,
-				null,
-				null,
-				null
+				"https://place.map.kakao.com/" + kakaoPlaceId
 		);
 	}
 
@@ -741,11 +736,6 @@ class RoomPlaceCommandServiceIntegrationTest {
 		return PlaceSnapshot.kakao(
 				kakaoPlaceId,
 				" ",
-				null,
-				null,
-				null,
-				null,
-				null,
 				null,
 				null,
 				null,
@@ -763,17 +753,12 @@ class RoomPlaceCommandServiceIntegrationTest {
 				name,
 				"음식점 > 카페 > 베이커리",
 				"CE7",
-				"카페",
 				"02-111-1111",
 				"서울시 종로구",
 				"종로 2",
 				new BigDecimal("126.973000000000"),
 				new BigDecimal("37.571000000000"),
-				"https://place.map.kakao.com/" + kakaoPlaceId,
-				null,
-				null,
-				null,
-				null
+				"https://place.map.kakao.com/" + kakaoPlaceId
 		);
 	}
 
@@ -781,11 +766,6 @@ class RoomPlaceCommandServiceIntegrationTest {
 		return PlaceSnapshot.kakao(
 				kakaoPlaceId,
 				name,
-				null,
-				null,
-				null,
-				null,
-				null,
 				null,
 				null,
 				null,
@@ -804,13 +784,8 @@ class RoomPlaceCommandServiceIntegrationTest {
 				null,
 				null,
 				null,
-				null,
 				address,
 				address,
-				null,
-				null,
-				null,
-				null,
 				null,
 				null,
 				null

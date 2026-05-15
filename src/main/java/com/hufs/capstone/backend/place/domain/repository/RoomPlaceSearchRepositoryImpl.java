@@ -217,11 +217,14 @@ public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository 
 		if (!StringUtils.hasText(keyword)) {
 			return null;
 		}
-		return containsIgnoreCase(PLACE.searchText, keyword)
-				.or(containsIgnoreCase(PLACE.name, keyword))
+		return containsIgnoreCase(PLACE.name, keyword)
 				.or(containsIgnoreCase(PLACE.address, keyword))
 				.or(containsIgnoreCase(PLACE.roadAddress, keyword))
 				.or(containsIgnoreCase(PLACE.categoryName, keyword))
+				.or(containsIgnoreCase(CATEGORY.name, keyword))
+				.or(containsIgnoreCase(CATEGORY.code, keyword))
+				.or(containsIgnoreCase(TAG.name, keyword))
+				.or(containsIgnoreCase(TAG.code, keyword))
 				.or(containsIgnoreCase(ROOM_PLACE.memo, keyword));
 	}
 

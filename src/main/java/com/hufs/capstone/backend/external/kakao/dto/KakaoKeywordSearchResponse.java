@@ -18,8 +18,6 @@ public record KakaoKeywordSearchResponse(
 			String categoryName,
 			@JsonProperty("category_group_code")
 			String categoryGroupCode,
-			@JsonProperty("category_group_name")
-			String categoryGroupName,
 			String phone,
 			@JsonProperty("address_name")
 			String addressName,

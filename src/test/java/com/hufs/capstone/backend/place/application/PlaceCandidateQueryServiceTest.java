@@ -122,17 +122,12 @@ class PlaceCandidateQueryServiceTest {
 				name,
 				"음식점 > 카페",
 				"CE7",
-				"카페",
 				null,
 				null,
 				null,
 				null,
 				null,
-				kakaoPlaceId == null ? null : "https://place.map.kakao.com/" + kakaoPlaceId,
-				null,
-				null,
-				null,
-				null
+				kakaoPlaceId == null ? null : "https://place.map.kakao.com/" + kakaoPlaceId
 		);
 	}
 }

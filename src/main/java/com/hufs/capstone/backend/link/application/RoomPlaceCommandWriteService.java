@@ -202,17 +202,12 @@ public class RoomPlaceCommandWriteService {
 				candidate.placeName(),
 				candidate.categoryName(),
 				candidate.categoryGroupCode(),
-				candidate.categoryGroupName(),
 				candidate.phone(),
 				candidate.addressName(),
 				candidate.roadAddressName(),
 				candidate.longitude(),
 				candidate.latitude(),
-				candidate.placeUrl(),
-				candidate.confidence(),
-				candidate.query(),
-				candidate.evidenceText(),
-				candidate.originalText()
+				candidate.placeUrl()
 		);
 	}
 

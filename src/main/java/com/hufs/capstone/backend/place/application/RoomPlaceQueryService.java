@@ -14,7 +14,6 @@ import com.hufs.capstone.backend.place.domain.entity.RoomPlaceMemo;
 import com.hufs.capstone.backend.place.domain.repository.PlaceBusinessHoursRepository;
 import com.hufs.capstone.backend.place.domain.repository.RoomPlaceMemoRepository;
 import com.hufs.capstone.backend.place.domain.repository.RoomPlaceRepository;
-import com.hufs.capstone.backend.place.domain.vo.PlaceSearchText;
 import com.hufs.capstone.backend.region.application.RegionQueryService;
 import com.hufs.capstone.backend.region.application.dto.RegionFilter;
 import com.hufs.capstone.backend.room.application.RoomAccessService;
@@ -107,10 +106,9 @@ public class RoomPlaceQueryService {
 			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "limit must be between 1 and 100.");
 		}
 		RegionFilter regionFilter = regionQueryService.validateFilter(sidoCode, sigunguCode);
-		String normalizedKeyword = PlaceSearchText.normalizeKeyword(keyword);
 		Page<RoomPlace> result = roomPlaceRepository.searchRoomPlaces(
 				room.getId(),
-				normalizedKeyword,
+				trimToNull(keyword),
 				trimToNull(categoryCode),
 				normalizeTagCode(tagCode),
 				regionFilter.sidoCode(),
@@ -176,10 +174,9 @@ public class RoomPlaceQueryService {
 			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "limit must be between 1 and 100.");
 		}
 		RegionFilter regionFilter = regionQueryService.validateFilter(sidoCode, sigunguCode);
-		String normalizedKeyword = PlaceSearchText.normalizeKeyword(keyword);
 		Page<RoomPlace> result = roomPlaceRepository.searchMyRoomPlaces(
 				userId,
-				normalizedKeyword,
+				trimToNull(keyword),
 				trimToNull(categoryCode),
 				normalizeTagCode(tagCode),
 				regionFilter.sidoCode(),

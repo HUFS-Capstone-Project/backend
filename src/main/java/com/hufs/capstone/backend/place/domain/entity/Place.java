@@ -2,7 +2,6 @@ package com.hufs.capstone.backend.place.domain.entity;
 
 import com.hufs.capstone.backend.global.common.entity.AuditableEntity;
 import com.hufs.capstone.backend.place.domain.enums.PlaceSource;
-import com.hufs.capstone.backend.place.domain.vo.PlaceSearchText;
 import com.hufs.capstone.backend.place.domain.vo.PlaceSnapshot;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -55,9 +54,6 @@ public class Place extends AuditableEntity {
 	@Column(name = "category_group_code", length = 50)
 	private String categoryGroupCode;
 
-	@Column(name = "category_group_name", length = 100)
-	private String categoryGroupName;
-
 	@Column(length = 100)
 	private String phone;
 
@@ -76,9 +72,6 @@ public class Place extends AuditableEntity {
 	@Column(name = "place_url", length = 2048)
 	private String placeUrl;
 
-	@Column(name = "search_text", length = 2000)
-	private String searchText;
-
 	@ManyToOne(fetch = FetchType.LAZY, optional = false)
 	@JoinColumn(name = "service_category_id", nullable = false)
 	private PlaceCategory serviceCategory;
@@ -94,7 +87,6 @@ public class Place extends AuditableEntity {
 		this.serviceCategory = serviceCategory;
 		this.serviceTag = serviceTag;
 		applySnapshot(snapshot);
-		refreshSearchFields();
 	}
 
 	public static Place create(PlaceSnapshot snapshot, PlaceCategory serviceCategory, PlaceTag serviceTag) {
@@ -119,14 +111,12 @@ public class Place extends AuditableEntity {
 			this.serviceCategory = serviceCategory;
 			this.serviceTag = serviceTag;
 		}
-		refreshSearchFields();
 	}
 
 	private void applySnapshot(PlaceSnapshot snapshot) {
 		this.name = chooseText(this.name, snapshot.name());
 		this.categoryName = chooseText(this.categoryName, snapshot.categoryName());
 		this.categoryGroupCode = chooseText(this.categoryGroupCode, snapshot.categoryGroupCode());
-		this.categoryGroupName = chooseText(this.categoryGroupName, snapshot.categoryGroupName());
 		this.phone = chooseText(this.phone, snapshot.phone());
 		this.address = chooseText(this.address, snapshot.address());
 		this.roadAddress = chooseText(this.roadAddress, snapshot.roadAddress());
@@ -135,20 +125,6 @@ public class Place extends AuditableEntity {
 			this.longitude = snapshot.longitude();
 			this.latitude = snapshot.latitude();
 		}
-	}
-
-	private void refreshSearchFields() {
-		this.searchText = PlaceSearchText.buildSearchText(
-				name,
-				address,
-				roadAddress,
-				categoryName,
-				categoryGroupName,
-				serviceCategory == null ? null : serviceCategory.getName(),
-				serviceCategory == null ? null : serviceCategory.getCode(),
-				serviceTag == null ? null : serviceTag.getName(),
-				serviceTag == null ? null : serviceTag.getCode()
-		);
 	}
 
 	private static String chooseText(String current, String next) {
