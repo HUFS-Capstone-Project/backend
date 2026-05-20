@@ -375,6 +375,9 @@ public class BusinessHoursDisplayResolver {
 		int hour = Integer.parseInt(matcher.group(1));
 		String minuteGroup = matcher.group(2);
 		int minute = minuteGroup == null ? 0 : Integer.parseInt(minuteGroup);
+		if (hour == 24 && minute == 0) {
+			return LocalTime.MIDNIGHT;
+		}
 		if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
 			return null;
 		}

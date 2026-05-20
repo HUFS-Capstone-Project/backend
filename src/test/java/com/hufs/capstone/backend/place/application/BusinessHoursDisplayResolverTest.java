@@ -110,6 +110,22 @@ class BusinessHoursDisplayResolverTest {
 	}
 
 	@Test
+	void shouldResolveMidnightCloseWrittenAs24Hours() {
+		BusinessHoursDisplayResult result = resolverAt("2026-05-20T08:00:00Z").resolve("""
+				{"daily_hours":[
+				  {"day":"수","raw":"12:00 ~ 24:00","date":"5/20","open":"12:00","close":"24:00"},
+				  {"day":"목","raw":"12:00 ~ 24:00","date":"5/21","open":"12:00","close":"24:00"},
+				  {"day":"금","raw":"12:00 ~ 01:00","date":"5/22","open":"12:00","close":"01:00"}
+				]}
+				""", BusinessHoursStatus.SUCCEEDED);
+
+		assertThat(result.businessStatus()).isEqualTo(BusinessStatus.OPEN);
+		assertThat(result.statusDisplayText()).isEqualTo("영업 중 · 00:00 영업 종료");
+		assertThat(result.todayDisplayText()).isEqualTo("오늘 12:00 - 00:00");
+		assertThat(result.nextCloseAt()).hasToString("2026-05-21T00:00+09:00");
+	}
+
+	@Test
 	void shouldReturnNullWhenCacheIsMissingOrNotSucceeded() {
 		assertThat(resolverAt("2026-05-12T04:00:00Z").resolve(null, BusinessHoursStatus.SUCCEEDED)).isNull();
 		assertThat(resolverAt("2026-05-12T04:00:00Z").resolve(weekly("11:30", "21:00"),
