@@ -2,6 +2,7 @@ package com.hufs.capstone.backend.link.application;
 
 import com.hufs.capstone.backend.link.application.dto.LinkAnalysisResult;
 import com.hufs.capstone.backend.link.application.dto.LinkPlaceResult;
+import com.hufs.capstone.backend.link.application.dto.LinkStatsResult;
 import com.hufs.capstone.backend.link.domain.entity.Link;
 import com.hufs.capstone.backend.link.domain.entity.LinkCandidate;
 import com.hufs.capstone.backend.link.domain.entity.RoomLinkCandidateOverride;
@@ -38,7 +39,9 @@ public class LinkAnalysisResultAssembler {
 		return new LinkAnalysisResult(
 				link.getId(),
 				link.getStatus(),
-				link.getCaptionRaw(),
+				link.getOriginalUrl(),
+				link.getContentText(),
+				new LinkStatsResult(link.getLikeCount(), link.getCommentCount(), link.getPostedAt()),
 				link.getExtractionStoreName(),
 				link.getExtractionAddress(),
 				link.getExtractionCertainty(),
@@ -71,7 +74,9 @@ public class LinkAnalysisResultAssembler {
 		LinkAnalysisResult overlaidResult = new LinkAnalysisResult(
 				result.linkId(),
 				result.status(),
-				result.captionRaw(),
+				result.sourceUrl(),
+				result.contentText(),
+				result.linkStats(),
 				result.extractionStoreName(),
 				result.extractionAddress(),
 				result.extractionCertainty(),
@@ -91,7 +96,9 @@ public class LinkAnalysisResultAssembler {
 		return new LinkAnalysisResult(
 				result.linkId(),
 				result.status(),
-				result.captionRaw(),
+				result.sourceUrl(),
+				result.contentText(),
+				result.linkStats(),
 				result.extractionStoreName(),
 				result.extractionAddress(),
 				result.extractionCertainty(),

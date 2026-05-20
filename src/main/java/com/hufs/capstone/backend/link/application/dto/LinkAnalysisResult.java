@@ -6,7 +6,9 @@ import java.util.List;
 public record LinkAnalysisResult(
 		Long linkId,
 		LinkAnalysisStatus status,
-		String captionRaw,
+		String sourceUrl,
+		String contentText,
+		LinkStatsResult linkStats,
 		String extractionStoreName,
 		String extractionAddress,
 		String extractionCertainty,
@@ -18,10 +20,22 @@ public record LinkAnalysisResult(
 	public LinkAnalysisResult(
 			Long linkId,
 			LinkAnalysisStatus status,
-			String captionRaw,
+			String contentText,
 			String errorCode,
 			String errorMessage
 	) {
-		this(linkId, status, captionRaw, null, null, null, List.of(), errorCode, errorMessage);
+		this(
+				linkId,
+				status,
+				null,
+				contentText,
+				new LinkStatsResult(null, null, null),
+				null,
+				null,
+				null,
+				List.of(),
+				errorCode,
+				errorMessage
+		);
 	}
 }

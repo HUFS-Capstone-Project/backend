@@ -37,7 +37,7 @@ class LinkAnalysisResultAssemblerTest {
 	void shouldIncludeServiceCategoryForExtractedCandidatePlaces() {
 		Link link = Link.register("https://example.com/p/1", "https://example.com/p/1", "job-1");
 		ReflectionTestUtils.setField(link, "id", 1L);
-		link.markSucceeded("caption");
+		link.markSucceeded("content");
 		ReflectionTestUtils.setField(link, "extractedPlacesJson", """
 				[
 				  {
@@ -56,6 +56,7 @@ class LinkAnalysisResultAssemblerTest {
 		LinkAnalysisResult result = assembler.from(link);
 
 		assertThat(result.status()).isEqualTo(LinkAnalysisStatus.SUCCEEDED);
+		assertThat(result.sourceUrl()).isEqualTo("https://example.com/p/1");
 		assertThat(result.candidatePlaces()).hasSize(1);
 		LinkPlaceResult candidate = result.candidatePlaces().get(0);
 		assertThat(candidate.categoryGroupCode()).isEqualTo("CE7");

@@ -11,10 +11,12 @@ public record ProcessingJobResultResponse(
 		String jobId,
 		@JsonProperty("status")
 		String status,
-		@JsonProperty("caption_raw")
-		String captionRaw,
-		@JsonProperty("instagram_meta")
-		InstagramMetaResponse instagramMeta,
+		@JsonProperty("source_url")
+		String sourceUrl,
+		@JsonProperty("content")
+		ContentResponse content,
+		@JsonProperty("link_stats")
+		LinkStatsResponse linkStats,
 		@JsonProperty("resolved_places")
 		List<ResolvedPlaceResponse> resolvedPlaces,
 		@JsonProperty("error_code")
@@ -24,11 +26,32 @@ public record ProcessingJobResultResponse(
 ) {
 
 	@JsonIgnoreProperties(ignoreUnknown = true)
-	public record InstagramMetaResponse(
+	public record ContentResponse(
+			@JsonProperty("source_type")
+			String sourceType,
+			@JsonProperty("content_text")
+			String contentText,
+			@JsonProperty("title")
+			String title,
+			@JsonProperty("description")
+			String description,
+			@JsonProperty("thumbnail_url")
+			String thumbnailUrl,
+			@JsonProperty("links")
+			List<String> links,
+			@JsonProperty("extraction_method")
+			String extractionMethod
+	) {
+	}
+
+	@JsonIgnoreProperties(ignoreUnknown = true)
+	public record LinkStatsResponse(
 			@JsonProperty("like_count")
 			Long likeCount,
 			@JsonProperty("comment_count")
-			Long commentCount
+			Long commentCount,
+			@JsonProperty("posted_at")
+			String postedAt
 	) {
 	}
 

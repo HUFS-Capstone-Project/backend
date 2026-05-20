@@ -224,8 +224,7 @@ public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository 
 				.or(containsIgnoreCase(CATEGORY.name, keyword))
 				.or(containsIgnoreCase(CATEGORY.code, keyword))
 				.or(containsIgnoreCase(TAG.name, keyword))
-				.or(containsIgnoreCase(TAG.code, keyword))
-				.or(containsIgnoreCase(ROOM_PLACE.memo, keyword));
+				.or(containsIgnoreCase(TAG.code, keyword));
 	}
 
 	private static BooleanExpression containsIgnoreCase(StringPath path, String keyword) {

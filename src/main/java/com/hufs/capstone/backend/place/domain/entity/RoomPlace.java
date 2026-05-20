@@ -50,9 +50,6 @@ public class RoomPlace extends AuditableEntity {
 	@Column(name = "created_by_user_id", nullable = false)
 	private Long createdByUserId;
 
-	@Column(length = 500)
-	private String memo;
-
 	@Enumerated(EnumType.STRING)
 	@Column(name = "source_type", nullable = false, length = 30)
 	private RoomPlaceSourceType sourceType;
@@ -77,7 +74,6 @@ public class RoomPlace extends AuditableEntity {
 			Room room,
 			Place place,
 			Long createdByUserId,
-			String memo,
 			RoomPlaceSourceType sourceType,
 			RoomLink sourceRoomLink,
 			PlaceSnapshot snapshot,
@@ -86,7 +82,6 @@ public class RoomPlace extends AuditableEntity {
 		this.room = room;
 		this.place = place;
 		this.createdByUserId = createdByUserId;
-		this.memo = trimToNull(memo);
 		this.sourceType = sourceType;
 		this.sourceRoomLink = sourceRoomLink;
 		applyRegion(region);
@@ -96,7 +91,6 @@ public class RoomPlace extends AuditableEntity {
 			Room room,
 			Place place,
 			Long createdByUserId,
-			String memo,
 			RoomPlaceSourceType sourceType,
 			RoomLink sourceRoomLink,
 			PlaceSnapshot snapshot,
@@ -105,11 +99,7 @@ public class RoomPlace extends AuditableEntity {
 		if (room == null || place == null || createdByUserId == null || sourceType == null || snapshot == null || region == null) {
 			throw new IllegalArgumentException("Room place required values are missing.");
 		}
-		return new RoomPlace(room, place, createdByUserId, memo, sourceType, sourceRoomLink, snapshot, region);
-	}
-
-	public void updateMemo(String memo) {
-		this.memo = trimToNull(memo);
+		return new RoomPlace(room, place, createdByUserId, sourceType, sourceRoomLink, snapshot, region);
 	}
 
 	public String getKakaoPlaceId() {

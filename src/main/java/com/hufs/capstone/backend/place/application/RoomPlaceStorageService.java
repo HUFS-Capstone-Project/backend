@@ -43,14 +43,13 @@ public class RoomPlaceStorageService {
 			Room room,
 			Long userId,
 			List<PlaceSnapshot> snapshots,
-			String memo,
 			RoomPlaceSourceType sourceType,
 			RoomLink sourceRoomLink
 	) {
 		List<SavedRoomPlaceResult> results = new ArrayList<>(snapshots.size());
 		try {
 			for (PlaceSnapshot snapshot : snapshots) {
-				results.add(saveOne(room, userId, snapshot, memo, sourceType, sourceRoomLink));
+				results.add(saveOne(room, userId, snapshot, sourceType, sourceRoomLink));
 			}
 			roomPlaceRepository.flush();
 			roomPlaceSourceRepository.flush();
@@ -64,7 +63,6 @@ public class RoomPlaceStorageService {
 			Room room,
 			Long userId,
 			PlaceSnapshot snapshot,
-			String memo,
 			RoomPlaceSourceType sourceType,
 			RoomLink sourceRoomLink
 	) {
@@ -78,7 +76,7 @@ public class RoomPlaceStorageService {
 			publishBusinessHoursRequestIfNeeded(existingRoomPlace, false);
 			return toResult(existingRoomPlace, false, true);
 		}
-		RoomPlace roomPlace = RoomPlace.create(room, place, userId, memo, sourceType, sourceRoomLink, snapshot, region);
+		RoomPlace roomPlace = RoomPlace.create(room, place, userId, sourceType, sourceRoomLink, snapshot, region);
 		RoomPlace saved = roomPlaceRepository.save(roomPlace);
 		attachSourceIfNeeded(saved, sourceRoomLink, sourceType, userId, snapshot);
 		publishBusinessHoursRequestIfNeeded(saved, true);

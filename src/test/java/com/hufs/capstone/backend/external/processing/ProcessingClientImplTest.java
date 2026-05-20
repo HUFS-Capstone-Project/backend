@@ -86,7 +86,7 @@ class ProcessingClientImplTest {
 			if (path.endsWith("/result")) {
 				resultPath.set(path);
 				writeJson(exchange, HttpStatus.OK.value(), """
-						{"job_id":"job-1","status":"SUCCEEDED","caption_raw":"done","resolved_places":[]}
+						{"job_id":"job-1","status":"SUCCEEDED","content":{"content_text":"done"},"resolved_places":[]}
 						""");
 				return;
 			}
@@ -100,21 +100,34 @@ class ProcessingClientImplTest {
 		ProcessingJobResultResponse result = client(3000).getJobResult("job-1");
 
 		assertThat(job.status()).isEqualTo("PROCESSING");
-		assertThat(result.captionRaw()).isEqualTo("done");
+		assertThat(result.content().contentText()).isEqualTo("done");
 		assertThat(jobPath.get()).isEqualTo("/api/v1/jobs/job-1");
 		assertThat(resultPath.get()).isEqualTo("/api/v1/jobs/job-1/result");
 	}
 
 	@Test
-	void resultResponseShouldReadResolvedPlacesAndInstagramMeta() throws Exception {
-		ObjectMapper objectMapper = new ObjectMapper();
+	void resultResponseShouldReadContentLinkStatsAndResolvedPlaces() throws Exception {
+		ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
 		ProcessingJobResultResponse result = objectMapper.readValue("""
 				{
 				  "job_id":"job-1",
 				  "status":"SUCCEEDED",
-				  "caption_raw":"done",
-				  "instagram_meta":{"like_count":123,"comment_count":45},
+				  "source_url":"https://www.instagram.com/p/abc123/",
+				  "content":{
+				    "source_type":"INSTAGRAM",
+				    "content_text":"done",
+				    "title":null,
+				    "description":"desc",
+				    "thumbnail_url":null,
+				    "links":[],
+				    "extraction_method":"INSTAGRAM_OG_META"
+				  },
+				  "link_stats":{
+				    "like_count":123,
+				    "comment_count":45,
+				    "posted_at":"April 2, 2026"
+				  },
 				  "resolved_places":[
 				    {
 				      "kakao_place_id":"123",
@@ -134,8 +147,11 @@ class ProcessingClientImplTest {
 				}
 				""", ProcessingJobResultResponse.class);
 
-		assertThat(result.instagramMeta().likeCount()).isEqualTo(123);
-		assertThat(result.instagramMeta().commentCount()).isEqualTo(45);
+		assertThat(result.sourceUrl()).isEqualTo("https://www.instagram.com/p/abc123/");
+		assertThat(result.content().contentText()).isEqualTo("done");
+		assertThat(result.linkStats().likeCount()).isEqualTo(123);
+		assertThat(result.linkStats().commentCount()).isEqualTo(45);
+		assertThat(result.linkStats().postedAt()).isEqualTo("April 2, 2026");
 		assertThat(result.resolvedPlaces()).hasSize(1);
 		assertThat(result.resolvedPlaces().get(0).kakaoPlaceId()).isEqualTo("123");
 		assertThat(result.resolvedPlaces().get(0).longitude()).isEqualByComparingTo("127.060138952594");

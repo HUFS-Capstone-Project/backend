@@ -61,7 +61,10 @@ public interface LinkRepository extends JpaRepository<Link, Long> {
 	@Query("""
 			update Link l
 			set l.status = :targetStatus,
-			    l.captionRaw = :captionRaw,
+			    l.contentText = :contentText,
+			    l.likeCount = :likeCount,
+			    l.commentCount = :commentCount,
+			    l.postedAt = :postedAt,
 			    l.extractionStoreName = :extractionStoreName,
 			    l.extractionAddress = :extractionAddress,
 			    l.extractionCertainty = :extractionCertainty,
@@ -80,7 +83,10 @@ public interface LinkRepository extends JpaRepository<Link, Long> {
 			@Param("expectedVersion") Long expectedVersion,
 			@Param("updatableStatuses") Collection<LinkAnalysisStatus> updatableStatuses,
 			@Param("targetStatus") LinkAnalysisStatus targetStatus,
-			@Param("captionRaw") String captionRaw,
+			@Param("contentText") String contentText,
+			@Param("likeCount") Long likeCount,
+			@Param("commentCount") Long commentCount,
+			@Param("postedAt") String postedAt,
 			@Param("extractionStoreName") String extractionStoreName,
 			@Param("extractionAddress") String extractionAddress,
 			@Param("extractionCertainty") String extractionCertainty,

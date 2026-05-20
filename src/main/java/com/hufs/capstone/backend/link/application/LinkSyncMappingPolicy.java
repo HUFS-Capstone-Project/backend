@@ -82,10 +82,15 @@ public class LinkSyncMappingPolicy {
 
 	private ProcessingResultSnapshot toResultSnapshot(ProcessingJobResultResponse response) {
 		ResolvedPlaceResponse representativePlace = representativePlace(response);
+		ProcessingJobResultResponse.LinkStatsResponse linkStats = response.linkStats();
 		List<PlaceCandidateSnapshot> extractedPlaces =
 				placeCandidateSnapshotMapper.fromProcessingCandidates(response.resolvedPlaces());
 		return new ProcessingResultSnapshot(
-				trimToNull(response.captionRaw()),
+				trimToNull(response.sourceUrl()),
+				trimToNull(response.content() == null ? null : response.content().contentText()),
+				linkStats == null ? null : linkStats.likeCount(),
+				linkStats == null ? null : linkStats.commentCount(),
+				linkStats == null ? null : trimToNull(linkStats.postedAt()),
 				representativePlace == null ? null : trimToNull(representativePlace.placeName()),
 				representativePlace == null ? null : representativeAddress(representativePlace),
 				null,

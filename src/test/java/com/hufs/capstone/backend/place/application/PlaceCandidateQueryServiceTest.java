@@ -106,7 +106,6 @@ class PlaceCandidateQueryServiceTest {
 				room,
 				place,
 				100L,
-				null,
 				RoomPlaceSourceType.EXTERNAL_SEARCH,
 				null,
 				snapshot,

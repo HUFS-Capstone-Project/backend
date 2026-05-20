@@ -320,12 +320,12 @@ class LinkConcurrencyIntegrationTest {
 	}
 
 	@Test
-	void shouldReturnSucceededCaptionForRequestedRoom() {
+	void shouldReturnSucceededContentForRequestedRoom() {
 		Link link = saveProcessingLink("https://example.com/post/2", "job-2", roomA);
 		when(processingClient.getJob("job-2"))
 				.thenReturn(new ProcessingJobResponse("job-2", "succeeded", null, ROOM_A_PUBLIC_ID, null, null, null));
 		when(processingClient.getJobResult("job-2"))
-				.thenReturn(succeededResultWithCaption("caption ready"));
+				.thenReturn(succeededResultWithContent("content ready"));
 
 		LinkAnalysisResult result = linkAnalysisStatusService.getLinkAnalysisResult(
 				MEMBER_USER_ID,
@@ -334,7 +334,10 @@ class LinkConcurrencyIntegrationTest {
 		);
 
 		assertThat(result.status()).isEqualTo(LinkAnalysisStatus.SUCCEEDED);
-		assertThat(result.captionRaw()).isEqualTo("caption ready");
+		assertThat(result.contentText()).isEqualTo("content ready");
+		assertThat(result.linkStats().likeCount()).isEqualTo(15000L);
+		assertThat(result.linkStats().commentCount()).isEqualTo(177L);
+		assertThat(result.linkStats().postedAt()).isEqualTo("April 2, 2026");
 	}
 
 	@Test
@@ -371,8 +374,9 @@ class LinkConcurrencyIntegrationTest {
 				.thenReturn(new ProcessingJobResultResponse(
 						"job-no-place",
 						"SUCCEEDED",
-						"caption without selected place",
-						null,
+						"https://example.com/post/no-place",
+						content("content without selected place"),
+						linkStats(15000L, 177L, "April 2, 2026"),
 						List.of(),
 						null,
 						null
@@ -386,10 +390,10 @@ class LinkConcurrencyIntegrationTest {
 		Link reloaded = linkRepository.findById(link.getId()).orElseThrow();
 
 		assertThat(result.status()).isEqualTo(LinkAnalysisStatus.SUCCEEDED);
-		assertThat(result.captionRaw()).isEqualTo("caption without selected place");
+		assertThat(result.contentText()).isEqualTo("content without selected place");
 		assertThat(result.candidatePlaces()).isEmpty();
 		assertThat(reloaded.getExtractedPlacesJson()).isEqualTo("[]");
-		assertThat(reloaded.getProcessingResultJson()).contains("caption without selected place");
+		assertThat(reloaded.getProcessingResultJson()).contains("content without selected place");
 	}
 
 	@Test
@@ -735,7 +739,7 @@ class LinkConcurrencyIntegrationTest {
 	}
 
 	@Test
-	void shouldReturnRequestedWithoutCaptionWhenJobIsNotReady() {
+	void shouldReturnRequestedWithoutContentWhenJobIsNotReady() {
 		Link link = linkRepository.saveAndFlush(Link.registerPending("https://example.com/post/3", "https://example.com/post/3"));
 		linkAnalysisRequestRepository.saveAndFlush(LinkAnalysisRequest.create(link, roomA, MEMBER_USER_ID, null));
 		roomLinkRepository.saveAndFlush(RoomLink.bind(roomA, link));
@@ -745,12 +749,12 @@ class LinkConcurrencyIntegrationTest {
 				linkAnalysisStatusService.getLinkAnalysisResult(MEMBER_USER_ID, ROOM_A_PUBLIC_ID, analysisRequestId);
 
 		assertThat(result.status()).isEqualTo(LinkAnalysisStatus.REQUESTED);
-		assertThat(result.captionRaw()).isNull();
+		assertThat(result.contentText()).isNull();
 		verify(processingClient, never()).getJob(null);
 	}
 
 	@Test
-	void shouldReturnProcessingWithoutCaption() {
+	void shouldReturnProcessingWithoutContent() {
 		Link link = saveProcessingLink("https://example.com/post/4", "job-4", roomA);
 		when(processingClient.getJob("job-4"))
 				.thenReturn(new ProcessingJobResponse("job-4", "running", null, ROOM_A_PUBLIC_ID, null, null, null));
@@ -762,7 +766,7 @@ class LinkConcurrencyIntegrationTest {
 		);
 
 		assertThat(result.status()).isEqualTo(LinkAnalysisStatus.PROCESSING);
-		assertThat(result.captionRaw()).isNull();
+		assertThat(result.contentText()).isNull();
 	}
 
 	@Test
@@ -928,12 +932,12 @@ class LinkConcurrencyIntegrationTest {
 	}
 
 	@Test
-	void shouldKeepSucceededAndCaptionWhenTwoConcurrentPollsDetectCompletion() throws Exception {
+	void shouldKeepSucceededAndContentWhenTwoConcurrentPollsDetectCompletion() throws Exception {
 		Link link = saveProcessingLink("https://example.com/post/8", "job-8", roomA);
 		when(processingClient.getJob("job-8"))
 				.thenReturn(new ProcessingJobResponse("job-8", "succeeded", null, ROOM_A_PUBLIC_ID, null, null, null));
 		when(processingClient.getJobResult("job-8"))
-				.thenReturn(succeededResultWithCaption("caption ready"));
+				.thenReturn(succeededResultWithContent("content ready"));
 
 		Long analysisRequestId = analysisRequestIdFor(link, roomA);
 		runConcurrently(
@@ -943,7 +947,7 @@ class LinkConcurrencyIntegrationTest {
 
 		Link reloaded = linkRepository.findById(link.getId()).orElseThrow();
 		assertThat(reloaded.getStatus()).isEqualTo(LinkAnalysisStatus.SUCCEEDED);
-		assertThat(reloaded.getCaptionRaw()).isEqualTo("caption ready");
+		assertThat(reloaded.getContentText()).isEqualTo("content ready");
 	}
 
 	@Test
@@ -954,7 +958,7 @@ class LinkConcurrencyIntegrationTest {
 		AtomicInteger resultCalls = new AtomicInteger();
 		when(processingClient.getJobResult("job-9")).thenAnswer(invocation -> {
 			if (resultCalls.incrementAndGet() == 1) {
-				return succeededResultWithCaption("caption final");
+				return succeededResultWithContent("content final");
 			}
 			throw new ProcessingClientException("not-ready", HttpStatus.CONFLICT, "");
 		});
@@ -967,7 +971,7 @@ class LinkConcurrencyIntegrationTest {
 
 		Link reloaded = linkRepository.findById(link.getId()).orElseThrow();
 		assertThat(reloaded.getStatus()).isEqualTo(LinkAnalysisStatus.SUCCEEDED);
-		assertThat(reloaded.getCaptionRaw()).isEqualTo("caption final");
+		assertThat(reloaded.getContentText()).isEqualTo("content final");
 	}
 
 	private Room createRoomWithMember(String publicId, String name, String inviteCode, Long userId) {
@@ -995,12 +999,13 @@ class LinkConcurrencyIntegrationTest {
 		return succeededResultWithPlaces(place("123456789", "Coffee Mansion"));
 	}
 
-	private static ProcessingJobResultResponse succeededResultWithCaption(String caption) {
+	private static ProcessingJobResultResponse succeededResultWithContent(String contentText) {
 		return new ProcessingJobResultResponse(
 				null,
 				null,
-				caption,
 				null,
+				content(contentText),
+				linkStats(15000L, 177L, "April 2, 2026"),
 				null,
 				null,
 				null
@@ -1014,12 +1019,33 @@ class LinkConcurrencyIntegrationTest {
 		return new ProcessingJobResultResponse(
 				"job-place",
 				"SUCCEEDED",
-				"caption ready",
-				null,
+				"https://example.com/post/place",
+				content("content ready"),
+				linkStats(15000L, 177L, "April 2, 2026"),
 				resolvedPlaces,
 				null,
 				null
 		);
+	}
+
+	private static ProcessingJobResultResponse.ContentResponse content(String contentText) {
+		return new ProcessingJobResultResponse.ContentResponse(
+				"INSTAGRAM",
+				contentText,
+				null,
+				null,
+				null,
+				List.of(),
+				"INSTAGRAM_OG_META"
+		);
+	}
+
+	private static ProcessingJobResultResponse.LinkStatsResponse linkStats(
+			Long likeCount,
+			Long commentCount,
+			String postedAt
+	) {
+		return new ProcessingJobResultResponse.LinkStatsResponse(likeCount, commentCount, postedAt);
 	}
 
 	private static ProcessingJobResultResponse.ResolvedPlaceResponse place(String kakaoPlaceId, String placeName) {

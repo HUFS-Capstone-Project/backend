@@ -79,7 +79,7 @@ public record RoomPlaceResult(
 				roomPlace.getSidoName(),
 				roomPlace.getSigunguCode(),
 				roomPlace.getSigunguName(),
-				currentUserMemo(normalizedMemos, currentUserId, roomPlace.getMemo()),
+				currentUserMemo(normalizedMemos, currentUserId),
 				normalizedMemos,
 				roomPlace.getSourceType(),
 				roomPlace.getSourceRoomLinkId(),
@@ -95,14 +95,14 @@ public record RoomPlaceResult(
 		);
 	}
 
-	private static String currentUserMemo(List<RoomPlaceMemoResult> memos, Long currentUserId, String fallbackMemo) {
+	private static String currentUserMemo(List<RoomPlaceMemoResult> memos, Long currentUserId) {
 		if (currentUserId == null) {
-			return fallbackMemo;
+			return null;
 		}
 		return memos.stream()
 				.filter(memo -> currentUserId.equals(memo.userId()))
 				.map(RoomPlaceMemoResult::memo)
 				.findFirst()
-				.orElse(fallbackMemo);
+				.orElse(null);
 	}
 }

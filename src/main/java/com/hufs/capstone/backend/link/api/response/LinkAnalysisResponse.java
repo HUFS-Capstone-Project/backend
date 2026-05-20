@@ -3,6 +3,7 @@ package com.hufs.capstone.backend.link.api.response;
 import com.hufs.capstone.backend.link.application.dto.LinkAnalysisResult;
 import com.hufs.capstone.backend.link.application.dto.LinkPlaceResult;
 import com.hufs.capstone.backend.link.application.dto.LinkPlaceResult.DisabledReason;
+import com.hufs.capstone.backend.link.application.dto.LinkStatsResult;
 import com.hufs.capstone.backend.link.domain.LinkAnalysisStatus;
 import java.math.BigDecimal;
 import java.util.List;
@@ -10,7 +11,9 @@ import java.util.List;
 public record LinkAnalysisResponse(
 		Long linkId,
 		LinkAnalysisStatus status,
-		String captionRaw,
+		String sourceUrl,
+		String contentText,
+		LinkStatsResponse linkStats,
 		List<PlaceResponse> candidatePlaces,
 		String errorCode,
 		String errorMessage
@@ -20,13 +23,29 @@ public record LinkAnalysisResponse(
 		return new LinkAnalysisResponse(
 				result.linkId(),
 				result.status(),
-				result.captionRaw(),
+				result.sourceUrl(),
+				result.contentText(),
+				LinkStatsResponse.from(result.linkStats()),
 				result.candidatePlaces().stream()
 						.map(PlaceResponse::from)
 						.toList(),
 				result.errorCode(),
 				result.errorMessage()
 		);
+	}
+
+	public record LinkStatsResponse(
+			Long likeCount,
+			Long commentCount,
+			String postedAt
+	) {
+
+		private static LinkStatsResponse from(LinkStatsResult result) {
+			if (result == null) {
+				return new LinkStatsResponse(null, null, null);
+			}
+			return new LinkStatsResponse(result.likeCount(), result.commentCount(), result.postedAt());
+		}
 	}
 
 	public record PlaceResponse(

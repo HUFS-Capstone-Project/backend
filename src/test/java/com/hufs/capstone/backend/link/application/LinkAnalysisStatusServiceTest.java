@@ -81,7 +81,7 @@ class LinkAnalysisStatusServiceTest {
 	@Test
 	void getLinkAnalysisResultShouldSyncAndWriteOnCacheMissWhenResolverRequiresWrite() {
 		Link snapshot = link(10L, "job-1", LinkAnalysisStatus.PROCESSING);
-		ProcessingResultSnapshot processingResult = resultSnapshot("caption");
+		ProcessingResultSnapshot processingResult = resultSnapshot("content");
 		LinkSyncOrchestrator.ProcessingSyncSnapshot syncSnapshot =
 				new LinkSyncOrchestrator.ProcessingSyncSnapshot(LinkAnalysisStatus.SUCCEEDED, processingResult, null, null);
 		LinkAnalysisStatusResolver.Resolution resolution = LinkAnalysisStatusResolver.Resolution.write(
@@ -93,7 +93,7 @@ class LinkAnalysisStatusServiceTest {
 		LinkAnalysisResult synced = new LinkAnalysisResult(
 				10L,
 				LinkAnalysisStatus.SUCCEEDED,
-				"caption",
+				"content",
 				null,
 				null
 		);
@@ -124,11 +124,11 @@ class LinkAnalysisStatusServiceTest {
 	@Test
 	void getLinkAnalysisResultShouldReturnSnapshotWithoutExternalCallWhenTerminal() {
 		Link terminal = link(11L, "job-2", LinkAnalysisStatus.SUCCEEDED);
-		terminal.markSucceeded("caption done");
+		terminal.markSucceeded("content done");
 		LinkAnalysisResult mapped = new LinkAnalysisResult(
 				11L,
 				LinkAnalysisStatus.SUCCEEDED,
-				"caption done",
+				"content done",
 				null,
 				null
 		);
@@ -150,7 +150,7 @@ class LinkAnalysisStatusServiceTest {
 
 		assertThat(result.linkId()).isEqualTo(11L);
 		assertThat(result.status()).isEqualTo(LinkAnalysisStatus.SUCCEEDED);
-		assertThat(result.captionRaw()).isEqualTo("caption done");
+		assertThat(result.contentText()).isEqualTo("content done");
 		verify(linkAnalysisAuthorizationService).requireAnalysisRequest(USER_ID, ROOM_PUBLIC_ID, 11L);
 		verify(linkSyncOrchestrator, never()).resolve(any());
 		verify(linkAnalysisStatusWriteService, never()).applySyncSnapshot(any(), any(), any(), any(), any());
@@ -191,14 +191,18 @@ class LinkAnalysisStatusServiceTest {
 			link.markFailed();
 		}
 		if (status == LinkAnalysisStatus.SUCCEEDED) {
-			link.markSucceeded("caption");
+			link.markSucceeded("content");
 		}
 		return link;
 	}
 
-	private static ProcessingResultSnapshot resultSnapshot(String caption) {
+	private static ProcessingResultSnapshot resultSnapshot(String contentText) {
 		return new ProcessingResultSnapshot(
-				caption,
+				null,
+				contentText,
+				null,
+				null,
+				null,
 				null,
 				null,
 				null,

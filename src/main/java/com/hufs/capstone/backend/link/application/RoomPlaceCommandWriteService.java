@@ -41,7 +41,6 @@ public class RoomPlaceCommandWriteService {
 	private final RoomLinkRepository roomLinkRepository;
 	private final LinkCandidateRepository linkCandidateRepository;
 	private final RoomLinkCandidateOverrideRepository overrideRepository;
-	private final LinkPlaceCandidateSnapshotMapper placeCandidateSnapshotMapper;
 	private final RoomPlaceStorageService roomPlaceStorageService;
 
 	@Transactional
@@ -74,7 +73,6 @@ public class RoomPlaceCommandWriteService {
 						analysisRequest.getRoom(),
 						userId,
 						snapshots,
-						null,
 						RoomPlaceSourceType.LINK_ANALYSIS,
 						roomLink
 				)
@@ -102,7 +100,6 @@ public class RoomPlaceCommandWriteService {
 						analysisRequest.getRoom(),
 						userId,
 						List.of(command.snapshot()),
-						null,
 						RoomPlaceSourceType.LINK_ANALYSIS_MANUAL_SEARCH,
 						roomLink
 				)
@@ -127,7 +124,7 @@ public class RoomPlaceCommandWriteService {
 	private Map<String, PlaceSnapshot> effectiveCandidateMap(Link link, Room room) {
 		List<LinkCandidate> candidates = linkCandidateRepository.findByLinkIdOrderByCandidateOrderAscIdAsc(link.getId());
 		if (candidates.isEmpty()) {
-			return legacyCandidateMap(link);
+			return Map.of();
 		}
 		RoomLink roomLink = roomLinkRepository.findByRoomAndLinkId(room, link.getId()).orElse(null);
 		Map<Long, RoomLinkCandidateOverride> overridesByCandidateId = roomLink == null
@@ -147,27 +144,6 @@ public class RoomPlaceCommandWriteService {
 			}
 		}
 		return result;
-	}
-
-	private Map<String, PlaceSnapshot> legacyCandidateMap(Link link) {
-		List<PlaceCandidateSnapshot> candidates;
-		try {
-			candidates = placeCandidateSnapshotMapper.read(link.getExtractedPlacesJson());
-		} catch (IllegalArgumentException ex) {
-			throw new BusinessException(ErrorCode.E500_INTERNAL, "Link place candidate snapshot is malformed.", ex);
-		}
-		Map<String, PlaceCandidateSnapshot> result = new LinkedHashMap<>();
-		for (PlaceCandidateSnapshot candidate : candidates) {
-			if (candidate.kakaoPlaceId() != null && !candidate.kakaoPlaceId().isBlank()
-					&& !result.containsKey(candidate.kakaoPlaceId())) {
-				result.put(candidate.kakaoPlaceId(), candidate);
-			}
-		}
-		Map<String, PlaceSnapshot> snapshots = new LinkedHashMap<>();
-		for (Map.Entry<String, PlaceCandidateSnapshot> entry : result.entrySet()) {
-			snapshots.put(entry.getKey(), toPlaceSnapshot(entry.getValue()));
-		}
-		return snapshots;
 	}
 
 	private static void validateCandidatesExist(Collection<String> requested, Set<String> candidateKakaoPlaceIds) {

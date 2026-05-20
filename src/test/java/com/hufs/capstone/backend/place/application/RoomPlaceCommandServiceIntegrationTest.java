@@ -142,7 +142,6 @@ class RoomPlaceCommandServiceIntegrationTest {
 		assertThat(place.getServiceTag().getCode()).isEqualTo("JAPANESE");
 		assertThat(roomPlace.getSourceType()).isEqualTo(RoomPlaceSourceType.EXTERNAL_SEARCH);
 		assertThat(roomPlace.getSourceRoomLinkId()).isNull();
-		assertThat(roomPlace.getMemo()).isNull();
 		assertThat(result.places().get(0).created()).isTrue();
 		assertThat(result.places().get(0).alreadyInRoom()).isFalse();
 	}
@@ -429,7 +428,6 @@ class RoomPlaceCommandServiceIntegrationTest {
 						room,
 						USER_ID,
 						List.of(foodSnapshot("123456789", "Linked Place")),
-						null,
 						RoomPlaceSourceType.LINK_ANALYSIS,
 						roomLink
 				)
@@ -458,7 +456,6 @@ class RoomPlaceCommandServiceIntegrationTest {
 						room,
 						USER_ID,
 						List.of(foodSnapshot("123456789", "Linked Place")),
-						null,
 						RoomPlaceSourceType.LINK_ANALYSIS,
 						roomLink
 				)
@@ -486,7 +483,6 @@ class RoomPlaceCommandServiceIntegrationTest {
 						roomRepository.findById(room.getId()).orElseThrow(),
 						USER_ID,
 						List.of(foodSnapshot("123456789", "Linked Place")),
-						null,
 						RoomPlaceSourceType.LINK_ANALYSIS_MANUAL_SEARCH,
 						roomLinkRepository.findById(roomLink.getId()).orElseThrow()
 				)
@@ -710,7 +706,6 @@ class RoomPlaceCommandServiceIntegrationTest {
 						roomRepository.findById(targetRoom.getId()).orElseThrow(),
 						userId,
 						List.of(snapshot),
-						null,
 						RoomPlaceSourceType.EXTERNAL_SEARCH,
 						null
 				)

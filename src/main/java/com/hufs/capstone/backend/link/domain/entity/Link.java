@@ -38,7 +38,14 @@ public class Link extends AuditableEntity {
 	private LinkAnalysisStatus status;
 
 	@Column(columnDefinition = "text")
-	private String captionRaw;
+	private String contentText;
+
+	private Long likeCount;
+
+	private Long commentCount;
+
+	@Column(length = 100)
+	private String postedAt;
 
 	@Column(length = 255)
 	private String extractionStoreName;
@@ -71,14 +78,14 @@ public class Link extends AuditableEntity {
 			String processingJobId,
 			ProcessingDispatchStatus dispatchStatus,
 			LinkAnalysisStatus status,
-			String captionRaw
+			String contentText
 	) {
 		this.originalUrl = originalUrl;
 		this.normalizedUrl = normalizedUrl;
 		this.processingJobId = processingJobId;
 		this.dispatchStatus = dispatchStatus;
 		this.status = status;
-		this.captionRaw = captionRaw;
+		this.contentText = contentText;
 	}
 
 	public static Link register(String originalUrl, String normalizedUrl, String processingJobId) {
@@ -129,14 +136,14 @@ public class Link extends AuditableEntity {
 		return this.status != LinkAnalysisStatus.FAILED && setStatusIfChanged(LinkAnalysisStatus.FAILED);
 	}
 
-	public boolean markSucceeded(String captionRaw) {
+	public boolean markSucceeded(String contentText) {
 		boolean changed = false;
 		if (this.status != LinkAnalysisStatus.SUCCEEDED) {
 			this.status = LinkAnalysisStatus.SUCCEEDED;
 			changed = true;
 		}
-		if (!Objects.equals(this.captionRaw, captionRaw)) {
-			this.captionRaw = captionRaw;
+		if (!Objects.equals(this.contentText, contentText)) {
+			this.contentText = contentText;
 			changed = true;
 		}
 		return changed;

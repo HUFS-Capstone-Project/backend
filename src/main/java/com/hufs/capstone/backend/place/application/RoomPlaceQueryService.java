@@ -246,17 +246,11 @@ public class RoomPlaceQueryService {
 		List<RoomPlaceMemo> memos = roomPlaceMemoRepository.findByRoomPlaceIdInOrderByUpdatedAtAscIdAsc(roomPlaceIds);
 		Set<Long> authorUserIds = new LinkedHashSet<>();
 		memos.forEach(memo -> authorUserIds.add(memo.getUserId()));
-		roomPlaces.stream()
-				.filter(roomPlace -> roomPlace.getMemo() != null)
-				.forEach(roomPlace -> authorUserIds.add(roomPlace.getCreatedByUserId()));
 		Map<Long, RoomMemberUserProfile> profilesByUserId = findProfiles(authorUserIds);
 		Map<Long, List<RoomPlaceMemoResult>> resultsByRoomPlaceId = new HashMap<>();
 		memos.forEach(memo -> resultsByRoomPlaceId
 				.computeIfAbsent(memo.getRoomPlaceId(), ignored -> new ArrayList<>())
 				.add(toMemoResult(memo, profilesByUserId)));
-		roomPlaces.stream()
-				.filter(roomPlace -> roomPlace.getMemo() != null)
-				.forEach(roomPlace -> appendLegacyMemoIfAbsent(roomPlace, resultsByRoomPlaceId, profilesByUserId));
 		return resultsByRoomPlaceId.entrySet().stream()
 				.collect(Collectors.toMap(
 						Map.Entry::getKey,
@@ -288,28 +282,6 @@ public class RoomPlaceQueryService {
 				memo.getMemo(),
 				memo.getUpdatedAt()
 		);
-	}
-
-	private void appendLegacyMemoIfAbsent(
-			RoomPlace roomPlace,
-			Map<Long, List<RoomPlaceMemoResult>> resultsByRoomPlaceId,
-			Map<Long, RoomMemberUserProfile> profilesByUserId
-	) {
-		List<RoomPlaceMemoResult> results = resultsByRoomPlaceId
-				.computeIfAbsent(roomPlace.getId(), ignored -> new ArrayList<>());
-		boolean hasCreatedByMemo = results.stream()
-				.anyMatch(memo -> roomPlace.getCreatedByUserId().equals(memo.userId()));
-		if (hasCreatedByMemo) {
-			return;
-		}
-		RoomMemberUserProfile profile = profilesByUserId.get(roomPlace.getCreatedByUserId());
-		results.add(new RoomPlaceMemoResult(
-				roomPlace.getCreatedByUserId(),
-				profile == null ? null : profile.nickname(),
-				profile == null ? null : profile.profileImageUrl(),
-				roomPlace.getMemo(),
-				roomPlace.getUpdatedAt()
-		));
 	}
 
 	private BusinessHoursResult toBusinessHoursResult(PlaceBusinessHours cache) {

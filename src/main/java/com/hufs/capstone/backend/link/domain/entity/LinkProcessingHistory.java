@@ -39,7 +39,14 @@ public class LinkProcessingHistory extends AuditableEntity {
 	private LinkAnalysisStatus status;
 
 	@Column(columnDefinition = "text")
-	private String captionRaw;
+	private String contentText;
+
+	private Long likeCount;
+
+	private Long commentCount;
+
+	@Column(length = 100)
+	private String postedAt;
 
 	@Column(length = 100)
 	private String errorCode;
@@ -61,7 +68,10 @@ public class LinkProcessingHistory extends AuditableEntity {
 			Link link,
 			String processingJobId,
 			LinkAnalysisStatus status,
-			String captionRaw,
+			String contentText,
+			Long likeCount,
+			Long commentCount,
+			String postedAt,
 			String errorCode,
 			String errorMessage,
 			LinkProcessingEventType eventType,
@@ -71,7 +81,10 @@ public class LinkProcessingHistory extends AuditableEntity {
 		this.link = link;
 		this.processingJobId = processingJobId;
 		this.status = status;
-		this.captionRaw = captionRaw;
+		this.contentText = contentText;
+		this.likeCount = likeCount;
+		this.commentCount = commentCount;
+		this.postedAt = postedAt;
 		this.errorCode = errorCode;
 		this.errorMessage = errorMessage;
 		this.eventType = eventType;
@@ -84,7 +97,10 @@ public class LinkProcessingHistory extends AuditableEntity {
 				link,
 				link.getProcessingJobId(),
 				link.getStatus(),
-				link.getCaptionRaw(),
+				link.getContentText(),
+				link.getLikeCount(),
+				link.getCommentCount(),
+				link.getPostedAt(),
 				link.getErrorCode(),
 				link.getErrorMessage(),
 				LinkProcessingEventType.REGISTERED,
@@ -98,7 +114,10 @@ public class LinkProcessingHistory extends AuditableEntity {
 				link,
 				link.getProcessingJobId(),
 				link.getStatus(),
-				link.getCaptionRaw(),
+				link.getContentText(),
+				link.getLikeCount(),
+				link.getCommentCount(),
+				link.getPostedAt(),
 				link.getErrorCode(),
 				link.getErrorMessage(),
 				LinkProcessingEventType.STATUS_SYNCED,
@@ -112,7 +131,10 @@ public class LinkProcessingHistory extends AuditableEntity {
 				link,
 				link.getProcessingJobId(),
 				link.getStatus(),
-				link.getCaptionRaw(),
+				link.getContentText(),
+				link.getLikeCount(),
+				link.getCommentCount(),
+				link.getPostedAt(),
 				errorCode,
 				errorMessage,
 				LinkProcessingEventType.DISPATCH_FAILED,

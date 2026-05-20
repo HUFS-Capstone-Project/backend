@@ -74,6 +74,9 @@ class LinkAnalysisStatusWriteServiceTest {
 				any(),
 				any(),
 				any(),
+				any(),
+				any(),
+				any(),
 				any()
 		);
 	}
@@ -101,7 +104,7 @@ class LinkAnalysisStatusWriteServiceTest {
 		);
 
 		assertThat(result.status()).isEqualTo(LinkAnalysisStatus.SUCCEEDED);
-		assertThat(result.captionRaw()).isEqualTo("done");
+		assertThat(result.contentText()).isEqualTo("done");
 		ArgumentCaptor<LinkStatusSyncedEvent> eventCaptor = ArgumentCaptor.forClass(LinkStatusSyncedEvent.class);
 		verify(eventPublisher).publishEvent(eventCaptor.capture());
 		assertThat(eventCaptor.getValue().linkId()).isEqualTo(2L);
@@ -132,7 +135,7 @@ class LinkAnalysisStatusWriteServiceTest {
 		);
 
 		assertThat(result.status()).isEqualTo(LinkAnalysisStatus.SUCCEEDED);
-		assertThat(result.captionRaw()).isEqualTo("latest");
+		assertThat(result.contentText()).isEqualTo("latest");
 	}
 
 	@Test
@@ -185,13 +188,20 @@ class LinkAnalysisStatusWriteServiceTest {
 				any(),
 				any(),
 				any(),
+				any(),
+				any(),
+				any(),
 				any(Instant.class)
 		)).thenReturn(updatedCount);
 	}
 
-	private static ProcessingResultSnapshot resultSnapshot(String caption) {
+	private static ProcessingResultSnapshot resultSnapshot(String contentText) {
 		return new ProcessingResultSnapshot(
-				caption,
+				null,
+				contentText,
+				null,
+				null,
+				null,
 				null,
 				null,
 				null,
@@ -203,10 +213,10 @@ class LinkAnalysisStatusWriteServiceTest {
 	private static LinkAnalysisResult result(
 			Long linkId,
 			LinkAnalysisStatus status,
-			String caption,
+			String contentText,
 			String errorCode,
 			String errorMessage
 	) {
-		return new LinkAnalysisResult(linkId, status, caption, errorCode, errorMessage);
+		return new LinkAnalysisResult(linkId, status, contentText, errorCode, errorMessage);
 	}
 }
