@@ -123,7 +123,7 @@ public class BusinessHoursDisplayResolver {
 			String prefix = status == BusinessStatus.CLOSING_SOON ? "곧 마감" : "영업 중";
 			return result(
 					status,
-					prefix + " · " + formatTime(activeRange.closeAt().toLocalTime()) + " 영업 종료",
+					prefix + " · " + formatCloseTime(activeRange) + " 영업 종료",
 					todayDisplayText(today),
 					null,
 					activeRange.closeAt(),
@@ -207,10 +207,12 @@ public class BusinessHoursDisplayResolver {
 			}
 			String raw = text(row, "raw");
 			LocalTime open = parseTime(firstText(row, "open", "open_time", "start", "start_time"));
-			LocalTime close = parseTime(firstText(row, "close", "close_time", "end", "end_time"));
+			String closeRaw = firstText(row, "close", "close_time", "end", "end_time");
+			LocalTime close = parseTime(closeRaw);
 			TimeRange breakTime = parseRange(firstText(row, "break_time", "breakTime"));
 			String lastOrder = firstText(row, "last_order", "lastOrder");
-			result.add(new DailyHours(day, raw, open, close, breakTime, parseTime(lastOrder), lastOrder));
+			result.add(new DailyHours(day, raw, open, close, isMidnightEndOfDay(closeRaw), breakTime,
+					parseTime(lastOrder), lastOrder));
 		}
 		return result;
 	}
@@ -302,7 +304,7 @@ public class BusinessHoursDisplayResolver {
 
 	private static TimeRange timeRange(DailyHours row, LocalDate openDate) {
 		ZonedDateTime openAt = openDate.atTime(row.open()).atZone(SEOUL_ZONE);
-		return new TimeRange(openAt, closeAt(openAt, row.close()));
+		return new TimeRange(openAt, closeAt(openAt, row.close()), row.closesAtEndOfDay());
 	}
 
 	private static ZonedDateTime closeAt(ZonedDateTime openAt, LocalTime close) {
@@ -361,7 +363,7 @@ public class BusinessHoursDisplayResolver {
 		}
 		LocalDate today = LocalDate.now(SEOUL_ZONE);
 		ZonedDateTime openAt = today.atTime(times.get(0)).atZone(SEOUL_ZONE);
-		return new TimeRange(openAt, closeAt(openAt, times.get(1)));
+		return new TimeRange(openAt, closeAt(openAt, times.get(1)), false);
 	}
 
 	private static LocalTime parseTime(String value) {
@@ -384,6 +386,20 @@ public class BusinessHoursDisplayResolver {
 		return LocalTime.of(hour, minute);
 	}
 
+	private static boolean isMidnightEndOfDay(String value) {
+		if (isBlank(value)) {
+			return false;
+		}
+		Matcher matcher = TIME_PATTERN.matcher(value.trim());
+		if (!matcher.find()) {
+			return false;
+		}
+		int hour = Integer.parseInt(matcher.group(1));
+		String minuteGroup = matcher.group(2);
+		int minute = minuteGroup == null ? 0 : Integer.parseInt(minuteGroup);
+		return hour == 24 && minute == 0;
+	}
+
 	private static String text(JsonNode node, String fieldName) {
 		JsonNode value = node.path(fieldName);
 		return value.isTextual() ? value.asText() : null;
@@ -403,6 +419,14 @@ public class BusinessHoursDisplayResolver {
 		return time.format(TIME_FORMATTER);
 	}
 
+	private static String formatCloseTime(DailyHours row) {
+		return row.closesAtEndOfDay() ? "24:00" : formatTime(row.close());
+	}
+
+	private static String formatCloseTime(TimeRange range) {
+		return range.closesAtEndOfDay() ? "24:00" : formatTime(range.closeAt().toLocalTime());
+	}
+
 	private static java.time.OffsetDateTime toOffset(ZonedDateTime dateTime) {
 		return dateTime == null ? null : dateTime.toOffsetDateTime();
 	}
@@ -416,6 +440,7 @@ public class BusinessHoursDisplayResolver {
 			String raw,
 			LocalTime open,
 			LocalTime close,
+			boolean closesAtEndOfDay,
 			TimeRange breakTime,
 			LocalTime lastOrder,
 			String lastOrderRaw
@@ -447,7 +472,7 @@ public class BusinessHoursDisplayResolver {
 				return "24시간 영업";
 			}
 			if (hasOpenClose()) {
-				return formatTime(open) + " - " + formatTime(close);
+				return formatTime(open) + " - " + formatCloseTime(this);
 			}
 			if (!isBlank(raw)) {
 				return raw.trim();
@@ -462,7 +487,8 @@ public class BusinessHoursDisplayResolver {
 
 	private record TimeRange(
 			ZonedDateTime openAt,
-			ZonedDateTime closeAt
+			ZonedDateTime closeAt,
+			boolean closesAtEndOfDay
 	) {
 
 		boolean contains(LocalDate date, LocalTime time) {
@@ -477,7 +503,7 @@ public class BusinessHoursDisplayResolver {
 		}
 
 		String displayText() {
-			return formatTime(openAt.toLocalTime()) + " - " + formatTime(closeAt.toLocalTime());
+			return formatTime(openAt.toLocalTime()) + " - " + formatCloseTime(this);
 		}
 	}
 }

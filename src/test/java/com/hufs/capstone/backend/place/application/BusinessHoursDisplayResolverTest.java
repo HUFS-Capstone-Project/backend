@@ -120,8 +120,8 @@ class BusinessHoursDisplayResolverTest {
 				""", BusinessHoursStatus.SUCCEEDED);
 
 		assertThat(result.businessStatus()).isEqualTo(BusinessStatus.OPEN);
-		assertThat(result.statusDisplayText()).isEqualTo("영업 중 · 00:00 영업 종료");
-		assertThat(result.todayDisplayText()).isEqualTo("오늘 12:00 - 00:00");
+		assertThat(result.statusDisplayText()).isEqualTo("영업 중 · 24:00 영업 종료");
+		assertThat(result.todayDisplayText()).isEqualTo("오늘 12:00 - 24:00");
 		assertThat(result.nextCloseAt()).hasToString("2026-05-21T00:00+09:00");
 	}
 
