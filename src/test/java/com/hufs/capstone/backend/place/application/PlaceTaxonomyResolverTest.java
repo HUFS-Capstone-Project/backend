@@ -144,15 +144,28 @@ class PlaceTaxonomyResolverTest {
 	}
 
 	@Test
-	void shouldOverridePhotoKeywordToActivityPhotoStudio() {
+	void shouldResolveActivityPhotoCategoryToPhotoStudioWhenNoTagNameMatches() {
 		PlaceTag photoStudio = tag(30L, activity, "PHOTO_STUDIO", "포토스튜디오", 1);
 		PlaceTag misc = tag(31L, activity, "MISC", "기타", 9);
 		when(placeTagRepository.findActiveTaxonomyTags()).thenReturn(List.of(photoStudio, misc));
 
-		ResolvedPlaceTaxonomy result = resolver.resolve("CT1", "문화,예술 > 사진 > 셀프사진관");
+		ResolvedPlaceTaxonomy result = resolver.resolve("CT1", "문화,예술 > 사진 > 즉석사진 > 인생네컷");
 
 		assertThat(result.category().getCode()).isEqualTo("ACTIVITY");
 		assertThat(result.tag().getCode()).isEqualTo("PHOTO_STUDIO");
+	}
+
+	@Test
+	void shouldNotOverrideKakaoCafePhotoKeywordToActivityPhotoStudio() {
+		PlaceTag bakery = tag(20L, cafe, "BAKERY", "제과,베이커리", 1);
+		PlaceTag coffeeDessert = tag(21L, cafe, "COFFEE_DESSERT", "커피·디저트", 2);
+		PlaceTag misc = tag(22L, cafe, "MISC", "기타", 9);
+		when(placeTagRepository.findActiveTaxonomyTags()).thenReturn(List.of(bakery, coffeeDessert, misc));
+
+		ResolvedPlaceTaxonomy result = resolver.resolve("CE7", "음식점 > 카페 > 사진카페");
+
+		assertThat(result.category().getCode()).isEqualTo("CAFE");
+		assertThat(result.tag().getCode()).isEqualTo("MISC");
 	}
 
 	@Test

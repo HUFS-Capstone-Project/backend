@@ -33,6 +33,43 @@ public class PlaceTaxonomyResolver {
 			"포토스튜디오",
 			"사진스튜디오"
 	);
+	private static final List<OverrideRule> OVERRIDE_RULES = List.of(
+			new OverrideRule(
+					KakaoCategoryGroupPolicy.KAKAO_CAFE,
+					KakaoCategoryGroupPolicy.SERVICE_CATEGORY_ACTIVITY,
+					"BOARD_GAME_CAFE",
+					List.of(),
+					List.of("보드카페")
+			),
+			new OverrideRule(
+					KakaoCategoryGroupPolicy.KAKAO_CAFE,
+					KakaoCategoryGroupPolicy.SERVICE_CATEGORY_ACTIVITY,
+					"COMIC_CAFE",
+					List.of(),
+					List.of("만화카페", "만화방")
+			),
+			new OverrideRule(
+					KakaoCategoryGroupPolicy.KAKAO_CAFE,
+					KakaoCategoryGroupPolicy.SERVICE_CATEGORY_CAFE,
+					"BAKERY",
+					List.of(),
+					List.of("제과", "베이커리")
+			),
+			new OverrideRule(
+					KakaoCategoryGroupPolicy.KAKAO_CAFE,
+					KakaoCategoryGroupPolicy.SERVICE_CATEGORY_CAFE,
+					CAFE_COFFEE_DESSERT_TAG_CODE,
+					List.of("카페", "음식점카페"),
+					List.of("커피전문점", "디저트카페")
+			)
+	);
+	private static final List<FallbackTagRule> FALLBACK_TAG_RULES = List.of(
+			new FallbackTagRule(
+					KakaoCategoryGroupPolicy.SERVICE_CATEGORY_ACTIVITY,
+					PHOTO_STUDIO_TAG_CODE,
+					PHOTO_STUDIO_KEYWORDS
+			)
+	);
 
 	private final PlaceCategoryRepository placeCategoryRepository;
 	private final PlaceTagRepository placeTagRepository;
@@ -46,9 +83,19 @@ public class PlaceTaxonomyResolver {
 				.filter(tag -> KakaoCategoryGroupPolicy.FALLBACK_TAG_CODE.equals(tag.getCode()))
 				.findFirst()
 				.orElseThrow(() -> taxonomyConfigurationError("Missing fallback place tag: " + categoryCode + ".MISC"));
-		PlaceTag matchedTag = override == null
-				? matchTag(kakaoCategoryName, activeTags, fallbackTag)
-				: findOverrideTag(activeTags, override);
+		PlaceTag matchedTag;
+		if (override == null) {
+			matchedTag = matchTag(kakaoCategoryName, activeTags, fallbackTag);
+			matchedTag = applyFallbackTagRules(
+					categoryCode,
+					kakaoCategoryName,
+					activeTags,
+					fallbackTag,
+					matchedTag
+			);
+		} else {
+			matchedTag = findOverrideTag(activeTags, override);
+		}
 		return new ResolvedPlaceTaxonomy(category, matchedTag);
 	}
 
@@ -96,6 +143,40 @@ public class PlaceTaxonomyResolver {
 				.orElse(fallbackTag);
 	}
 
+	private PlaceTag applyFallbackTagRules(
+			String categoryCode,
+			String kakaoCategoryName,
+			List<PlaceTag> activeTags,
+			PlaceTag fallbackTag,
+			PlaceTag matchedTag
+	) {
+		if (matchedTag != fallbackTag
+				|| FALLBACK_TAG_RULES.stream().noneMatch(rule -> rule.supports(categoryCode))) {
+			return matchedTag;
+		}
+		String normalizedCategoryName = normalizeForMatch(kakaoCategoryName);
+		if (normalizedCategoryName == null) {
+			return matchedTag;
+		}
+		for (FallbackTagRule rule : FALLBACK_TAG_RULES) {
+			if (!rule.matches(categoryCode, normalizedCategoryName)) {
+				continue;
+			}
+			PlaceTag fallbackMatch = findTagByCode(activeTags, rule.tagCode());
+			if (fallbackMatch != null) {
+				return fallbackMatch;
+			}
+		}
+		return matchedTag;
+	}
+
+	private static PlaceTag findTagByCode(List<PlaceTag> activeTags, String tagCode) {
+		return activeTags.stream()
+				.filter(tag -> tagCode.equals(tag.getCode()))
+				.findFirst()
+				.orElse(null);
+	}
+
 	private static String normalizeForMatch(String value) {
 		if (value == null) {
 			return null;
@@ -128,48 +209,25 @@ public class PlaceTaxonomyResolver {
 			return null;
 		}
 
-		if (containsAny(normalizedCategoryName, PHOTO_STUDIO_KEYWORDS)) {
-			return new TaxonomyOverride(
-					KakaoCategoryGroupPolicy.SERVICE_CATEGORY_ACTIVITY,
-					PHOTO_STUDIO_TAG_CODE
-			);
-		}
-		if (!KakaoCategoryGroupPolicy.KAKAO_CAFE.equals(normalizeCategoryGroupCode(kakaoCategoryGroupCode))) {
-			return null;
-		}
-		return resolveCafeOverride(normalizedCategoryName);
-	}
-
-	private static TaxonomyOverride resolveCafeOverride(String normalizedCategoryName) {
-		if (normalizedCategoryName.contains("보드카페")) {
-			return new TaxonomyOverride(KakaoCategoryGroupPolicy.SERVICE_CATEGORY_ACTIVITY, "BOARD_GAME_CAFE");
-		}
-		if (normalizedCategoryName.contains("만화카페") || normalizedCategoryName.contains("만화방")) {
-			return new TaxonomyOverride(KakaoCategoryGroupPolicy.SERVICE_CATEGORY_ACTIVITY, "COMIC_CAFE");
-		}
-		if (normalizedCategoryName.contains("제과") || normalizedCategoryName.contains("베이커리")) {
-			return new TaxonomyOverride(KakaoCategoryGroupPolicy.SERVICE_CATEGORY_CAFE, "BAKERY");
-		}
-		if (isCoffeeDessertCafe(normalizedCategoryName)) {
-			return new TaxonomyOverride(
-					KakaoCategoryGroupPolicy.SERVICE_CATEGORY_CAFE,
-					CAFE_COFFEE_DESSERT_TAG_CODE
-			);
+		String normalizedCategoryGroupCode = normalizeCategoryGroupCode(kakaoCategoryGroupCode);
+		for (OverrideRule rule : OVERRIDE_RULES) {
+			if (rule.matches(normalizedCategoryGroupCode, normalizedCategoryName)) {
+				return new TaxonomyOverride(rule.categoryCode(), rule.tagCode());
+			}
 		}
 		return null;
-	}
-
-	private static boolean isCoffeeDessertCafe(String normalizedCategoryName) {
-		return normalizedCategoryName.equals("카페")
-				|| normalizedCategoryName.equals("음식점카페")
-				|| normalizedCategoryName.contains("커피전문점")
-				|| normalizedCategoryName.contains("디저트카페");
 	}
 
 	private static boolean containsAny(String normalizedCategoryName, List<String> keywords) {
 		return keywords.stream()
 				.map(PlaceTaxonomyResolver::normalizeForMatch)
 				.anyMatch(normalizedCategoryName::contains);
+	}
+
+	private static boolean equalsAny(String normalizedCategoryName, List<String> candidates) {
+		return candidates.stream()
+				.map(PlaceTaxonomyResolver::normalizeForMatch)
+				.anyMatch(normalizedCategoryName::equals);
 	}
 
 	private static String resolveCategoryCode(String kakaoCategoryGroupCode, TaxonomyOverride override) {
@@ -191,5 +249,31 @@ public class PlaceTaxonomyResolver {
 	}
 
 	private record TaxonomyOverride(String categoryCode, String tagCode) {
+	}
+
+	private record OverrideRule(
+			String kakaoCategoryGroupCode,
+			String categoryCode,
+			String tagCode,
+			List<String> exactCategoryNames,
+			List<String> keywordFragments
+	) {
+
+		private boolean matches(String kakaoCategoryGroupCode, String normalizedCategoryName) {
+			return this.kakaoCategoryGroupCode.equals(kakaoCategoryGroupCode)
+					&& (equalsAny(normalizedCategoryName, exactCategoryNames)
+							|| containsAny(normalizedCategoryName, keywordFragments));
+		}
+	}
+
+	private record FallbackTagRule(String categoryCode, String tagCode, List<String> keywords) {
+
+		private boolean supports(String categoryCode) {
+			return this.categoryCode.equals(categoryCode);
+		}
+
+		private boolean matches(String categoryCode, String normalizedCategoryName) {
+			return supports(categoryCode) && containsAny(normalizedCategoryName, keywords);
+		}
 	}
 }
