@@ -39,14 +39,11 @@ public class ProcessingClientImpl implements ProcessingClient {
 	}
 
 	@Override
-	public CreateProcessingJobResponse createJob(String url, String roomId, String source) {
+	public CreateProcessingJobResponse createJob(String originalUrl, String roomId, String source) {
 		Map<String, String> body = new LinkedHashMap<>();
-		body.put("url", url);
+		body.put("original_url", originalUrl);
 		if (roomId != null) {
 			body.put("room_id", roomId);
-		}
-		if (source != null) {
-			body.put("source", source);
 		}
 
 		CreateProcessingJobResponse response = readBody(

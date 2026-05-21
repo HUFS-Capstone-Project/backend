@@ -222,7 +222,7 @@ class LinkConcurrencyIntegrationTest {
 		LinkAnalysisRequestResult second = linkAnalysisRequestService.requestLinkAnalysis(
 				MEMBER_USER_ID,
 				ROOM_A_PUBLIC_ID,
-				new AnalyzeLinkCommand("https://example.com/post/1?utm_source=x", null)
+				new AnalyzeLinkCommand("https://example.com/post/1", null)
 		);
 
 		assertThat(first.linkId()).isEqualTo(second.linkId());
@@ -252,7 +252,7 @@ class LinkConcurrencyIntegrationTest {
 		LinkAnalysisRequestResult second = linkAnalysisRequestService.requestLinkAnalysis(
 				MEMBER_USER_ID,
 				ROOM_B_PUBLIC_ID,
-				new AnalyzeLinkCommand("https://example.com/post/1?ref=abc", null)
+				new AnalyzeLinkCommand("https://example.com/post/1", null)
 		);
 
 		assertThat(first.linkId()).isEqualTo(second.linkId());
@@ -261,6 +261,41 @@ class LinkConcurrencyIntegrationTest {
 		assertThat(linkAnalysisRequestRepository.countByLinkId(first.linkId())).isEqualTo(2);
 		assertThat(roomLinkRepository.count()).isZero();
 		verify(processingClient, times(1)).createJob("https://example.com/post/1", ROOM_A_PUBLIC_ID, null);
+	}
+
+	@Test
+	void shouldAllowProcessingServerDedupeJobIdForDifferentSubmittedUrls() throws Exception {
+		when(processingClient.createJob("https://example.com/post/1", ROOM_A_PUBLIC_ID, null))
+				.thenReturn(new CreateProcessingJobResponse("job-deduped"));
+		when(processingClient.createJob("https://example.com/post/1?utm_source=x", ROOM_A_PUBLIC_ID, null))
+				.thenReturn(new CreateProcessingJobResponse("job-deduped"));
+
+		LinkAnalysisRequestResult first = linkAnalysisRequestService.requestLinkAnalysis(
+				MEMBER_USER_ID,
+				ROOM_A_PUBLIC_ID,
+				new AnalyzeLinkCommand("https://example.com/post/1", null)
+		);
+		LinkAnalysisRequestResult second = linkAnalysisRequestService.requestLinkAnalysis(
+				MEMBER_USER_ID,
+				ROOM_A_PUBLIC_ID,
+				new AnalyzeLinkCommand("https://example.com/post/1?utm_source=x", null)
+		);
+
+		Link firstLink = awaitValue(
+				() -> linkRepository.findById(first.linkId()).orElseThrow(),
+				link -> link.getDispatchStatus() == ProcessingDispatchStatus.DISPATCHED
+		);
+		Link secondLink = awaitValue(
+				() -> linkRepository.findById(second.linkId()).orElseThrow(),
+				link -> link.getDispatchStatus() == ProcessingDispatchStatus.DISPATCHED
+		);
+
+		assertThat(first.linkId()).isNotEqualTo(second.linkId());
+		assertThat(firstLink.getProcessingJobId()).isEqualTo("job-deduped");
+		assertThat(secondLink.getProcessingJobId()).isEqualTo("job-deduped");
+		assertThat(linkRepository.count()).isEqualTo(2);
+		verify(processingClient, times(1)).createJob("https://example.com/post/1", ROOM_A_PUBLIC_ID, null);
+		verify(processingClient, times(1)).createJob("https://example.com/post/1?utm_source=x", ROOM_A_PUBLIC_ID, null);
 	}
 
 	@Test
@@ -374,6 +409,8 @@ class LinkConcurrencyIntegrationTest {
 				.thenReturn(new ProcessingJobResultResponse(
 						"job-no-place",
 						"SUCCEEDED",
+						"https://example.com/post/no-place",
+						"https://example.com/post/no-place",
 						"https://example.com/post/no-place",
 						content("content without selected place"),
 						linkStats(15000L, 177L, "April 2, 2026"),
@@ -518,7 +555,7 @@ class LinkConcurrencyIntegrationTest {
 		LinkAnalysisRequestResult repeatedRequest = linkAnalysisRequestService.requestLinkAnalysis(
 				MEMBER_USER_ID,
 				ROOM_A_PUBLIC_ID,
-				new AnalyzeLinkCommand("https://example.com/post/manual-corrected?utm_source=again", null)
+				new AnalyzeLinkCommand("https://example.com/post/manual-corrected", null)
 		);
 		LinkAnalysisResult result = linkAnalysisStatusService.getLinkAnalysisResult(
 				MEMBER_USER_ID,
@@ -840,7 +877,7 @@ class LinkConcurrencyIntegrationTest {
 		LinkAnalysisRequestResult retried = linkAnalysisRequestService.requestLinkAnalysis(
 				MEMBER_USER_ID,
 				ROOM_A_PUBLIC_ID,
-				new AnalyzeLinkCommand("https://example.com/post/11?utm_source=retry", null)
+				new AnalyzeLinkCommand("https://example.com/post/11", null)
 		);
 		Link afterRetry = awaitValue(
 				() -> linkRepository.findById(retried.linkId()).orElseThrow(),
@@ -892,7 +929,13 @@ class LinkConcurrencyIntegrationTest {
 		);
 		linkAnalysisRequestRepository.saveAndFlush(LinkAnalysisRequest.create(link, roomA, MEMBER_USER_ID, null));
 		LinkProcessingRequestedEvent event =
-				new LinkProcessingRequestedEvent(link.getId(), link.getNormalizedUrl(), ROOM_A_PUBLIC_ID, null);
+				new LinkProcessingRequestedEvent(
+						link.getId(),
+						link.getOriginalUrl(),
+						link.getNormalizedUrl(),
+						ROOM_A_PUBLIC_ID,
+						null
+				);
 
 		runConcurrently(() -> {
 			linkProcessingDispatchService.dispatch(event);
@@ -1004,6 +1047,8 @@ class LinkConcurrencyIntegrationTest {
 				null,
 				null,
 				null,
+				null,
+				null,
 				content(contentText),
 				linkStats(15000L, 177L, "April 2, 2026"),
 				null,
@@ -1019,6 +1064,8 @@ class LinkConcurrencyIntegrationTest {
 		return new ProcessingJobResultResponse(
 				"job-place",
 				"SUCCEEDED",
+				"https://example.com/post/place",
+				"https://example.com/post/place",
 				"https://example.com/post/place",
 				content("content ready"),
 				linkStats(15000L, 177L, "April 2, 2026"),

@@ -86,7 +86,7 @@ public class LinkSyncMappingPolicy {
 		List<PlaceCandidateSnapshot> extractedPlaces =
 				placeCandidateSnapshotMapper.fromProcessingCandidates(response.resolvedPlaces());
 		return new ProcessingResultSnapshot(
-				trimToNull(response.sourceUrl()),
+				trimToNull(response.originalUrl()),
 				trimToNull(response.content() == null ? null : response.content().contentText()),
 				linkStats == null ? null : linkStats.likeCount(),
 				linkStats == null ? null : linkStats.commentCount(),

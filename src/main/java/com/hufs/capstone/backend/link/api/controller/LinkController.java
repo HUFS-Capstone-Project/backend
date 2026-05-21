@@ -51,7 +51,7 @@ public class LinkController implements LinkApi {
 		LinkAnalysisRequestResult result = linkAnalysisRequestService.requestLinkAnalysis(
 				userId,
 				roomId,
-				new AnalyzeLinkCommand(request.url(), request.source())
+				new AnalyzeLinkCommand(request.originalUrl(), request.source())
 		);
 		URI location = ServletUriComponentsBuilder.fromCurrentRequest()
 				.replacePath("/api/v1/rooms/{roomId}/link-analysis-requests/{analysisRequestId}")

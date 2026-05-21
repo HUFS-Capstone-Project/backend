@@ -40,7 +40,7 @@ public class LinkProcessingDispatchService {
 		for (int attempt = 1; attempt <= dispatchPolicy.getMaxAttempts(); attempt++) {
 			try {
 				CreateProcessingJobResponse createdJob = processingClient.createJob(
-						event.normalizedUrl(),
+						event.originalUrl(),
 						event.roomId(),
 						event.source()
 				);

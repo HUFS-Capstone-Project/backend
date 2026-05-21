@@ -9,8 +9,12 @@ public record ProcessingJobResponse(
 		@JsonProperty("job_id")
 		String jobId,
 		String status,
-		@JsonProperty("source_url")
-		String sourceUrl,
+		@JsonProperty("original_url")
+		String originalUrl,
+		@JsonProperty("canonical_url")
+		String canonicalUrl,
+		@JsonProperty("crawl_url")
+		String crawlUrl,
 		@JsonProperty("room_id")
 		String roomId,
 		String source,
@@ -27,12 +31,12 @@ public record ProcessingJobResponse(
 	public ProcessingJobResponse(
 			String jobId,
 			String status,
-			String sourceUrl,
+			String originalUrl,
 			String roomId,
 			String source,
 			String errorCode,
 			String errorMessage
 	) {
-		this(jobId, status, sourceUrl, roomId, source, errorCode, errorMessage, null, null);
+		this(jobId, status, originalUrl, null, null, roomId, source, errorCode, errorMessage, null, null);
 	}
 }

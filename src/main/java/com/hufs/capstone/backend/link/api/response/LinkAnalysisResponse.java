@@ -11,7 +11,7 @@ import java.util.List;
 public record LinkAnalysisResponse(
 		Long linkId,
 		LinkAnalysisStatus status,
-		String sourceUrl,
+		String originalUrl,
 		String contentText,
 		LinkStatsResponse linkStats,
 		List<PlaceResponse> candidatePlaces,
@@ -23,7 +23,7 @@ public record LinkAnalysisResponse(
 		return new LinkAnalysisResponse(
 				result.linkId(),
 				result.status(),
-				result.sourceUrl(),
+				result.originalUrl(),
 				result.contentText(),
 				LinkStatsResponse.from(result.linkStats()),
 				result.candidatePlaces().stream()

@@ -53,6 +53,7 @@ public class LinkProcessingDispatchRecoveryService {
 	private LinkProcessingRequestedEvent toEvent(Link link, LinkAnalysisRequest request) {
 		return new LinkProcessingRequestedEvent(
 				link.getId(),
+				link.getOriginalUrl(),
 				link.getNormalizedUrl(),
 				request.getRoom().getPublicId(),
 				request.getSource()

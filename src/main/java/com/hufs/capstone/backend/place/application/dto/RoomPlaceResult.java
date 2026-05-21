@@ -30,7 +30,7 @@ public record RoomPlaceResult(
 		List<RoomPlaceMemoResult> memos,
 		RoomPlaceSourceType sourceType,
 		Long sourceRoomLinkId,
-		String sourceUrl,
+		String originalUrl,
 		Long createdBy,
 		Instant createdAt,
 		String businessHoursStatus,
@@ -47,14 +47,14 @@ public record RoomPlaceResult(
 		return from(roomPlace, businessHours, null, List.of(), null);
 	}
 
-	public static RoomPlaceResult from(RoomPlace roomPlace, BusinessHoursResult businessHours, String sourceUrl) {
-		return from(roomPlace, businessHours, sourceUrl, List.of(), null);
+	public static RoomPlaceResult from(RoomPlace roomPlace, BusinessHoursResult businessHours, String originalUrl) {
+		return from(roomPlace, businessHours, originalUrl, List.of(), null);
 	}
 
 	public static RoomPlaceResult from(
 			RoomPlace roomPlace,
 			BusinessHoursResult businessHours,
-			String sourceUrl,
+			String originalUrl,
 			List<RoomPlaceMemoResult> memos,
 			Long currentUserId
 	) {
@@ -83,7 +83,7 @@ public record RoomPlaceResult(
 				normalizedMemos,
 				roomPlace.getSourceType(),
 				roomPlace.getSourceRoomLinkId(),
-				sourceUrl,
+				originalUrl,
 				roomPlace.getCreatedByUserId(),
 				roomPlace.getCreatedAt(),
 				businessHours == null || businessHours.businessHoursStatus() == null

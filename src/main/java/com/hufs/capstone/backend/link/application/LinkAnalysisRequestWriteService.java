@@ -46,6 +46,7 @@ public class LinkAnalysisRequestWriteService {
 		publishProcessingRequestedEventIfNeeded(
 				target.createdNewLink() || recoveredDispatchFailed,
 				target.link(),
+				normalizedUrl.originalUrl(),
 				normalizedUrl.normalizedUrl(),
 				room.getPublicId(),
 				source
@@ -101,6 +102,7 @@ public class LinkAnalysisRequestWriteService {
 	private void publishProcessingRequestedEventIfNeeded(
 			boolean shouldPublish,
 			Link link,
+			String originalUrl,
 			String normalizedUrl,
 			String roomId,
 			String source
@@ -108,7 +110,7 @@ public class LinkAnalysisRequestWriteService {
 		if (!shouldPublish) {
 			return;
 		}
-		eventPublisher.publishEvent(new LinkProcessingRequestedEvent(link.getId(), normalizedUrl, roomId, source));
+		eventPublisher.publishEvent(new LinkProcessingRequestedEvent(link.getId(), originalUrl, normalizedUrl, roomId, source));
 	}
 
 	private boolean recoverDispatchFailedForManualRetry(Link link) {

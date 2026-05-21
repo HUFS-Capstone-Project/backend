@@ -6,7 +6,7 @@ import java.util.List;
 public record LinkAnalysisResult(
 		Long linkId,
 		LinkAnalysisStatus status,
-		String sourceUrl,
+		String originalUrl,
 		String contentText,
 		LinkStatsResult linkStats,
 		String extractionStoreName,

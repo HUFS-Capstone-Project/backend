@@ -1,7 +1,7 @@
 package com.hufs.capstone.backend.link.application.dto;
 
 public record ProcessingResultSnapshot(
-		String sourceUrl,
+		String originalUrl,
 		String contentText,
 		Long likeCount,
 		Long commentCount,

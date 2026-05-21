@@ -147,7 +147,7 @@ public class RoomPlaceQueryService {
 		return RoomPlaceResult.from(
 				roomPlace,
 				toBusinessHoursResult(cache),
-				sourceUrl(roomPlace),
+				originalUrl(roomPlace),
 				memosByRoomPlaceId.get(roomPlace.getId()),
 				userId
 		);
@@ -212,7 +212,7 @@ public class RoomPlaceQueryService {
 		}
 	}
 
-	private String sourceUrl(RoomPlace roomPlace) {
+	private String originalUrl(RoomPlace roomPlace) {
 		if (roomPlace.getSourceRoomLink() == null || roomPlace.getSourceRoomLink().getLink() == null) {
 			return null;
 		}

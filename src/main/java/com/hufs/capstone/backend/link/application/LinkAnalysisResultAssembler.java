@@ -74,7 +74,7 @@ public class LinkAnalysisResultAssembler {
 		LinkAnalysisResult overlaidResult = new LinkAnalysisResult(
 				result.linkId(),
 				result.status(),
-				result.sourceUrl(),
+				result.originalUrl(),
 				result.contentText(),
 				result.linkStats(),
 				result.extractionStoreName(),
@@ -96,7 +96,7 @@ public class LinkAnalysisResultAssembler {
 		return new LinkAnalysisResult(
 				result.linkId(),
 				result.status(),
-				result.sourceUrl(),
+				result.originalUrl(),
 				result.contentText(),
 				result.linkStats(),
 				result.extractionStoreName(),

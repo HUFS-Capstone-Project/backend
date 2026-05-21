@@ -22,7 +22,7 @@ public class LinkAnalysisRequestService {
 	public LinkAnalysisRequestResult requestLinkAnalysis(Long userId, String roomId, AnalyzeLinkCommand command) {
 		String requiredRoomId = requireRoomId(roomId);
 		String source = command.source() == null ? null : command.source().name();
-		LinkUrlNormalizer.NormalizedUrl normalizedUrl = LinkUrlNormalizer.normalize(command.url());
+		LinkUrlNormalizer.NormalizedUrl normalizedUrl = LinkUrlNormalizer.normalize(command.originalUrl());
 
 		LinkAnalysisRequestResult requested = requestWithDuplicateRaceRetry(
 				normalizedUrl,

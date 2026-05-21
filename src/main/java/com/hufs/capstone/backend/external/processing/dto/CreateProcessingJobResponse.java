@@ -9,14 +9,18 @@ public record CreateProcessingJobResponse(
 		@JsonProperty("job_id")
 		String jobId,
 		String status,
-		@JsonProperty("source_url")
-		String sourceUrl,
+		@JsonProperty("original_url")
+		String originalUrl,
+		@JsonProperty("canonical_url")
+		String canonicalUrl,
+		@JsonProperty("crawl_url")
+		String crawlUrl,
 		String source,
 		@JsonProperty("created_at")
 		OffsetDateTime createdAt
 ) {
 
 	public CreateProcessingJobResponse(String jobId) {
-		this(jobId, null, null, null, null);
+		this(jobId, null, null, null, null, null, null);
 	}
 }

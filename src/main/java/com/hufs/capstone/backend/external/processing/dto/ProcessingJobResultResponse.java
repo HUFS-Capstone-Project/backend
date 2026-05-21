@@ -11,8 +11,12 @@ public record ProcessingJobResultResponse(
 		String jobId,
 		@JsonProperty("status")
 		String status,
-		@JsonProperty("source_url")
-		String sourceUrl,
+		@JsonProperty("original_url")
+		String originalUrl,
+		@JsonProperty("canonical_url")
+		String canonicalUrl,
+		@JsonProperty("crawl_url")
+		String crawlUrl,
 		@JsonProperty("content")
 		ContentResponse content,
 		@JsonProperty("link_stats")

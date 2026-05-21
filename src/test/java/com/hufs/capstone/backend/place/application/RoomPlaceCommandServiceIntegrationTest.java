@@ -468,7 +468,7 @@ class RoomPlaceCommandServiceIntegrationTest {
 		);
 
 		assertThat(detail.sourceRoomLinkId()).isEqualTo(roomLink.getId());
-		assertThat(detail.sourceUrl()).isEqualTo(feedUrl);
+		assertThat(detail.originalUrl()).isEqualTo(feedUrl);
 	}
 
 	@Test
@@ -497,7 +497,7 @@ class RoomPlaceCommandServiceIntegrationTest {
 		assertThat(savedFromLink.places().get(0).created()).isFalse();
 		assertThat(savedFromLink.places().get(0).alreadyInRoom()).isTrue();
 		assertThat(detail.sourceRoomLinkId()).isNull();
-		assertThat(detail.sourceUrl()).isNull();
+		assertThat(detail.originalUrl()).isNull();
 	}
 
 	@Test

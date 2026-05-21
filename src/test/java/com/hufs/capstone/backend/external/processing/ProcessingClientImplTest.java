@@ -60,21 +60,32 @@ class ProcessingClientImplTest {
 			observedApiKey.set(exchange.getRequestHeaders().getFirst(ProcessingApiHeaders.INTERNAL_API_KEY));
 			observedBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
 			writeJson(exchange, HttpStatus.CREATED.value(), """
-					{"job_id":"job-1","status":"QUEUED","source_url":"https://example.com/p/1","source":"instagram"}
+					{
+					  "job_id":"job-1",
+					  "status":"QUEUED",
+					  "original_url":"https://example.com/p/1",
+					  "canonical_url":"https://example.com/p/1",
+					  "crawl_url":"https://example.com/p/1"
+					}
 					""");
 		});
 
 		CreateProcessingJobResponse response = client(3000).createJob(
 				"https://example.com/p/1",
 				"11111111-1111-1111-1111-111111111111",
-				null
+				"WEB"
 		);
 
 		assertThat(response.jobId()).isEqualTo("job-1");
+		assertThat(response.originalUrl()).isEqualTo("https://example.com/p/1");
+		assertThat(response.canonicalUrl()).isEqualTo("https://example.com/p/1");
+		assertThat(response.crawlUrl()).isEqualTo("https://example.com/p/1");
 		assertThat(observedPath.get()).isEqualTo("/api/v1/jobs");
 		assertThat(observedApiKey.get()).isEqualTo(INTERNAL_API_KEY);
-		assertThat(observedBody.get()).contains("\"url\":\"https://example.com/p/1\"");
+		assertThat(observedBody.get()).contains("\"original_url\":\"https://example.com/p/1\"");
 		assertThat(observedBody.get()).contains("\"room_id\":\"11111111-1111-1111-1111-111111111111\"");
+		assertThat(observedBody.get()).doesNotContain("\"url\"");
+		assertThat(observedBody.get()).doesNotContain("\"source\"");
 	}
 
 	@Test
@@ -113,7 +124,9 @@ class ProcessingClientImplTest {
 				{
 				  "job_id":"job-1",
 				  "status":"SUCCEEDED",
-				  "source_url":"https://www.instagram.com/p/abc123/",
+				  "original_url":"https://www.instagram.com/reels/abc123/?utm_source=test",
+				  "canonical_url":"https://www.instagram.com/reel/abc123/",
+				  "crawl_url":"https://www.instagram.com/reel/abc123/",
 				  "content":{
 				    "source_type":"INSTAGRAM",
 				    "content_text":"done",
@@ -147,7 +160,9 @@ class ProcessingClientImplTest {
 				}
 				""", ProcessingJobResultResponse.class);
 
-		assertThat(result.sourceUrl()).isEqualTo("https://www.instagram.com/p/abc123/");
+		assertThat(result.originalUrl()).isEqualTo("https://www.instagram.com/reels/abc123/?utm_source=test");
+		assertThat(result.canonicalUrl()).isEqualTo("https://www.instagram.com/reel/abc123/");
+		assertThat(result.crawlUrl()).isEqualTo("https://www.instagram.com/reel/abc123/");
 		assertThat(result.content().contentText()).isEqualTo("done");
 		assertThat(result.linkStats().likeCount()).isEqualTo(123);
 		assertThat(result.linkStats().commentCount()).isEqualTo(45);

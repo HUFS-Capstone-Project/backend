@@ -26,7 +26,7 @@ public class Link extends AuditableEntity {
 	@Column(nullable = false, unique = true, length = 2048)
 	private String normalizedUrl;
 
-	@Column(unique = true, length = 100)
+	@Column(length = 100)
 	private String processingJobId;
 
 	@Enumerated(EnumType.STRING)
