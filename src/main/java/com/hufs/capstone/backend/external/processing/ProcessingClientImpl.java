@@ -3,6 +3,7 @@ package com.hufs.capstone.backend.external.processing;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hufs.capstone.backend.external.processing.dto.CreateProcessingJobResponse;
+import com.hufs.capstone.backend.external.processing.dto.ProcessingJobCreateErrorResponse;
 import com.hufs.capstone.backend.external.processing.dto.ProcessingJobResponse;
 import com.hufs.capstone.backend.external.processing.dto.ProcessingJobResultResponse;
 import io.netty.handler.timeout.ReadTimeoutException;
@@ -12,8 +13,8 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
-import org.springframework.core.codec.DecodingException;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.core.codec.DecodingException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
@@ -53,7 +54,8 @@ public class ProcessingClientImpl implements ProcessingClient {
 						.bodyValue(body)
 						.retrieve(),
 				CreateProcessingJobResponse.class,
-				"Processing job 생성에 실패했습니다."
+				"Processing job 생성에 실패했습니다.",
+				true
 		);
 		if (response == null || response.jobId() == null || response.jobId().isBlank()) {
 			throw new ProcessingClientException(
@@ -83,7 +85,8 @@ public class ProcessingClientImpl implements ProcessingClient {
 						.uri(JOBS_SEGMENT + "/{jobId}/result", jobId)
 						.retrieve(),
 				ProcessingJobResultResponse.class,
-				"Processing job 결과 조회에 실패했습니다."
+				"Processing job 결과 조회에 실패했습니다.",
+				false
 		);
 	}
 
@@ -91,9 +94,17 @@ public class ProcessingClientImpl implements ProcessingClient {
 			WebClient.ResponseSpec responseSpec,
 			Class<T> bodyType,
 			String errorMessage) {
+		return readBody(responseSpec, bodyType, errorMessage, false);
+	}
+
+	private <T> T readBody(
+			WebClient.ResponseSpec responseSpec,
+			Class<T> bodyType,
+			String errorMessage,
+			boolean translateInstagramRateLimit) {
 		try {
 			return responseSpec
-					.onStatus(HttpStatusCode::isError, processingError(errorMessage))
+					.onStatus(HttpStatusCode::isError, processingError(errorMessage, translateInstagramRateLimit))
 					.bodyToMono(bodyType)
 					.block();
 		} catch (ProcessingClientException ex) {
@@ -112,13 +123,23 @@ public class ProcessingClientImpl implements ProcessingClient {
 		}
 	}
 
-	private Function<ClientResponse, Mono<? extends Throwable>> processingError(String message) {
+	private Function<ClientResponse, Mono<? extends Throwable>> processingError(String message, boolean translateInstagramRateLimit) {
 		return response -> response.bodyToMono(String.class)
 				.defaultIfEmpty("")
-				.flatMap(body -> Mono.error(httpException(message, response.statusCode(), body)));
+				.flatMap(body -> Mono.error(httpException(message, response.statusCode(), body, translateInstagramRateLimit)));
 	}
 
-	private ProcessingClientException httpException(String message, HttpStatusCode status, String body) {
+	private ProcessingClientException httpException(
+			String message,
+			HttpStatusCode status,
+			String body,
+			boolean translateInstagramRateLimit
+	) {
+		InstagramRateLimitedException instagramRateLimited =
+				translateInstagramRateLimit ? instagramRateLimitedExceptionOrNull(message, status, body) : null;
+		if (instagramRateLimited != null) {
+			return instagramRateLimited;
+		}
 		return new ProcessingClientException(
 				message,
 				status,
@@ -126,6 +147,27 @@ public class ProcessingClientImpl implements ProcessingClient {
 				classifyHttp(status),
 				extractProcessingErrorCode(body),
 				null
+		);
+	}
+
+	private InstagramRateLimitedException instagramRateLimitedExceptionOrNull(
+			String fallbackMessage,
+			HttpStatusCode status,
+			String body
+	) {
+		if (status == null || status.value() != HttpStatus.TOO_MANY_REQUESTS.value()) {
+			return null;
+		}
+		ProcessingJobCreateErrorResponse.Detail detail = parseCreateJobErrorDetail(body);
+		if (detail == null || !ProcessingErrorCodes.INSTAGRAM_RATE_LIMITED.equals(detail.code())) {
+			return null;
+		}
+		String message = detail.message() == null || detail.message().isBlank() ? fallbackMessage : detail.message();
+		return new InstagramRateLimitedException(
+				message,
+				body,
+				Boolean.TRUE.equals(detail.retryable()),
+				detail.cooldownSeconds()
 		);
 	}
 
@@ -171,6 +213,19 @@ public class ProcessingClientImpl implements ProcessingClient {
 			JsonNode root = objectMapper.readTree(body);
 			JsonNode code = root.path("detail").path("code");
 			return code.isTextual() ? code.asText() : null;
+		} catch (Exception ex) {
+			return null;
+		}
+	}
+
+	private ProcessingJobCreateErrorResponse.Detail parseCreateJobErrorDetail(String body) {
+		if (body == null || body.isBlank()) {
+			return null;
+		}
+		try {
+			ProcessingJobCreateErrorResponse response =
+					objectMapper.readValue(body, ProcessingJobCreateErrorResponse.class);
+			return response.detail();
 		} catch (Exception ex) {
 			return null;
 		}

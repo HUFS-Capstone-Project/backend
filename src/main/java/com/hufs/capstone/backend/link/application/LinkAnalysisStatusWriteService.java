@@ -39,6 +39,19 @@ public class LinkAnalysisStatusWriteService {
 			String errorCode,
 			String errorMessage
 	) {
+		return applySyncSnapshot(linkId, targetStatus, result, errorCode, errorMessage, null, null);
+	}
+
+	@Transactional
+	public LinkAnalysisResult applySyncSnapshot(
+			Long linkId,
+			LinkAnalysisStatus targetStatus,
+			ProcessingResultSnapshot result,
+			String errorCode,
+			String errorMessage,
+			Boolean retryable,
+			Integer cooldownSeconds
+	) {
 		for (int retry = 0; retry < MAX_CAS_RETRY; retry++) {
 			Link current = linkRepository.findById(linkId)
 					.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "Link not found."));
@@ -47,7 +60,7 @@ public class LinkAnalysisStatusWriteService {
 				return linkAnalysisResultAssembler.from(current);
 			}
 
-			CasPlan plan = CasPlan.from(current, targetStatus, result, errorCode, errorMessage);
+			CasPlan plan = CasPlan.from(current, targetStatus, result, errorCode, errorMessage, retryable, cooldownSeconds);
 			if (!plan.changed()) {
 				return linkAnalysisResultAssembler.from(current);
 			}
@@ -91,6 +104,8 @@ public class LinkAnalysisStatusWriteService {
 				result.processingResultJson(),
 				plan.errorCode(),
 				plan.errorMessage(),
+				plan.retryable(),
+				plan.cooldownSeconds(),
 				Instant.now()
 		);
 	}
@@ -100,7 +115,9 @@ public class LinkAnalysisStatusWriteService {
 			LinkAnalysisStatus targetStatus,
 			ProcessingResultSnapshot result,
 			String errorCode,
-			String errorMessage
+			String errorMessage,
+			Boolean retryable,
+			Integer cooldownSeconds
 	) {
 
 		private static CasPlan from(
@@ -108,12 +125,14 @@ public class LinkAnalysisStatusWriteService {
 				LinkAnalysisStatus targetStatus,
 				ProcessingResultSnapshot result,
 				String errorCode,
-				String errorMessage
+				String errorMessage,
+				Boolean retryable,
+				Integer cooldownSeconds
 		) {
 			return switch (targetStatus) {
 				case REQUESTED -> requestedPlan(current);
 				case PROCESSING -> processingPlan(current);
-				case FAILED -> failedPlan(current, errorCode, errorMessage);
+				case FAILED -> failedPlan(current, errorCode, errorMessage, retryable, cooldownSeconds);
 				case DISPATCH_FAILED -> dispatchFailedPlan(current, errorCode, errorMessage);
 				case SUCCEEDED -> succeededPlan(result);
 			};
@@ -122,55 +141,68 @@ public class LinkAnalysisStatusWriteService {
 		private static CasPlan requestedPlan(Link current) {
 			if (current.getStatus() == LinkAnalysisStatus.REQUESTED || current.getStatus() == LinkAnalysisStatus.PROCESSING) {
 				return unchanged(current.getStatus(), ProcessingResultSnapshot.empty(), current.getErrorCode(),
-						current.getErrorMessage());
+						current.getErrorMessage(), current.getRetryable(), current.getCooldownSeconds());
 			}
-			return changed(LinkAnalysisStatus.REQUESTED, ProcessingResultSnapshot.empty(), null, null);
+			return changed(LinkAnalysisStatus.REQUESTED, ProcessingResultSnapshot.empty(), null, null, null, null);
 		}
 
 		private static CasPlan processingPlan(Link current) {
 			if (current.getStatus() == LinkAnalysisStatus.PROCESSING) {
 				return unchanged(current.getStatus(), ProcessingResultSnapshot.empty(), current.getErrorCode(),
-						current.getErrorMessage());
+						current.getErrorMessage(), current.getRetryable(), current.getCooldownSeconds());
 			}
-			return changed(LinkAnalysisStatus.PROCESSING, ProcessingResultSnapshot.empty(), null, null);
+			return changed(LinkAnalysisStatus.PROCESSING, ProcessingResultSnapshot.empty(), null, null, null, null);
 		}
 
-		private static CasPlan failedPlan(Link current, String errorCode, String errorMessage) {
+		private static CasPlan failedPlan(
+				Link current,
+				String errorCode,
+				String errorMessage,
+				Boolean retryable,
+				Integer cooldownSeconds
+		) {
 			if (current.getStatus().isTerminal()) {
 				return unchanged(current.getStatus(), ProcessingResultSnapshot.empty(), current.getErrorCode(),
-						current.getErrorMessage());
+						current.getErrorMessage(), current.getRetryable(), current.getCooldownSeconds());
 			}
-			return changed(LinkAnalysisStatus.FAILED, ProcessingResultSnapshot.empty(), errorCode, errorMessage);
+			return changed(LinkAnalysisStatus.FAILED, ProcessingResultSnapshot.empty(), errorCode, errorMessage,
+					retryable, cooldownSeconds);
 		}
 
 		private static CasPlan dispatchFailedPlan(Link current, String errorCode, String errorMessage) {
 			if (current.getStatus().isTerminal()) {
 				return unchanged(current.getStatus(), ProcessingResultSnapshot.empty(), current.getErrorCode(),
-						current.getErrorMessage());
+						current.getErrorMessage(), current.getRetryable(), current.getCooldownSeconds());
 			}
-			return changed(LinkAnalysisStatus.DISPATCH_FAILED, ProcessingResultSnapshot.empty(), errorCode, errorMessage);
+			return changed(LinkAnalysisStatus.DISPATCH_FAILED, ProcessingResultSnapshot.empty(), errorCode, errorMessage,
+					null, null);
 		}
 
 		private static CasPlan succeededPlan(ProcessingResultSnapshot result) {
-			return changed(LinkAnalysisStatus.SUCCEEDED, result == null ? ProcessingResultSnapshot.empty() : result, null, null);
+			return changed(LinkAnalysisStatus.SUCCEEDED, result == null ? ProcessingResultSnapshot.empty() : result, null,
+					null, null, null);
 		}
 
 		private static CasPlan unchanged(
 				LinkAnalysisStatus status,
 				ProcessingResultSnapshot result,
 				String errorCode,
-				String errorMessage
+				String errorMessage,
+				Boolean retryable,
+				Integer cooldownSeconds
 		) {
-			return new CasPlan(false, status, result, errorCode, errorMessage);
+			return new CasPlan(false, status, result, errorCode, errorMessage, retryable, cooldownSeconds);
 		}
 
 		private static CasPlan changed(
 				LinkAnalysisStatus status,
 				ProcessingResultSnapshot result,
 				String errorCode,
-				String errorMessage
+				String errorMessage,
+				Boolean retryable,
+				Integer cooldownSeconds
 		) {
-			return new CasPlan(true, status, result, errorCode, errorMessage);
+			return new CasPlan(true, status, result, errorCode, errorMessage, retryable, cooldownSeconds);
 		}
 	}
 }

@@ -101,7 +101,8 @@ class LinkAnalysisStatusServiceTest {
 		when(linkRepository.findById(10L)).thenReturn(Optional.of(snapshot));
 		when(linkSyncOrchestrator.resolve(snapshot)).thenReturn(syncSnapshot);
 		when(linkAnalysisStatusResolver.resolve(snapshot, syncSnapshot)).thenReturn(resolution);
-		when(linkAnalysisStatusWriteService.applySyncSnapshot(10L, LinkAnalysisStatus.SUCCEEDED, processingResult, null, null))
+		when(linkAnalysisStatusWriteService.applySyncSnapshot(10L, LinkAnalysisStatus.SUCCEEDED, processingResult,
+				null, null, null, null))
 				.thenReturn(synced);
 		Room room = room();
 		when(linkAnalysisAuthorizationService.requireAnalysisRequest(USER_ID, ROOM_PUBLIC_ID, 10L))
@@ -118,7 +119,8 @@ class LinkAnalysisStatusServiceTest {
 		assertThat(result).isEqualTo(synced);
 		verify(linkAnalysisAuthorizationService).requireAnalysisRequest(USER_ID, ROOM_PUBLIC_ID, 10L);
 		verify(linkSyncOrchestrator).resolve(snapshot);
-		verify(linkAnalysisStatusWriteService).applySyncSnapshot(10L, LinkAnalysisStatus.SUCCEEDED, processingResult, null, null);
+		verify(linkAnalysisStatusWriteService).applySyncSnapshot(10L, LinkAnalysisStatus.SUCCEEDED, processingResult,
+				null, null, null, null);
 	}
 
 	@Test
@@ -153,7 +155,7 @@ class LinkAnalysisStatusServiceTest {
 		assertThat(result.contentText()).isEqualTo("content done");
 		verify(linkAnalysisAuthorizationService).requireAnalysisRequest(USER_ID, ROOM_PUBLIC_ID, 11L);
 		verify(linkSyncOrchestrator, never()).resolve(any());
-		verify(linkAnalysisStatusWriteService, never()).applySyncSnapshot(any(), any(), any(), any(), any());
+		verify(linkAnalysisStatusWriteService, never()).applySyncSnapshot(any(), any(), any(), any(), any(), any(), any());
 	}
 
 	@Test
@@ -178,7 +180,7 @@ class LinkAnalysisStatusServiceTest {
 		verify(linkAnalysisAuthorizationService).requireAnalysisRequest(USER_ID, ROOM_PUBLIC_ID, 12L);
 		verify(linkRepository, never()).findById(any());
 		verify(linkSyncOrchestrator, never()).resolve(any());
-		verify(linkAnalysisStatusWriteService, never()).applySyncSnapshot(any(), any(), any(), any(), any());
+		verify(linkAnalysisStatusWriteService, never()).applySyncSnapshot(any(), any(), any(), any(), any(), any(), any());
 	}
 
 	private static Link link(Long id, String processingJobId, LinkAnalysisStatus status) {

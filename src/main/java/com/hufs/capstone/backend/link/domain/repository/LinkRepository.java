@@ -72,6 +72,8 @@ public interface LinkRepository extends JpaRepository<Link, Long> {
 			    l.processingResultJson = :processingResultJson,
 			    l.errorCode = :errorCode,
 			    l.errorMessage = :errorMessage,
+			    l.retryable = :retryable,
+			    l.cooldownSeconds = :cooldownSeconds,
 			    l.version = l.version + 1,
 			    l.updatedAt = :updatedAt
 			where l.id = :linkId
@@ -94,6 +96,8 @@ public interface LinkRepository extends JpaRepository<Link, Long> {
 			@Param("processingResultJson") String processingResultJson,
 			@Param("errorCode") String errorCode,
 			@Param("errorMessage") String errorMessage,
+			@Param("retryable") Boolean retryable,
+			@Param("cooldownSeconds") Integer cooldownSeconds,
 			@Param("updatedAt") Instant updatedAt
 	);
 
@@ -123,6 +127,8 @@ public interface LinkRepository extends JpaRepository<Link, Long> {
 			    l.status = :targetStatus,
 			    l.errorCode = :errorCode,
 			    l.errorMessage = :errorMessage,
+			    l.retryable = :retryable,
+			    l.cooldownSeconds = :cooldownSeconds,
 			    l.version = l.version + 1,
 			    l.updatedAt = :updatedAt
 			where l.id = :linkId
@@ -136,6 +142,8 @@ public interface LinkRepository extends JpaRepository<Link, Long> {
 			@Param("targetStatus") LinkAnalysisStatus targetStatus,
 			@Param("errorCode") String errorCode,
 			@Param("errorMessage") String errorMessage,
+			@Param("retryable") Boolean retryable,
+			@Param("cooldownSeconds") Integer cooldownSeconds,
 			@Param("updatedAt") Instant updatedAt
 	);
 
@@ -146,6 +154,8 @@ public interface LinkRepository extends JpaRepository<Link, Long> {
 			    l.status = :targetStatus,
 			    l.errorCode = null,
 			    l.errorMessage = null,
+			    l.retryable = null,
+			    l.cooldownSeconds = null,
 			    l.version = l.version + 1,
 			    l.updatedAt = :updatedAt
 			where l.id = :linkId

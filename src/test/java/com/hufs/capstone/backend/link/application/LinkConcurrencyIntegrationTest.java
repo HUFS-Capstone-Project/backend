@@ -9,8 +9,10 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.hufs.capstone.backend.external.processing.InstagramRateLimitedException;
 import com.hufs.capstone.backend.external.processing.ProcessingClient;
 import com.hufs.capstone.backend.external.processing.ProcessingClientException;
+import com.hufs.capstone.backend.external.processing.ProcessingErrorCodes;
 import com.hufs.capstone.backend.external.processing.dto.CreateProcessingJobResponse;
 import com.hufs.capstone.backend.external.processing.dto.ProcessingJobResponse;
 import com.hufs.capstone.backend.external.processing.dto.ProcessingJobResultResponse;
@@ -855,6 +857,36 @@ class LinkConcurrencyIntegrationTest {
 	}
 
 	@Test
+	void shouldStoreFailedWithoutDispatchRetryWhenInstagramRateLimitedDuringDispatch() throws Exception {
+		when(processingClient.createJob("https://instagram.com/p/rate-limited", ROOM_A_PUBLIC_ID, null))
+				.thenThrow(new InstagramRateLimitedException("Instagram cooldown active.", "{}", true, 120));
+
+		LinkAnalysisRequestResult request = linkAnalysisRequestService.requestLinkAnalysis(
+				MEMBER_USER_ID,
+				ROOM_A_PUBLIC_ID,
+				new AnalyzeLinkCommand("https://instagram.com/p/rate-limited", null)
+		);
+		Link failed = awaitValue(
+				() -> linkRepository.findById(request.linkId()).orElseThrow(),
+				link -> link.getStatus() == LinkAnalysisStatus.FAILED
+		);
+		LinkAnalysisResult result = linkAnalysisStatusService.getLinkAnalysisResult(
+				MEMBER_USER_ID,
+				ROOM_A_PUBLIC_ID,
+				request.analysisRequestId()
+		);
+
+		assertThat(failed.getProcessingJobId()).isNull();
+		assertThat(failed.getDispatchStatus()).isEqualTo(ProcessingDispatchStatus.DISPATCH_FAILED);
+		assertThat(result.status()).isEqualTo(LinkAnalysisStatus.FAILED);
+		assertThat(result.errorCode()).isEqualTo(ProcessingErrorCodes.INSTAGRAM_RATE_LIMITED);
+		assertThat(result.errorMessage()).isEqualTo("현재 Instagram 분석이 일시적으로 제한되어 있어요. 잠시 후 다시 시도해 주세요.");
+		assertThat(result.retryable()).isTrue();
+		assertThat(result.cooldownSeconds()).isEqualTo(120);
+		verify(processingClient, times(1)).createJob("https://instagram.com/p/rate-limited", ROOM_A_PUBLIC_ID, null);
+	}
+
+	@Test
 	void shouldManuallyRetryDispatchFailedWhenSameUrlIsRequestedAgain() throws Exception {
 		when(processingClient.createJob("https://example.com/post/11", ROOM_A_PUBLIC_ID, null))
 				.thenThrow(new RuntimeException("processing server down"))
@@ -1017,6 +1049,35 @@ class LinkConcurrencyIntegrationTest {
 		assertThat(reloaded.getContentText()).isEqualTo("content final");
 	}
 
+	@Test
+	void shouldStopPollingWhenResultIsInstagramRateLimitedFailure() {
+		Link link = saveProcessingLink("https://instagram.com/p/result-rate-limited", "job-rate-limited", roomA);
+		when(processingClient.getJob("job-rate-limited"))
+				.thenReturn(new ProcessingJobResponse("job-rate-limited", "succeeded", null, ROOM_A_PUBLIC_ID, null, null, null));
+		when(processingClient.getJobResult("job-rate-limited"))
+				.thenReturn(instagramRateLimitedResult("job-rate-limited"));
+
+		Long analysisRequestId = analysisRequestIdFor(link, roomA);
+		LinkAnalysisResult first = linkAnalysisStatusService.getLinkAnalysisResult(
+				MEMBER_USER_ID,
+				ROOM_A_PUBLIC_ID,
+				analysisRequestId
+		);
+		LinkAnalysisResult second = linkAnalysisStatusService.getLinkAnalysisResult(
+				MEMBER_USER_ID,
+				ROOM_A_PUBLIC_ID,
+				analysisRequestId
+		);
+
+		assertThat(first.status()).isEqualTo(LinkAnalysisStatus.FAILED);
+		assertThat(first.errorCode()).isEqualTo(ProcessingErrorCodes.INSTAGRAM_RATE_LIMITED);
+		assertThat(first.errorMessage()).isEqualTo("현재 Instagram 분석이 일시적으로 제한되어 있어요. 잠시 후 다시 시도해 주세요.");
+		assertThat(first.retryable()).isTrue();
+		assertThat(second.status()).isEqualTo(LinkAnalysisStatus.FAILED);
+		verify(processingClient, times(1)).getJob("job-rate-limited");
+		verify(processingClient, times(1)).getJobResult("job-rate-limited");
+	}
+
 	private Room createRoomWithMember(String publicId, String name, String inviteCode, Long userId) {
 		Room room = roomRepository.saveAndFlush(Room.create(publicId, name, inviteCode, userId));
 		roomMemberRepository.saveAndFlush(RoomMember.join(room, userId));
@@ -1072,6 +1133,22 @@ class LinkConcurrencyIntegrationTest {
 				resolvedPlaces,
 				null,
 				null
+		);
+	}
+
+	private static ProcessingJobResultResponse instagramRateLimitedResult(String jobId) {
+		return new ProcessingJobResultResponse(
+				jobId,
+				"FAILED",
+				"https://instagram.com/p/result-rate-limited",
+				"https://instagram.com/p/result-rate-limited",
+				"https://instagram.com/p/result-rate-limited",
+				null,
+				null,
+				List.of(),
+				ProcessingErrorCodes.INSTAGRAM_RATE_LIMITED,
+				"Instagram cooldown active.",
+				true
 		);
 	}
 

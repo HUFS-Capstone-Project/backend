@@ -68,6 +68,10 @@ public class Link extends AuditableEntity {
 	@Column(length = 500)
 	private String errorMessage;
 
+	private Boolean retryable;
+
+	private Integer cooldownSeconds;
+
 	@Version
 	@Column(nullable = false)
 	private Long version;

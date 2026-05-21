@@ -14,7 +14,9 @@ public record LinkAnalysisResult(
 		String extractionCertainty,
 		List<LinkPlaceResult> candidatePlaces,
 		String errorCode,
-		String errorMessage
+		String errorMessage,
+		Boolean retryable,
+		Integer cooldownSeconds
 ) {
 
 	public LinkAnalysisResult(
@@ -35,7 +37,9 @@ public record LinkAnalysisResult(
 				null,
 				List.of(),
 				errorCode,
-				errorMessage
+				errorMessage,
+				null,
+				null
 		);
 	}
 }

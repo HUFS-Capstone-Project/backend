@@ -1,6 +1,8 @@
 package com.hufs.capstone.backend.link.application;
 
+import com.hufs.capstone.backend.external.processing.InstagramRateLimitedException;
 import com.hufs.capstone.backend.external.processing.ProcessingClient;
+import com.hufs.capstone.backend.external.processing.ProcessingErrorCodes;
 import com.hufs.capstone.backend.external.processing.dto.CreateProcessingJobResponse;
 import com.hufs.capstone.backend.link.application.event.LinkProcessingRequestedEvent;
 import com.hufs.capstone.backend.link.domain.LinkAnalysisStatus;
@@ -23,6 +25,8 @@ public class LinkProcessingDispatchService {
 
 	private static final String DISPATCH_FAILED_ERROR_CODE = "PROCESSING_DISPATCH_FAILED";
 	private static final String DISPATCH_FAILED_ERROR_MESSAGE = "처리 디스패치 재시도가 모두 소진되었습니다.";
+	private static final String INSTAGRAM_RATE_LIMITED_USER_MESSAGE =
+			"현재 Instagram 분석이 일시적으로 제한되어 있어요. 잠시 후 다시 시도해 주세요.";
 
 	private final ProcessingClient processingClient;
 	private final LinkRepository linkRepository;
@@ -47,6 +51,10 @@ public class LinkProcessingDispatchService {
 				String createdJobId = requireCreatedJobId(createdJob, event.linkId());
 				bindCreatedJobId(event.linkId(), createdJobId);
 				return;
+			} catch (InstagramRateLimitedException ex) {
+				log.warn("Instagram rate limit으로 처리 디스패치를 최종 실패 처리합니다. linkId={}", event.linkId(), ex);
+				handleInstagramRateLimited(event.linkId(), ex);
+				return;
 			} catch (RuntimeException ex) {
 				lastException = ex;
 				log.warn(
@@ -63,6 +71,22 @@ public class LinkProcessingDispatchService {
 		}
 
 		handleExhaustedRetry(event.linkId(), lastException);
+	}
+
+	private void handleInstagramRateLimited(Long linkId, InstagramRateLimitedException exception) {
+		boolean markedFailed = markDispatchFailedIfDispatching(
+				linkId,
+				LinkAnalysisStatus.FAILED,
+				ProcessingErrorCodes.INSTAGRAM_RATE_LIMITED,
+				INSTAGRAM_RATE_LIMITED_USER_MESSAGE,
+				exception.isRetryable(),
+				exception.getCooldownSeconds()
+		);
+		if (!markedFailed) {
+			log.info("링크 디스패치 상태가 동시 변경되어 Instagram rate limit 실패 처리를 건너뜁니다. linkId={}", linkId);
+			return;
+		}
+		saveDispatchFailedHistory(linkId, ProcessingErrorCodes.INSTAGRAM_RATE_LIMITED, INSTAGRAM_RATE_LIMITED_USER_MESSAGE);
 	}
 
 	private boolean claimDispatch(Long linkId) {
@@ -113,15 +137,35 @@ public class LinkProcessingDispatchService {
 	}
 
 	private boolean markDispatchFailedIfDispatching(Long linkId) {
+		return markDispatchFailedIfDispatching(
+				linkId,
+				LinkAnalysisStatus.DISPATCH_FAILED,
+				DISPATCH_FAILED_ERROR_CODE,
+				DISPATCH_FAILED_ERROR_MESSAGE,
+				null,
+				null
+		);
+	}
+
+	private boolean markDispatchFailedIfDispatching(
+			Long linkId,
+			LinkAnalysisStatus targetStatus,
+			String errorCode,
+			String errorMessage,
+			Boolean retryable,
+			Integer cooldownSeconds
+	) {
 		TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 		transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
 		Integer updated = transactionTemplate.execute(status -> linkRepository.markDispatchFailedIfNoJob(
 				linkId,
 				ProcessingDispatchStatus.DISPATCHING,
 				ProcessingDispatchStatus.DISPATCH_FAILED,
-				LinkAnalysisStatus.DISPATCH_FAILED,
-				DISPATCH_FAILED_ERROR_CODE,
-				DISPATCH_FAILED_ERROR_MESSAGE,
+				targetStatus,
+				errorCode,
+				errorMessage,
+				retryable,
+				cooldownSeconds,
 				Instant.now()
 		));
 		int updatedCount = updated == null ? 0 : updated;
@@ -129,13 +173,17 @@ public class LinkProcessingDispatchService {
 	}
 
 	private void saveDispatchFailedHistory(Long linkId) {
+		saveDispatchFailedHistory(linkId, DISPATCH_FAILED_ERROR_CODE, DISPATCH_FAILED_ERROR_MESSAGE);
+	}
+
+	private void saveDispatchFailedHistory(Long linkId, String errorCode, String errorMessage) {
 		TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 		transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
 		transactionTemplate.executeWithoutResult(status -> linkRepository.findById(linkId)
 				.ifPresent(link -> linkProcessingHistoryRepository.save(LinkProcessingHistory.dispatchFailed(
 						link,
-						DISPATCH_FAILED_ERROR_CODE,
-						DISPATCH_FAILED_ERROR_MESSAGE
+						errorCode,
+						errorMessage
 				))));
 	}
 

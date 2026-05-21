@@ -77,6 +77,8 @@ class LinkAnalysisStatusWriteServiceTest {
 				any(),
 				any(),
 				any(),
+				any(),
+				any(),
 				any()
 		);
 	}
@@ -176,6 +178,8 @@ class LinkAnalysisStatusWriteServiceTest {
 
 	private void stubCasUpdate(int updatedCount) {
 		when(linkRepository.compareAndSetAnalysisResult(
+				any(),
+				any(),
 				any(),
 				any(),
 				any(),

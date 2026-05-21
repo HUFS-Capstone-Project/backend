@@ -52,8 +52,19 @@ public class LinkSyncOrchestrator {
 			LinkAnalysisStatus status,
 			ProcessingResultSnapshot result,
 			String errorCode,
-			String errorMessage
+			String errorMessage,
+			Boolean retryable,
+			Integer cooldownSeconds
 	) {
+
+		public ProcessingSyncSnapshot(
+				LinkAnalysisStatus status,
+				ProcessingResultSnapshot result,
+				String errorCode,
+				String errorMessage
+		) {
+			this(status, result, errorCode, errorMessage, null, null);
+		}
 	}
 }
 

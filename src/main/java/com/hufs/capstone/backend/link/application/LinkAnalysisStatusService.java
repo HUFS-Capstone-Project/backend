@@ -100,7 +100,9 @@ public class LinkAnalysisStatusService {
 				resolution.targetStatus(),
 				resolution.result(),
 				resolution.errorCode(),
-				resolution.errorMessage()
+				resolution.errorMessage(),
+				resolution.retryable(),
+				resolution.cooldownSeconds()
 		);
 	}
 }

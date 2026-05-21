@@ -19,7 +19,9 @@ public class LinkAnalysisStatusResolver {
 				syncSnapshot.status(),
 				syncSnapshot.result(),
 				syncSnapshot.errorCode(),
-				syncSnapshot.errorMessage()
+				syncSnapshot.errorMessage(),
+				syncSnapshot.retryable(),
+				syncSnapshot.cooldownSeconds()
 		);
 	}
 
@@ -28,11 +30,13 @@ public class LinkAnalysisStatusResolver {
 			LinkAnalysisStatus targetStatus,
 			ProcessingResultSnapshot result,
 			String errorCode,
-			String errorMessage
+			String errorMessage,
+			Boolean retryable,
+			Integer cooldownSeconds
 	) {
 
 		public static Resolution noWrite() {
-			return new Resolution(false, null, null, null, null);
+			return new Resolution(false, null, null, null, null, null, null);
 		}
 
 		public static Resolution write(
@@ -41,7 +45,18 @@ public class LinkAnalysisStatusResolver {
 				String errorCode,
 				String errorMessage
 		) {
-			return new Resolution(true, targetStatus, result, errorCode, errorMessage);
+			return write(targetStatus, result, errorCode, errorMessage, null, null);
+		}
+
+		public static Resolution write(
+				LinkAnalysisStatus targetStatus,
+				ProcessingResultSnapshot result,
+				String errorCode,
+				String errorMessage,
+				Boolean retryable,
+				Integer cooldownSeconds
+		) {
+			return new Resolution(true, targetStatus, result, errorCode, errorMessage, retryable, cooldownSeconds);
 		}
 	}
 }

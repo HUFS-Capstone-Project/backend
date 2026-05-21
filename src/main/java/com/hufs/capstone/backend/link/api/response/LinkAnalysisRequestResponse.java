@@ -7,7 +7,11 @@ public record LinkAnalysisRequestResponse(
 		Long analysisRequestId,
 		Long linkId,
 		String jobId,
-		LinkAnalysisStatus status
+		LinkAnalysisStatus status,
+		String errorCode,
+		String errorMessage,
+		Boolean retryable,
+		Integer cooldownSeconds
 ) {
 
 	public static LinkAnalysisRequestResponse from(LinkAnalysisRequestResult result) {
@@ -15,7 +19,11 @@ public record LinkAnalysisRequestResponse(
 				result.analysisRequestId(),
 				result.linkId(),
 				result.processingJobId(),
-				result.status()
+				result.status(),
+				result.errorCode(),
+				result.errorMessage(),
+				result.retryable(),
+				result.cooldownSeconds()
 		);
 	}
 }

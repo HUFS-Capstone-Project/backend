@@ -8,6 +8,10 @@ public record LinkAnalysisRequestResult(
 		Long linkId,
 		String processingJobId,
 		LinkAnalysisStatus status,
+		String errorCode,
+		String errorMessage,
+		Boolean retryable,
+		Integer cooldownSeconds,
 		boolean createdRequest
 ) {
 
@@ -17,7 +21,7 @@ public record LinkAnalysisRequestResult(
 			LinkAnalysisStatus status,
 			boolean createdRequest
 	) {
-		this(null, linkId, processingJobId, status, createdRequest);
+		this(null, linkId, processingJobId, status, null, null, null, null, createdRequest);
 	}
 
 	public static LinkAnalysisRequestResult from(Link link, Long analysisRequestId, boolean createdRequest) {
@@ -26,6 +30,10 @@ public record LinkAnalysisRequestResult(
 				link.getId(),
 				link.getProcessingJobId(),
 				link.getStatus(),
+				link.getErrorCode(),
+				link.getErrorMessage(),
+				link.getRetryable(),
+				link.getCooldownSeconds(),
 				createdRequest
 		);
 	}

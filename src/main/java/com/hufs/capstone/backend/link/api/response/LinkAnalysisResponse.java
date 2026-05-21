@@ -16,7 +16,9 @@ public record LinkAnalysisResponse(
 		LinkStatsResponse linkStats,
 		List<PlaceResponse> candidatePlaces,
 		String errorCode,
-		String errorMessage
+		String errorMessage,
+		Boolean retryable,
+		Integer cooldownSeconds
 ) {
 
 	public static LinkAnalysisResponse from(LinkAnalysisResult result) {
@@ -30,7 +32,9 @@ public record LinkAnalysisResponse(
 						.map(PlaceResponse::from)
 						.toList(),
 				result.errorCode(),
-				result.errorMessage()
+				result.errorMessage(),
+				result.retryable(),
+				result.cooldownSeconds()
 		);
 	}
 

@@ -26,8 +26,37 @@ public record ProcessingJobResultResponse(
 		@JsonProperty("error_code")
 		String errorCode,
 		@JsonProperty("error_message")
-		String errorMessage
+		String errorMessage,
+		@JsonProperty("retryable")
+		Boolean retryable
 ) {
+
+	public ProcessingJobResultResponse(
+			String jobId,
+			String status,
+			String originalUrl,
+			String canonicalUrl,
+			String crawlUrl,
+			ContentResponse content,
+			LinkStatsResponse linkStats,
+			List<ResolvedPlaceResponse> resolvedPlaces,
+			String errorCode,
+			String errorMessage
+	) {
+		this(
+				jobId,
+				status,
+				originalUrl,
+				canonicalUrl,
+				crawlUrl,
+				content,
+				linkStats,
+				resolvedPlaces,
+				errorCode,
+				errorMessage,
+				null
+		);
+	}
 
 	@JsonIgnoreProperties(ignoreUnknown = true)
 	public record ContentResponse(

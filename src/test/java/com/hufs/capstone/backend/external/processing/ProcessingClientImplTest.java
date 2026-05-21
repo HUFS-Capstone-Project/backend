@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hufs.capstone.backend.external.processing.dto.ProcessingJobCreateErrorResponse;
 import com.hufs.capstone.backend.external.processing.dto.BusinessHoursJobCreateRequest;
 import com.hufs.capstone.backend.external.processing.dto.BusinessHoursJobCreateResponse;
 import com.hufs.capstone.backend.external.processing.dto.BusinessHoursJobStatus;
@@ -16,6 +17,7 @@ import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.net.SocketException;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -156,7 +158,8 @@ class ProcessingClientImplTest {
 				    }
 				  ],
 				  "error_code":null,
-				  "error_message":null
+				  "error_message":null,
+				  "retryable":false
 				}
 				""", ProcessingJobResultResponse.class);
 
@@ -172,6 +175,27 @@ class ProcessingClientImplTest {
 		assertThat(result.resolvedPlaces().get(0).longitude()).isEqualByComparingTo("127.060138952594");
 		assertThat(result.resolvedPlaces().get(0).latitude()).isEqualByComparingTo("37.5959759766929");
 		assertThat(result.resolvedPlaces().get(0).categoryGroupCode()).isEqualTo("CE7");
+		assertThat(result.retryable()).isFalse();
+	}
+
+	@Test
+	void createJobErrorResponseShouldReadFastApiDetailWrapper() throws Exception {
+		ObjectMapper objectMapper = new ObjectMapper();
+
+		ProcessingJobCreateErrorResponse response = objectMapper.readValue("""
+				{
+				  "detail": {
+				    "code": "INSTAGRAM_RATE_LIMITED",
+				    "message": "Instagram cooldown active.",
+				    "retryable": true,
+				    "cooldown_seconds": 120
+				  }
+				}
+				""", ProcessingJobCreateErrorResponse.class);
+
+		assertThat(response.detail().code()).isEqualTo(ProcessingErrorCodes.INSTAGRAM_RATE_LIMITED);
+		assertThat(response.detail().retryable()).isTrue();
+		assertThat(response.detail().cooldownSeconds()).isEqualTo(120);
 	}
 
 	@Test
@@ -241,6 +265,28 @@ class ProcessingClientImplTest {
 	}
 
 	@Test
+	void createJobShouldThrowInstagramRateLimitedExceptionOnRateLimitDetailWrapper() throws Exception {
+		startServer(exchange -> writeJson(exchange, HttpStatus.TOO_MANY_REQUESTS.value(), """
+				{
+				  "detail": {
+				    "code": "INSTAGRAM_RATE_LIMITED",
+				    "message": "Instagram cooldown active.",
+				    "retryable": true,
+				    "cooldown_seconds": 90
+				  }
+				}
+				"""));
+
+		assertThatThrownBy(() -> client(3000).createJob("https://instagram.com/p/abc", "room-1", null))
+				.isInstanceOfSatisfying(InstagramRateLimitedException.class, exception -> {
+					assertThat(exception.getStatus()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
+					assertThat(exception.getProcessingErrorCode()).isEqualTo(ProcessingErrorCodes.INSTAGRAM_RATE_LIMITED);
+					assertThat(exception.isRetryable()).isTrue();
+					assertThat(exception.getCooldownSeconds()).isEqualTo(90);
+				});
+	}
+
+	@Test
 	void shouldClassifyServerError() throws Exception {
 		startServer(exchange -> writeJson(exchange, HttpStatus.BAD_GATEWAY.value(), "{}"));
 
@@ -289,10 +335,22 @@ class ProcessingClientImplTest {
 
 	private void startServer(ExchangeHandler handler) throws IOException {
 		serverExecutor = Executors.newCachedThreadPool();
-		server = HttpServer.create(new InetSocketAddress(0), 0);
+		server = createHttpServer();
 		server.createContext("/", exchange -> handler.handle(exchange));
 		server.setExecutor(serverExecutor);
 		server.start();
+	}
+
+	private static HttpServer createHttpServer() throws IOException {
+		SocketException lastException = null;
+		for (int attempt = 0; attempt < 3; attempt++) {
+			try {
+				return HttpServer.create(new InetSocketAddress(0), 0);
+			} catch (SocketException ex) {
+				lastException = ex;
+			}
+		}
+		throw new IOException("Failed to bind test HTTP server.", lastException);
 	}
 
 	private static void writeJson(HttpExchange exchange, int status, String body) throws IOException {

@@ -2,6 +2,7 @@ package com.hufs.capstone.backend.link.application;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hufs.capstone.backend.external.processing.ProcessingErrorCodes;
 import com.hufs.capstone.backend.external.processing.dto.ProcessingJobResultResponse;
 import com.hufs.capstone.backend.external.processing.dto.ProcessingJobResultResponse.ResolvedPlaceResponse;
 import com.hufs.capstone.backend.external.processing.dto.ProcessingJobResponse;
@@ -18,6 +19,8 @@ public class LinkSyncMappingPolicy {
 
 	private static final String MALFORMED_RESULT_ERROR_CODE = "PROCESSING_MALFORMED_RESPONSE";
 	private static final String MALFORMED_RESULT_ERROR_MESSAGE = "Processing result response is malformed.";
+	private static final String INSTAGRAM_RATE_LIMITED_USER_MESSAGE =
+			"현재 Instagram 분석이 일시적으로 제한되어 있어요. 잠시 후 다시 시도해 주세요.";
 
 	private final ObjectMapper objectMapper;
 	private final LinkPlaceCandidateSnapshotMapper placeCandidateSnapshotMapper;
@@ -61,6 +64,16 @@ public class LinkSyncMappingPolicy {
 		if (resultResponse == null) {
 			return new LinkSyncOrchestrator.ProcessingSyncSnapshot(LinkAnalysisStatus.PROCESSING, null, null, null);
 		}
+		if (isInstagramRateLimitedFailure(resultResponse)) {
+			return new LinkSyncOrchestrator.ProcessingSyncSnapshot(
+					LinkAnalysisStatus.FAILED,
+					null,
+					ProcessingErrorCodes.INSTAGRAM_RATE_LIMITED,
+					INSTAGRAM_RATE_LIMITED_USER_MESSAGE,
+					Boolean.TRUE.equals(resultResponse.retryable()),
+					null
+			);
+		}
 
 		try {
 			return new LinkSyncOrchestrator.ProcessingSyncSnapshot(
@@ -78,6 +91,11 @@ public class LinkSyncMappingPolicy {
 					MALFORMED_RESULT_ERROR_MESSAGE
 			);
 		}
+	}
+
+	private static boolean isInstagramRateLimitedFailure(ProcessingJobResultResponse response) {
+		return LinkAnalysisStatus.fromProcessingStatus(response.status()) == LinkAnalysisStatus.FAILED
+				&& ProcessingErrorCodes.INSTAGRAM_RATE_LIMITED.equals(trimToNull(response.errorCode()));
 	}
 
 	private ProcessingResultSnapshot toResultSnapshot(ProcessingJobResultResponse response) {

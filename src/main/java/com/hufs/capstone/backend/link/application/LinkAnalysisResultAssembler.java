@@ -47,7 +47,9 @@ public class LinkAnalysisResultAssembler {
 				link.getExtractionCertainty(),
 				candidatePlaces,
 				link.getErrorCode(),
-				link.getErrorMessage()
+				link.getErrorMessage(),
+				link.getRetryable(),
+				link.getCooldownSeconds()
 		);
 	}
 
@@ -82,7 +84,9 @@ public class LinkAnalysisResultAssembler {
 				result.extractionCertainty(),
 				overlaidCandidates,
 				result.errorCode(),
-				result.errorMessage()
+				result.errorMessage(),
+				result.retryable(),
+				result.cooldownSeconds()
 		);
 		return withSavedStatus(overlaidResult, savedPlaces);
 	}
@@ -104,7 +108,9 @@ public class LinkAnalysisResultAssembler {
 				result.extractionCertainty(),
 				enrichedCandidates,
 				result.errorCode(),
-				result.errorMessage()
+				result.errorMessage(),
+				result.retryable(),
+				result.cooldownSeconds()
 		);
 	}
 
