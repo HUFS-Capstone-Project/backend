@@ -42,14 +42,22 @@ public class LinkAnalysisRequest extends AuditableEntity {
 	@Column(length = 100)
 	private String source;
 
-	private LinkAnalysisRequest(Link link, Room room, Long requestedBy, String source) {
+	@Column(nullable = false, length = 2048)
+	private String originalUrl;
+
+	private LinkAnalysisRequest(Link link, Room room, Long requestedBy, String source, String originalUrl) {
 		this.link = link;
 		this.room = room;
 		this.requestedBy = requestedBy;
 		this.source = source;
+		this.originalUrl = originalUrl;
 	}
 
 	public static LinkAnalysisRequest create(Link link, Room room, Long requestedBy, String source) {
-		return new LinkAnalysisRequest(link, room, requestedBy, source);
+		return create(link, room, requestedBy, source, link.getOriginalUrl());
+	}
+
+	public static LinkAnalysisRequest create(Link link, Room room, Long requestedBy, String source, String originalUrl) {
+		return new LinkAnalysisRequest(link, room, requestedBy, source, originalUrl);
 	}
 }

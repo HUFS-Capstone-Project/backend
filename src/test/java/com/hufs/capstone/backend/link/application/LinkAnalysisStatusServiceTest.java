@@ -107,7 +107,8 @@ class LinkAnalysisStatusServiceTest {
 		Room room = room();
 		when(linkAnalysisAuthorizationService.requireAnalysisRequest(USER_ID, ROOM_PUBLIC_ID, 10L))
 				.thenReturn(analysisRequest(10L, snapshot, room));
-		when(linkAnalysisResultAssembler.withSavedStatus(synced, List.of())).thenReturn(synced);
+		when(linkAnalysisResultAssembler.withSavedStatus(any(LinkAnalysisResult.class), eq(List.of())))
+				.thenAnswer(invocation -> invocation.getArgument(0));
 		when(linkAnalysisCacheCoordinator.getOrLoad(eq(10L), any())).thenAnswer(invocation -> {
 			@SuppressWarnings("unchecked")
 			Supplier<LinkAnalysisResult> loader = invocation.getArgument(1, Supplier.class);
@@ -116,7 +117,9 @@ class LinkAnalysisStatusServiceTest {
 
 		LinkAnalysisResult result = linkAnalysisStatusService.getLinkAnalysisResult(USER_ID, ROOM_PUBLIC_ID, 10L);
 
-		assertThat(result).isEqualTo(synced);
+		assertThat(result.linkId()).isEqualTo(synced.linkId());
+		assertThat(result.status()).isEqualTo(synced.status());
+		assertThat(result.originalUrl()).isEqualTo("https://example.com/p/10");
 		verify(linkAnalysisAuthorizationService).requireAnalysisRequest(USER_ID, ROOM_PUBLIC_ID, 10L);
 		verify(linkSyncOrchestrator).resolve(snapshot);
 		verify(linkAnalysisStatusWriteService).applySyncSnapshot(10L, LinkAnalysisStatus.SUCCEEDED, processingResult,
@@ -141,7 +144,8 @@ class LinkAnalysisStatusServiceTest {
 		when(linkRepository.findById(11L)).thenReturn(Optional.of(terminal));
 		when(linkAnalysisStatusResolver.resolve(terminal, null)).thenReturn(resolution);
 		when(linkAnalysisResultAssembler.from(terminal)).thenReturn(mapped);
-		when(linkAnalysisResultAssembler.withSavedStatus(mapped, List.of())).thenReturn(mapped);
+		when(linkAnalysisResultAssembler.withSavedStatus(any(LinkAnalysisResult.class), eq(List.of())))
+				.thenAnswer(invocation -> invocation.getArgument(0));
 		when(linkAnalysisCacheCoordinator.getOrLoad(eq(11L), any())).thenAnswer(invocation -> {
 			@SuppressWarnings("unchecked")
 			Supplier<LinkAnalysisResult> loader = invocation.getArgument(1, Supplier.class);
@@ -152,6 +156,7 @@ class LinkAnalysisStatusServiceTest {
 
 		assertThat(result.linkId()).isEqualTo(11L);
 		assertThat(result.status()).isEqualTo(LinkAnalysisStatus.SUCCEEDED);
+		assertThat(result.originalUrl()).isEqualTo("https://example.com/p/11");
 		assertThat(result.contentText()).isEqualTo("content done");
 		verify(linkAnalysisAuthorizationService).requireAnalysisRequest(USER_ID, ROOM_PUBLIC_ID, 11L);
 		verify(linkSyncOrchestrator, never()).resolve(any());
@@ -171,12 +176,15 @@ class LinkAnalysisStatusServiceTest {
 		Room room = room();
 		when(linkAnalysisAuthorizationService.requireAnalysisRequest(USER_ID, ROOM_PUBLIC_ID, 12L))
 				.thenReturn(analysisRequest(12L, link, room));
-		when(linkAnalysisResultAssembler.withSavedStatus(cached, List.of())).thenReturn(cached);
+		when(linkAnalysisResultAssembler.withSavedStatus(any(LinkAnalysisResult.class), eq(List.of())))
+				.thenAnswer(invocation -> invocation.getArgument(0));
 		when(linkAnalysisCacheCoordinator.getOrLoad(eq(12L), any())).thenReturn(cached);
 
 		LinkAnalysisResult result = linkAnalysisStatusService.getLinkAnalysisResult(USER_ID, ROOM_PUBLIC_ID, 12L);
 
-		assertThat(result).isEqualTo(cached);
+		assertThat(result.linkId()).isEqualTo(cached.linkId());
+		assertThat(result.status()).isEqualTo(cached.status());
+		assertThat(result.originalUrl()).isEqualTo("https://example.com/p/12");
 		verify(linkAnalysisAuthorizationService).requireAnalysisRequest(USER_ID, ROOM_PUBLIC_ID, 12L);
 		verify(linkRepository, never()).findById(any());
 		verify(linkSyncOrchestrator, never()).resolve(any());

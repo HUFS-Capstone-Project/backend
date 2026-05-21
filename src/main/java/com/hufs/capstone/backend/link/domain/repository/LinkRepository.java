@@ -171,4 +171,27 @@ public interface LinkRepository extends JpaRepository<Link, Long> {
 			@Param("targetStatus") LinkAnalysisStatus targetStatus,
 			@Param("updatedAt") Instant updatedAt
 	);
+
+	@Modifying(flushAutomatically = true, clearAutomatically = true)
+	@Query("""
+			update Link l
+			set l.processingJobId = null,
+			    l.dispatchStatus = :targetDispatchStatus,
+			    l.status = :targetStatus,
+			    l.errorCode = null,
+			    l.errorMessage = null,
+			    l.retryable = null,
+			    l.cooldownSeconds = null,
+			    l.version = l.version + 1,
+			    l.updatedAt = :updatedAt
+			where l.id = :linkId
+			  and l.status = :expectedStatus
+			""")
+	int resetForManualRetry(
+			@Param("linkId") Long linkId,
+			@Param("expectedStatus") LinkAnalysisStatus expectedStatus,
+			@Param("targetDispatchStatus") ProcessingDispatchStatus targetDispatchStatus,
+			@Param("targetStatus") LinkAnalysisStatus targetStatus,
+			@Param("updatedAt") Instant updatedAt
+	);
 }

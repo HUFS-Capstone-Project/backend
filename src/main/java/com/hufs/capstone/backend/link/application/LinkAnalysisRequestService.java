@@ -43,6 +43,16 @@ public class LinkAnalysisRequestService {
 		return resolved;
 	}
 
+	public LinkAnalysisRequestResult retryLinkAnalysis(Long userId, String roomId, Long analysisRequestId) {
+		String requiredRoomId = requireRoomId(roomId);
+		LinkAnalysisRequestResult retried = linkAnalysisRequestWriteService.retryWithinWriteTransaction(
+				userId,
+				requiredRoomId,
+				analysisRequestId
+		);
+		return refreshLatest(retried);
+	}
+
 	private LinkAnalysisRequestResult requestWithDuplicateRaceRetry(
 			LinkUrlNormalizer.NormalizedUrl normalizedUrl,
 			String roomId,

@@ -86,6 +86,7 @@ class ProcessingClientImplTest {
 		assertThat(observedApiKey.get()).isEqualTo(INTERNAL_API_KEY);
 		assertThat(observedBody.get()).contains("\"original_url\":\"https://example.com/p/1\"");
 		assertThat(observedBody.get()).contains("\"room_id\":\"11111111-1111-1111-1111-111111111111\"");
+		assertThat(observedBody.get()).doesNotContain("\"canonical_url\"");
 		assertThat(observedBody.get()).doesNotContain("\"url\"");
 		assertThat(observedBody.get()).doesNotContain("\"source\"");
 	}

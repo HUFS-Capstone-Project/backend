@@ -76,6 +76,18 @@ public class LinkController implements LinkApi {
 	}
 
 	@Override
+	public CommonResponse<LinkAnalysisRequestResponse> retryLinkAnalysisRequest(
+			@PathVariable String roomId,
+			@PathVariable Long analysisRequestId,
+			@RequestHeader(name = "X-XSRF-TOKEN", required = false) String csrfToken
+	) {
+		Long userId = SecurityUtils.currentUserIdOrThrow();
+		LinkAnalysisRequestResult result =
+				linkAnalysisRequestService.retryLinkAnalysis(userId, roomId, analysisRequestId);
+		return CommonResponse.ok(LinkAnalysisRequestResponse.from(result));
+	}
+
+	@Override
 	public CommonResponse<RoomPlaceSaveResponse> saveRoomPlaces(
 			@PathVariable String roomId,
 			@PathVariable Long analysisRequestId,

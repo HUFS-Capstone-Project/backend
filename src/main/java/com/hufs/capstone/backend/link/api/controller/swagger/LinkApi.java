@@ -38,7 +38,7 @@ public interface LinkApi {
 	ResponseEntity<CommonResponse<LinkAnalysisRequestResponse>> createLinkAnalysisRequest(
 			@PathVariable String roomId,
 			@Valid @RequestBody CreateLinkAnalysisRequest request,
-			@Parameter(description = "CSRF token header value")
+			@Parameter(description = "CSRF 토큰 헤더 값")
 			@RequestHeader(name = "X-XSRF-TOKEN", required = false) String csrfToken
 	);
 
@@ -52,6 +52,19 @@ public interface LinkApi {
 	CommonResponse<LinkAnalysisResponse> getLinkAnalysis(
 			@PathVariable String roomId,
 			@PathVariable Long analysisRequestId
+	);
+
+	@Operation(
+			tags = {"Link"},
+			summary = "링크 분석 요청 재시도 API",
+			description = "재시도 가능한 링크 분석 요청을 새로 생성하지 않고 기존 요청을 다시 분석합니다."
+	)
+	@ApiResponse(responseCode = "200", description = "OK")
+	@PostMapping("/link-analysis-requests/{analysisRequestId}/retry")
+	CommonResponse<LinkAnalysisRequestResponse> retryLinkAnalysisRequest(
+			@PathVariable String roomId,
+			@PathVariable Long analysisRequestId,
+			@RequestHeader(name = "X-XSRF-TOKEN", required = false) String csrfToken
 	);
 
 	@Operation(

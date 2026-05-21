@@ -1,5 +1,6 @@
 package com.hufs.capstone.backend.link.application;
 
+import com.hufs.capstone.backend.external.processing.ProcessingErrorCodes;
 import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
 import com.hufs.capstone.backend.link.application.dto.LinkAnalysisRequestResult;
@@ -30,6 +31,7 @@ public class LinkAnalysisRequestWriteService {
 	private final LinkAnalysisRequestRepository linkAnalysisRequestRepository;
 	private final RoomAccessService roomAccessService;
 	private final ApplicationEventPublisher eventPublisher;
+	private final LinkProcessingDispatchPolicy dispatchPolicy;
 
 	@Transactional
 	public LinkAnalysisRequestResult requestWithinWriteTransaction(
@@ -40,13 +42,21 @@ public class LinkAnalysisRequestWriteService {
 	) {
 		Room room = roomAccessService.requireMemberRoom(roomId, userId);
 		AnalysisTarget target = findOrCreateLink(normalizedUrl);
-		AnalysisRequestTarget requestTarget = findOrCreateAnalysisRequest(target.link(), room, userId, source);
+		rejectInstagramCooldownIfActive(target.link(), normalizedUrl.normalizedUrl());
+		AnalysisRequestTarget requestTarget = findOrCreateAnalysisRequest(
+				target.link(),
+				room,
+				userId,
+				source,
+				normalizedUrl.originalUrl()
+		);
 		boolean recoveredDispatchFailed = recoverDispatchFailedForManualRetry(target.link());
+		boolean staleRequestedWithoutJob = isStaleRequestedWithoutJob(target.link());
 
 		publishProcessingRequestedEventIfNeeded(
-				target.createdNewLink() || recoveredDispatchFailed,
+				target.createdNewLink() || recoveredDispatchFailed || staleRequestedWithoutJob,
 				target.link(),
-				normalizedUrl.originalUrl(),
+				requestTarget.analysisRequest().getOriginalUrl(),
 				normalizedUrl.normalizedUrl(),
 				room.getPublicId(),
 				source
@@ -59,6 +69,40 @@ public class LinkAnalysisRequestWriteService {
 		);
 	}
 
+	@Transactional
+	public LinkAnalysisRequestResult retryWithinWriteTransaction(Long userId, String roomId, Long analysisRequestId) {
+		Room room = roomAccessService.requireMemberRoom(roomId, userId);
+		LinkAnalysisRequest analysisRequest = linkAnalysisRequestRepository
+				.findWithRoomAndLinkByIdForUpdate(analysisRequestId)
+				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "Link analysis request not found."));
+		if (!analysisRequest.getRoom().getId().equals(room.getId())) {
+			throw new BusinessException(ErrorCode.E404_NOT_FOUND, "Link analysis request not found.");
+		}
+
+		Link link = analysisRequest.getLink();
+		validateRetryable(link);
+		boolean needsReset = link.getStatus() == LinkAnalysisStatus.FAILED;
+		if (needsReset) {
+			resetFailedForRetry(link);
+		} else if (link.getStatus() == LinkAnalysisStatus.DISPATCH_FAILED) {
+			if (!recoverDispatchFailedForManualRetry(link)) {
+				throw new BusinessException(ErrorCode.E409_CONFLICT, "Link analysis request changed while retrying.");
+			}
+		}
+
+		publishProcessingRequestedEventIfNeeded(
+				true,
+				link,
+				analysisRequest.getOriginalUrl(),
+				link.getNormalizedUrl(),
+				room.getPublicId(),
+				analysisRequest.getSource()
+		);
+
+		Link reloaded = linkRepository.findById(link.getId()).orElse(link);
+		return LinkAnalysisRequestResult.from(reloaded, analysisRequest.getId(), false);
+	}
+
 	private AnalysisTarget findOrCreateLink(LinkUrlNormalizer.NormalizedUrl normalizedUrl) {
 		Link existing = linkRepository.findByNormalizedUrl(normalizedUrl.normalizedUrl()).orElse(null);
 		if (existing != null) {
@@ -69,18 +113,24 @@ public class LinkAnalysisRequestWriteService {
 	}
 
 	private Link persistNewLink(LinkUrlNormalizer.NormalizedUrl normalizedUrl) {
-		Link newLink = Link.registerPending(normalizedUrl.originalUrl(), normalizedUrl.normalizedUrl());
+		Link newLink = Link.registerPending(normalizedUrl.normalizedUrl(), normalizedUrl.normalizedUrl());
 		try {
 			return linkRepository.saveAndFlush(newLink);
 		} catch (DataIntegrityViolationException ex) {
 			throw new LinkDuplicateRaceException(normalizedUrl.normalizedUrl(), ex);
 		} catch (DataAccessException ex) {
-			log.error("링크 분석 대상 저장에 실패했습니다. normalizedUrl={}", normalizedUrl.normalizedUrl(), ex);
-			throw new BusinessException(ErrorCode.E500_INTERNAL, "링크 분석 대상 저장에 실패했습니다.", ex);
+			log.error("Failed to save link. normalizedUrl={}", normalizedUrl.normalizedUrl(), ex);
+			throw new BusinessException(ErrorCode.E500_INTERNAL, "Failed to save link.", ex);
 		}
 	}
 
-	private AnalysisRequestTarget findOrCreateAnalysisRequest(Link link, Room room, Long userId, String source) {
+	private AnalysisRequestTarget findOrCreateAnalysisRequest(
+			Link link,
+			Room room,
+			Long userId,
+			String source,
+			String originalUrl
+	) {
 		LinkAnalysisRequest existing = linkAnalysisRequestRepository.findByRoomAndLinkId(room, link.getId())
 				.orElse(null);
 		if (existing != null) {
@@ -89,13 +139,13 @@ public class LinkAnalysisRequestWriteService {
 
 		try {
 			LinkAnalysisRequest saved =
-					linkAnalysisRequestRepository.saveAndFlush(LinkAnalysisRequest.create(link, room, userId, source));
+					linkAnalysisRequestRepository.saveAndFlush(LinkAnalysisRequest.create(link, room, userId, source, originalUrl));
 			return new AnalysisRequestTarget(saved, true);
 		} catch (DataIntegrityViolationException ex) {
 			throw new LinkAnalysisRequestDuplicateRaceException(room.getPublicId(), link.getId(), ex);
 		} catch (DataAccessException ex) {
-			log.error("링크 분석 요청 이력 저장에 실패했습니다. roomId={}, linkId={}", room.getPublicId(), link.getId(), ex);
-			throw new BusinessException(ErrorCode.E500_INTERNAL, "링크 분석 요청 이력 저장에 실패했습니다.", ex);
+			log.error("Failed to save link analysis request. roomId={}, linkId={}", room.getPublicId(), link.getId(), ex);
+			throw new BusinessException(ErrorCode.E500_INTERNAL, "Failed to save link analysis request.", ex);
 		}
 	}
 
@@ -129,11 +179,82 @@ public class LinkAnalysisRequestWriteService {
 				Instant.now()
 		);
 		if (updated == 1) {
-			log.info("DISPATCH_FAILED 링크를 수동 재시도 상태로 복구했습니다. linkId={}", link.getId());
+			log.info("Recovered DISPATCH_FAILED link for manual redispatch. linkId={}", link.getId());
 			return true;
 		}
-		log.info("DISPATCH_FAILED 링크 복구가 동시 변경으로 건너뛰어졌습니다. linkId={}", link.getId());
+		log.info("Skipped DISPATCH_FAILED recovery because the link changed concurrently. linkId={}", link.getId());
 		return false;
+	}
+
+	private void validateRetryable(Link link) {
+		if (link.getStatus() == LinkAnalysisStatus.SUCCEEDED || link.getStatus() == LinkAnalysisStatus.PROCESSING) {
+			throw new BusinessException(ErrorCode.E409_CONFLICT, "Link analysis request is not retryable.");
+		}
+		if (link.getStatus() == LinkAnalysisStatus.REQUESTED) {
+			if (isStaleRequestedWithoutJob(link)) {
+				return;
+			}
+			throw new BusinessException(ErrorCode.E409_CONFLICT, "Link analysis request is not stale.");
+		}
+		if (link.getStatus() == LinkAnalysisStatus.DISPATCH_FAILED) {
+			if (link.getProcessingJobId() == null) {
+				return;
+			}
+			throw new BusinessException(ErrorCode.E409_CONFLICT, "Link analysis request is not retryable.");
+		}
+		if (link.getStatus() == LinkAnalysisStatus.FAILED) {
+			rejectInstagramCooldownIfActive(link, link.getNormalizedUrl());
+			if (Boolean.TRUE.equals(link.getRetryable())) {
+				return;
+			}
+			throw new BusinessException(ErrorCode.E409_CONFLICT, "Link analysis request is not retryable.");
+		}
+		throw new BusinessException(ErrorCode.E409_CONFLICT, "Link analysis request is not retryable.");
+	}
+
+	private void resetFailedForRetry(Link link) {
+		int updated = linkRepository.resetForManualRetry(
+				link.getId(),
+				LinkAnalysisStatus.FAILED,
+				ProcessingDispatchStatus.PENDING,
+				LinkAnalysisStatus.REQUESTED,
+				Instant.now()
+		);
+		if (updated != 1) {
+			throw new BusinessException(ErrorCode.E409_CONFLICT, "Link analysis request changed while retrying.");
+		}
+	}
+
+	private boolean isStaleRequestedWithoutJob(Link link) {
+		if (link.getStatus() != LinkAnalysisStatus.REQUESTED || link.getProcessingJobId() != null) {
+			return false;
+		}
+		if (link.getDispatchStatus() != ProcessingDispatchStatus.PENDING
+				&& link.getDispatchStatus() != ProcessingDispatchStatus.DISPATCHING) {
+			return false;
+		}
+		Instant updatedAt = link.getUpdatedAt();
+		return updatedAt != null && updatedAt.plus(dispatchPolicy.getStaleThreshold()).isBefore(Instant.now());
+	}
+
+	private void rejectInstagramCooldownIfActive(Link link, String canonicalUrl) {
+		if (!LinkUrlNormalizer.isInstagramCanonicalUrl(canonicalUrl)) {
+			return;
+		}
+		if (!ProcessingErrorCodes.INSTAGRAM_RATE_LIMITED.equals(link.getErrorCode())) {
+			return;
+		}
+		Integer cooldownSeconds = link.getCooldownSeconds();
+		Instant updatedAt = link.getUpdatedAt();
+		if (cooldownSeconds == null || updatedAt == null) {
+			return;
+		}
+		if (updatedAt.plusSeconds(cooldownSeconds).isAfter(Instant.now())) {
+			throw new BusinessException(
+					ErrorCode.E429_TOO_MANY_REQUESTS,
+					"Instagram analysis is cooling down. Please retry later."
+			);
+		}
 	}
 
 	private record AnalysisTarget(Link link, boolean createdNewLink) {

@@ -41,7 +41,10 @@ public class LinkAnalysisStatusService {
 				linkAnalysisAuthorizationService.requireAnalysisRequest(userId, roomId, analysisRequestId);
 		Room room = analysisRequest.getRoom();
 		Long linkId = analysisRequest.getLink().getId();
-		LinkAnalysisResult result = linkAnalysisCacheCoordinator.getOrLoad(linkId, () -> resolveCurrentStatus(linkId));
+		LinkAnalysisResult result = withRequestOriginalUrl(
+				linkAnalysisCacheCoordinator.getOrLoad(linkId, () -> resolveCurrentStatus(linkId)),
+				analysisRequest
+		);
 		List<LinkCandidate> originalCandidates = linkCandidateRepository.findByLinkIdOrderByCandidateOrderAscIdAsc(linkId);
 		if (!originalCandidates.isEmpty()) {
 			return applyRoomCandidateContext(room, linkId, result, originalCandidates);
@@ -74,6 +77,27 @@ public class LinkAnalysisStatusService {
 				? List.of()
 				: roomPlaceRepository.findExistingByRoomIdAndKakaoPlaceIds(room.getId(), effectiveKakaoPlaceIds);
 		return linkAnalysisResultAssembler.withRoomCandidateContext(result, originalCandidates, overrides, savedPlaces);
+	}
+
+	private static LinkAnalysisResult withRequestOriginalUrl(
+			LinkAnalysisResult result,
+			LinkAnalysisRequest analysisRequest
+	) {
+		return new LinkAnalysisResult(
+				result.linkId(),
+				result.status(),
+				analysisRequest.getOriginalUrl(),
+				result.contentText(),
+				result.linkStats(),
+				result.extractionStoreName(),
+				result.extractionAddress(),
+				result.extractionCertainty(),
+				result.candidatePlaces(),
+				result.errorCode(),
+				result.errorMessage(),
+				result.retryable(),
+				result.cooldownSeconds()
+		);
 	}
 
 	private static String effectiveKakaoPlaceId(LinkCandidate candidate, List<RoomLinkCandidateOverride> overrides) {
