@@ -49,6 +49,22 @@ class LinkUrlNormalizerTest {
 	}
 
 	@Test
+	void shouldCanonicalizeYoutubeVideoUrlsToSameWatchUrl() {
+		assertThat(LinkUrlNormalizer.normalize("https://youtu.be/ZJMi3m8spJA?si=abc").normalizedUrl())
+				.isEqualTo("https://www.youtube.com/watch?v=ZJMi3m8spJA");
+		assertThat(LinkUrlNormalizer.normalize("https://youtube.com/shorts/ZJMi3m8spJA?feature=share").normalizedUrl())
+				.isEqualTo("https://www.youtube.com/watch?v=ZJMi3m8spJA");
+		assertThat(LinkUrlNormalizer.normalize("https://m.youtube.com/watch?v=ZJMi3m8spJA&list=abc").normalizedUrl())
+				.isEqualTo("https://www.youtube.com/watch?v=ZJMi3m8spJA");
+	}
+
+	@Test
+	void shouldFallbackToGenericWhenYoutubeUrlHasNoVideoId() {
+		assertThat(LinkUrlNormalizer.normalize("https://www.youtube.com/playlist?list=abc").normalizedUrl())
+				.isEqualTo("https://www.youtube.com/playlist?list=abc");
+	}
+
+	@Test
 	void shouldKeepGenericQueryButDropFragmentAndNormalizeHostPathAndQueryOrder() {
 		assertThat(LinkUrlNormalizer.normalize("HTTPS://Example.COM/post/1/?b=2&a=1#section").normalizedUrl())
 				.isEqualTo("https://example.com/post/1?a=1&b=2");

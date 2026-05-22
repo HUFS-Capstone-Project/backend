@@ -17,6 +17,7 @@ final class LinkUrlNormalizer {
 
 	private static final Set<String> ALLOWED_SCHEMES = Set.of("http", "https");
 	private static final int MAX_URL_LENGTH = 2048;
+	private static final String YOUTUBE_CANONICAL_HOST = "www.youtube.com";
 
 	private LinkUrlNormalizer() {
 	}
@@ -63,6 +64,10 @@ final class LinkUrlNormalizer {
 		String naverBlogUrl = canonicalNaverBlogUrl(parsed);
 		if (naverBlogUrl != null) {
 			return naverBlogUrl;
+		}
+		String youtubeUrl = canonicalYoutubeUrl(parsed);
+		if (youtubeUrl != null) {
+			return youtubeUrl;
 		}
 		return canonicalGenericUrl(parsed);
 	}
@@ -114,6 +119,34 @@ final class LinkUrlNormalizer {
 		return "https://" + LinkSourceTypeResolver.NAVER_BLOG_CANONICAL_HOST + "/" + blogId + "/" + logNo;
 	}
 
+	private static String canonicalYoutubeUrl(URI parsed) {
+		String host = lower(parsed.getHost());
+		if (!LinkSourceTypeResolver.isYoutubeHost(host)) {
+			return null;
+		}
+
+		String videoId = youtubeVideoId(parsed);
+		if (videoId == null || videoId.isBlank()) {
+			return null;
+		}
+		return "https://" + YOUTUBE_CANONICAL_HOST + "/watch?v=" + encode(videoId.trim());
+	}
+
+	private static String youtubeVideoId(URI parsed) {
+		String host = lower(parsed.getHost());
+		List<String> parts = pathParts(parsed);
+		if ("youtu.be".equals(host)) {
+			return parts.isEmpty() ? null : parts.get(0);
+		}
+		if (parts.size() >= 2 && "shorts".equalsIgnoreCase(parts.get(0))) {
+			return parts.get(1);
+		}
+		if (parts.size() == 1 && "watch".equalsIgnoreCase(parts.get(0))) {
+			return queryValue(parsed.getRawQuery(), "v");
+		}
+		return null;
+	}
+
 	private static String canonicalGenericUrl(URI parsed) {
 		String scheme = lower(parsed.getScheme());
 		String authority = lower(parsed.getRawAuthority());
@@ -159,6 +192,20 @@ final class LinkUrlNormalizer {
 				.map(pair -> encode(pair.key()) + "=" + encode(pair.value()))
 				.reduce((left, right) -> left + "&" + right)
 				.orElse("");
+	}
+
+	private static String queryValue(String rawQuery, String targetKey) {
+		if (rawQuery == null || rawQuery.isBlank()) {
+			return null;
+		}
+		for (String part : rawQuery.split("&", -1)) {
+			String[] split = part.split("=", 2);
+			String key = decode(split[0]);
+			if (targetKey.equals(key)) {
+				return split.length == 2 ? decode(split[1]) : "";
+			}
+		}
+		return null;
 	}
 
 	private static String decode(String value) {
