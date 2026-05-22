@@ -20,6 +20,7 @@ public class LinkSyncMappingPolicy {
 
 	private static final String MALFORMED_RESULT_ERROR_CODE = "PROCESSING_MALFORMED_RESPONSE";
 	private static final String MALFORMED_RESULT_ERROR_MESSAGE = "Processing result response is malformed.";
+	private static final String UNSUPPORTED_PLATFORM_URL_USER_MESSAGE = "지원하지 않는 링크 형식입니다.";
 	private static final String INSTAGRAM_RATE_LIMITED_USER_MESSAGE =
 			"현재 Instagram 분석이 일시적으로 제한되어 있어요. 잠시 후 다시 시도해 주세요.";
 
@@ -40,12 +41,7 @@ public class LinkSyncMappingPolicy {
 			ProcessingJobResponse jobResponse
 	) {
 		return switch (observedStatus) {
-			case FAILED -> new LinkSyncOrchestrator.ProcessingSyncSnapshot(
-					LinkAnalysisStatus.FAILED,
-					null,
-					trimToNull(jobResponse.errorCode()),
-					trimToNull(jobResponse.errorMessage())
-			);
+			case FAILED -> failedSnapshot(trimToNull(jobResponse.errorCode()), trimToNull(jobResponse.errorMessage()), null);
 			case REQUESTED -> new LinkSyncOrchestrator.ProcessingSyncSnapshot(LinkAnalysisStatus.REQUESTED, null, null, null);
 			case PROCESSING -> new LinkSyncOrchestrator.ProcessingSyncSnapshot(LinkAnalysisStatus.PROCESSING, null, null, null);
 			case DISPATCH_FAILED -> new LinkSyncOrchestrator.ProcessingSyncSnapshot(
@@ -75,6 +71,13 @@ public class LinkSyncMappingPolicy {
 					null
 			);
 		}
+		if (isFailed(resultResponse)) {
+			return failedSnapshot(
+					trimToNull(resultResponse.errorCode()),
+					trimToNull(resultResponse.errorMessage()),
+					resultResponse.retryable()
+			);
+		}
 
 		try {
 			return new LinkSyncOrchestrator.ProcessingSyncSnapshot(
@@ -95,8 +98,37 @@ public class LinkSyncMappingPolicy {
 	}
 
 	private static boolean isInstagramRateLimitedFailure(ProcessingJobResultResponse response) {
-		return LinkAnalysisStatus.fromProcessingStatus(response.status()) == LinkAnalysisStatus.FAILED
+		return isFailed(response)
 				&& ProcessingErrorCodes.INSTAGRAM_RATE_LIMITED.equals(trimToNull(response.errorCode()));
+	}
+
+	private static boolean isFailed(ProcessingJobResultResponse response) {
+		return LinkAnalysisStatus.fromProcessingStatus(response.status()) == LinkAnalysisStatus.FAILED;
+	}
+
+	private static LinkSyncOrchestrator.ProcessingSyncSnapshot failedSnapshot(
+			String errorCode,
+			String errorMessage,
+			Boolean retryable
+	) {
+		if (ProcessingErrorCodes.UNSUPPORTED_PLATFORM_URL.equals(errorCode)) {
+			return new LinkSyncOrchestrator.ProcessingSyncSnapshot(
+					LinkAnalysisStatus.FAILED,
+					null,
+					ProcessingErrorCodes.UNSUPPORTED_PLATFORM_URL,
+					UNSUPPORTED_PLATFORM_URL_USER_MESSAGE,
+					false,
+					null
+			);
+		}
+		return new LinkSyncOrchestrator.ProcessingSyncSnapshot(
+				LinkAnalysisStatus.FAILED,
+				null,
+				errorCode,
+				errorMessage,
+				retryable,
+				null
+		);
 	}
 
 	private ProcessingResultSnapshot toResultSnapshot(ProcessingJobResultResponse response) {

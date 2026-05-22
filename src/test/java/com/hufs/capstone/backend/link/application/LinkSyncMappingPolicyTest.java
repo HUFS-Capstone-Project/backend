@@ -3,7 +3,9 @@ package com.hufs.capstone.backend.link.application;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hufs.capstone.backend.external.processing.ProcessingErrorCodes;
 import com.hufs.capstone.backend.external.processing.dto.ProcessingJobResultResponse;
+import com.hufs.capstone.backend.external.processing.dto.ProcessingJobResponse;
 import com.hufs.capstone.backend.link.domain.LinkAnalysisStatus;
 import com.hufs.capstone.backend.link.domain.LinkSourceType;
 import java.util.List;
@@ -38,6 +40,40 @@ class LinkSyncMappingPolicyTest {
 		assertThat(snapshot.result().linkSourceType()).isNull();
 	}
 
+	@Test
+	void shouldMapUnsupportedPlatformUrlResultToUserMessageAndNonRetryableFailure() {
+		LinkSyncOrchestrator.ProcessingSyncSnapshot snapshot = policy.fromSucceededResult(
+				"job-1",
+				failedResult(ProcessingErrorCodes.UNSUPPORTED_PLATFORM_URL)
+		);
+
+		assertThat(snapshot.status()).isEqualTo(LinkAnalysisStatus.FAILED);
+		assertThat(snapshot.errorCode()).isEqualTo(ProcessingErrorCodes.UNSUPPORTED_PLATFORM_URL);
+		assertThat(snapshot.errorMessage()).isEqualTo("지원하지 않는 링크 형식입니다.");
+		assertThat(snapshot.retryable()).isFalse();
+	}
+
+	@Test
+	void shouldMapUnsupportedPlatformUrlObservedStatusToUserMessageAndNonRetryableFailure() {
+		LinkSyncOrchestrator.ProcessingSyncSnapshot snapshot = policy.fromObservedStatus(
+				LinkAnalysisStatus.FAILED,
+				new ProcessingJobResponse(
+						"job-1",
+						"FAILED",
+						"https://www.youtube.com/channel/abc",
+						"room-1",
+						null,
+						ProcessingErrorCodes.UNSUPPORTED_PLATFORM_URL,
+						"UnsupportedPlatformUrlError: Unsupported or malformed youtube URL"
+				)
+		);
+
+		assertThat(snapshot.status()).isEqualTo(LinkAnalysisStatus.FAILED);
+		assertThat(snapshot.errorCode()).isEqualTo(ProcessingErrorCodes.UNSUPPORTED_PLATFORM_URL);
+		assertThat(snapshot.errorMessage()).isEqualTo("지원하지 않는 링크 형식입니다.");
+		assertThat(snapshot.retryable()).isFalse();
+	}
+
 	private static ProcessingJobResultResponse result(String sourceType) {
 		return new ProcessingJobResultResponse(
 				"job-1",
@@ -59,6 +95,22 @@ class LinkSyncMappingPolicyTest {
 				null,
 				null,
 				null
+		);
+	}
+
+	private static ProcessingJobResultResponse failedResult(String errorCode) {
+		return new ProcessingJobResultResponse(
+				"job-1",
+				"FAILED",
+				"https://www.youtube.com/channel/abc",
+				null,
+				null,
+				null,
+				null,
+				List.of(),
+				errorCode,
+				"UnsupportedPlatformUrlError: Unsupported or malformed youtube URL",
+				false
 		);
 	}
 }
