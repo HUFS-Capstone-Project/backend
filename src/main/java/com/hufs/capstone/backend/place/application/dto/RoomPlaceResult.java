@@ -1,5 +1,6 @@
 package com.hufs.capstone.backend.place.application.dto;
 
+import com.hufs.capstone.backend.link.domain.LinkSourceType;
 import com.hufs.capstone.backend.place.domain.entity.Place;
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
 import com.hufs.capstone.backend.place.domain.enums.RoomPlaceSourceType;
@@ -28,9 +29,10 @@ public record RoomPlaceResult(
 		String sigunguName,
 		String memo,
 		List<RoomPlaceMemoResult> memos,
-		RoomPlaceSourceType sourceType,
+		RoomPlaceSourceType addedVia,
 		Long sourceRoomLinkId,
 		String originalUrl,
+		LinkSourceType linkSourceType,
 		Long createdBy,
 		Instant createdAt,
 		String businessHoursStatus,
@@ -84,6 +86,7 @@ public record RoomPlaceResult(
 				roomPlace.getSourceType(),
 				roomPlace.getSourceRoomLinkId(),
 				originalUrl,
+				LinkSourceType.fromUrl(originalUrl),
 				roomPlace.getCreatedByUserId(),
 				roomPlace.getCreatedAt(),
 				businessHours == null || businessHours.businessHoursStatus() == null

@@ -124,7 +124,7 @@ public class RoomPlaceQueryService {
 						.map(roomPlace -> RoomPlaceResult.from(
 								roomPlace,
 								toBusinessHoursResult(cachesByKakaoPlaceId.get(roomPlace.getKakaoPlaceId())),
-								null,
+								originalUrl(roomPlace),
 								memosByRoomPlaceId.get(roomPlace.getId()),
 								userId
 						))
@@ -192,7 +192,7 @@ public class RoomPlaceQueryService {
 								RoomPlaceResult.from(
 										roomPlace,
 										toBusinessHoursResult(cachesByKakaoPlaceId.get(roomPlace.getKakaoPlaceId())),
-										null,
+										originalUrl(roomPlace),
 										memosByRoomPlaceId.get(roomPlace.getId()),
 										userId
 								),

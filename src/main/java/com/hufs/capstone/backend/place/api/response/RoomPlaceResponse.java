@@ -1,5 +1,6 @@
 package com.hufs.capstone.backend.place.api.response;
 
+import com.hufs.capstone.backend.link.domain.LinkSourceType;
 import com.hufs.capstone.backend.place.application.dto.BusinessHoursDisplayResult;
 import com.hufs.capstone.backend.place.application.dto.RoomPlaceMemoResult;
 import com.hufs.capstone.backend.place.application.dto.RoomPlaceResult;
@@ -29,9 +30,10 @@ public record RoomPlaceResponse(
 		String sigunguName,
 		String memo,
 		List<RoomPlaceMemoResponse> memos,
-		RoomPlaceSourceType sourceType,
+		RoomPlaceSourceType addedVia,
 		Long sourceRoomLinkId,
 		String originalUrl,
+		LinkSourceType linkSourceType,
 		Long createdBy,
 		Instant createdAt,
 		String businessHoursStatus,
@@ -64,9 +66,10 @@ public record RoomPlaceResponse(
 				result.memos().stream()
 						.map(RoomPlaceMemoResponse::from)
 						.toList(),
-				result.sourceType(),
+				result.addedVia(),
 				result.sourceRoomLinkId(),
 				result.originalUrl(),
+				result.linkSourceType(),
 				result.createdBy(),
 				result.createdAt(),
 				result.businessHoursStatus(),
