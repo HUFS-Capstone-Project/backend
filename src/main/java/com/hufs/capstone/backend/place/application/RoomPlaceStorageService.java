@@ -8,18 +8,18 @@ import com.hufs.capstone.backend.place.application.dto.RoomPlaceSaveResult.Saved
 import com.hufs.capstone.backend.place.domain.entity.Place;
 import com.hufs.capstone.backend.place.domain.entity.PlaceBusinessHours;
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
-import com.hufs.capstone.backend.place.domain.entity.RoomPlaceSource;
-import com.hufs.capstone.backend.place.domain.enums.RoomPlaceSourceType;
+import com.hufs.capstone.backend.place.domain.entity.RoomPlaceOrigin;
+import com.hufs.capstone.backend.place.domain.enums.RoomPlaceAddedVia;
 import com.hufs.capstone.backend.place.domain.repository.PlaceBusinessHoursRepository;
 import com.hufs.capstone.backend.place.domain.repository.PlaceRepository;
 import com.hufs.capstone.backend.place.domain.repository.RoomPlaceRepository;
-import com.hufs.capstone.backend.place.domain.repository.RoomPlaceSourceRepository;
+import com.hufs.capstone.backend.place.domain.repository.RoomPlaceOriginRepository;
 import com.hufs.capstone.backend.place.domain.vo.PlaceSnapshot;
 import com.hufs.capstone.backend.region.application.RegionAddressResolver;
 import com.hufs.capstone.backend.region.application.dto.ResolvedRegion;
 import com.hufs.capstone.backend.room.domain.entity.Room;
-import java.util.ArrayList;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -32,7 +32,7 @@ public class RoomPlaceStorageService {
 
 	private final PlaceRepository placeRepository;
 	private final RoomPlaceRepository roomPlaceRepository;
-	private final RoomPlaceSourceRepository roomPlaceSourceRepository;
+	private final RoomPlaceOriginRepository roomPlaceOriginRepository;
 	private final PlaceTaxonomyReadService placeTaxonomyReadService;
 	private final RegionAddressResolver regionAddressResolver;
 	private final PlaceBusinessHoursRepository placeBusinessHoursRepository;
@@ -43,16 +43,17 @@ public class RoomPlaceStorageService {
 			Room room,
 			Long userId,
 			List<PlaceSnapshot> snapshots,
-			RoomPlaceSourceType sourceType,
-			RoomLink sourceRoomLink
+			RoomPlaceAddedVia addedVia,
+			RoomLink originRoomLink
 	) {
+		validateOriginRoomLink(originRoomLink);
 		List<SavedRoomPlaceResult> results = new ArrayList<>(snapshots.size());
 		try {
 			for (PlaceSnapshot snapshot : snapshots) {
-				results.add(saveOne(room, userId, snapshot, sourceType, sourceRoomLink));
+				results.add(saveOne(room, userId, snapshot, addedVia, originRoomLink));
 			}
 			roomPlaceRepository.flush();
-			roomPlaceSourceRepository.flush();
+			roomPlaceOriginRepository.flush();
 			return List.copyOf(results);
 		} catch (DataIntegrityViolationException ex) {
 			throw new RoomPlaceDuplicateRaceException(ex);
@@ -63,8 +64,8 @@ public class RoomPlaceStorageService {
 			Room room,
 			Long userId,
 			PlaceSnapshot snapshot,
-			RoomPlaceSourceType sourceType,
-			RoomLink sourceRoomLink
+			RoomPlaceAddedVia addedVia,
+			RoomLink originRoomLink
 	) {
 		validateSnapshot(snapshot);
 		Place place = upsertPlace(snapshot);
@@ -76,9 +77,9 @@ public class RoomPlaceStorageService {
 			publishBusinessHoursRequestIfNeeded(existingRoomPlace, false);
 			return toResult(existingRoomPlace, false, true);
 		}
-		RoomPlace roomPlace = RoomPlace.create(room, place, userId, sourceType, sourceRoomLink, snapshot, region);
+		RoomPlace roomPlace = RoomPlace.create(room, place, userId, addedVia, originRoomLink, snapshot, region);
 		RoomPlace saved = roomPlaceRepository.save(roomPlace);
-		attachSourceIfNeeded(saved, sourceRoomLink, sourceType, userId, snapshot);
+		attachOriginIfNeeded(saved, originRoomLink, addedVia, userId, snapshot);
 		publishBusinessHoursRequestIfNeeded(saved, true);
 		return toResult(saved, true, false);
 	}
@@ -114,24 +115,24 @@ public class RoomPlaceStorageService {
 		return "expired";
 	}
 
-	private void attachSourceIfNeeded(
+	private void attachOriginIfNeeded(
 			RoomPlace roomPlace,
-			RoomLink sourceRoomLink,
-			RoomPlaceSourceType sourceType,
+			RoomLink originRoomLink,
+			RoomPlaceAddedVia addedVia,
 			Long userId,
 			PlaceSnapshot snapshot
 	) {
-		if (sourceRoomLink == null) {
+		if (originRoomLink == null) {
 			return;
 		}
-		roomPlace.fillSourceRoomLinkIfAbsent(sourceRoomLink);
-		if (roomPlace.getId() == null || sourceRoomLink.getId() == null) {
+		roomPlace.fillOriginRoomLinkIfAbsent(originRoomLink);
+		if (roomPlace.getId() == null || originRoomLink.getId() == null) {
 			roomPlaceRepository.flush();
 		}
-		if (roomPlaceSourceRepository.existsByRoomPlaceIdAndRoomLinkId(roomPlace.getId(), sourceRoomLink.getId())) {
+		if (roomPlaceOriginRepository.existsByRoomPlaceIdAndRoomLinkId(roomPlace.getId(), originRoomLink.getId())) {
 			return;
 		}
-		roomPlaceSourceRepository.save(RoomPlaceSource.create(roomPlace, sourceRoomLink, sourceType, userId, snapshot));
+		roomPlaceOriginRepository.save(RoomPlaceOrigin.create(roomPlace, originRoomLink, addedVia, userId, snapshot));
 	}
 
 	private Place upsertPlace(PlaceSnapshot snapshot) {
@@ -163,6 +164,12 @@ public class RoomPlaceStorageService {
 		}
 		if (!snapshot.hasKakaoPlaceId()) {
 			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "kakaoPlaceId is required.");
+		}
+	}
+
+	private static void validateOriginRoomLink(RoomLink originRoomLink) {
+		if (originRoomLink == null || originRoomLink.getLink() == null) {
+			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "Room place must be saved from a link.");
 		}
 	}
 

@@ -7,7 +7,7 @@ import com.hufs.capstone.backend.link.domain.entity.RoomLink;
 import com.hufs.capstone.backend.link.domain.repository.LinkProcessingHistoryRepository;
 import com.hufs.capstone.backend.link.domain.repository.LinkRepository;
 import com.hufs.capstone.backend.link.domain.repository.RoomLinkRepository;
-import com.hufs.capstone.backend.place.domain.repository.RoomPlaceSourceRepository;
+import com.hufs.capstone.backend.place.domain.repository.RoomPlaceOriginRepository;
 import com.hufs.capstone.backend.room.domain.entity.Room;
 import com.hufs.capstone.backend.room.domain.entity.RoomMember;
 import com.hufs.capstone.backend.room.domain.repository.RoomMemberRepository;
@@ -55,7 +55,7 @@ class RoomLeaveConcurrencyIntegrationTest {
 	private LinkProcessingHistoryRepository linkProcessingHistoryRepository;
 
 	@Autowired
-	private RoomPlaceSourceRepository roomPlaceSourceRepository;
+	private RoomPlaceOriginRepository roomPlaceOriginRepository;
 
 	private Long roomDbId;
 
@@ -139,7 +139,7 @@ class RoomLeaveConcurrencyIntegrationTest {
 	}
 
 	private void cleanDatabase() {
-		roomPlaceSourceRepository.deleteAll();
+		roomPlaceOriginRepository.deleteAll();
 		roomLinkRepository.deleteAll();
 		linkProcessingHistoryRepository.deleteAll();
 		roomMemberRepository.deleteAll();

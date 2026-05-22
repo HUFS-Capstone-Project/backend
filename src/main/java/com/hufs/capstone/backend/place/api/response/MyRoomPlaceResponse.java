@@ -4,7 +4,7 @@ import com.hufs.capstone.backend.link.domain.LinkSourceType;
 import com.hufs.capstone.backend.place.application.dto.BusinessHoursDisplayResult;
 import com.hufs.capstone.backend.place.application.dto.MyRoomPlaceResult;
 import com.hufs.capstone.backend.place.application.dto.RoomPlaceResult;
-import com.hufs.capstone.backend.place.domain.enums.RoomPlaceSourceType;
+import com.hufs.capstone.backend.place.domain.enums.RoomPlaceAddedVia;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -30,8 +30,8 @@ public record MyRoomPlaceResponse(
 		String sigunguName,
 		String memo,
 		List<RoomPlaceResponse.RoomPlaceMemoResponse> memos,
-		RoomPlaceSourceType addedVia,
-		Long sourceRoomLinkId,
+		RoomPlaceAddedVia addedVia,
+		Long originRoomLinkId,
 		String originalUrl,
 		LinkSourceType linkSourceType,
 		Long createdBy,
@@ -69,7 +69,7 @@ public record MyRoomPlaceResponse(
 						.map(RoomPlaceResponse.RoomPlaceMemoResponse::from)
 						.toList(),
 				place.addedVia(),
-				place.sourceRoomLinkId(),
+				place.originRoomLinkId(),
 				place.originalUrl(),
 				place.linkSourceType(),
 				place.createdBy(),

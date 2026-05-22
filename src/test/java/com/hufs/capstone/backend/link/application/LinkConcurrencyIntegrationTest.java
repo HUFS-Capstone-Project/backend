@@ -38,10 +38,10 @@ import com.hufs.capstone.backend.link.domain.repository.RoomLinkCandidateOverrid
 import com.hufs.capstone.backend.link.domain.repository.RoomLinkRepository;
 import com.hufs.capstone.backend.place.application.dto.RoomPlaceSaveResult;
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
-import com.hufs.capstone.backend.place.domain.enums.RoomPlaceSourceType;
+import com.hufs.capstone.backend.place.domain.enums.RoomPlaceAddedVia;
 import com.hufs.capstone.backend.place.domain.repository.PlaceRepository;
 import com.hufs.capstone.backend.place.domain.repository.RoomPlaceRepository;
-import com.hufs.capstone.backend.place.domain.repository.RoomPlaceSourceRepository;
+import com.hufs.capstone.backend.place.domain.repository.RoomPlaceOriginRepository;
 import com.hufs.capstone.backend.place.domain.vo.PlaceSnapshot;
 import com.hufs.capstone.backend.room.domain.entity.Room;
 import com.hufs.capstone.backend.room.domain.entity.RoomMember;
@@ -124,7 +124,7 @@ class LinkConcurrencyIntegrationTest {
 	private RoomPlaceRepository roomPlaceRepository;
 
 	@Autowired
-	private RoomPlaceSourceRepository roomPlaceSourceRepository;
+	private RoomPlaceOriginRepository roomPlaceOriginRepository;
 
 	@Autowired
 	private PlaceRepository placeRepository;
@@ -147,7 +147,7 @@ class LinkConcurrencyIntegrationTest {
 	@BeforeEach
 	void setUp() {
 		overrideRepository.deleteAll();
-		roomPlaceSourceRepository.deleteAll();
+		roomPlaceOriginRepository.deleteAll();
 		roomPlaceRepository.deleteAll();
 		placeRepository.deleteAll();
 		roomLinkRepository.deleteAll();
@@ -170,7 +170,7 @@ class LinkConcurrencyIntegrationTest {
 	@AfterEach
 	void tearDown() {
 		overrideRepository.deleteAll();
-		roomPlaceSourceRepository.deleteAll();
+		roomPlaceOriginRepository.deleteAll();
 		roomPlaceRepository.deleteAll();
 		placeRepository.deleteAll();
 		roomLinkRepository.deleteAll();
@@ -565,13 +565,13 @@ class LinkConcurrencyIntegrationTest {
 				.extracting(roomPlace -> roomPlace.getPlace().getServiceCategory().getCode())
 				.containsOnly("CAFE");
 		assertThat(savedRoomPlaces)
-				.extracting(RoomPlace::getSourceType)
-				.containsOnly(RoomPlaceSourceType.LINK_ANALYSIS);
+				.extracting(RoomPlace::getAddedVia)
+				.containsOnly(RoomPlaceAddedVia.LINK_ANALYSIS);
 		assertThat(savedRoomPlaces)
-				.extracting(RoomPlace::getSourceRoomLinkId)
-				.allMatch(sourceRoomLinkId -> sourceRoomLinkId != null);
+				.extracting(RoomPlace::getOriginRoomLinkId)
+				.allMatch(originRoomLinkId -> originRoomLinkId != null);
 		assertThat(roomLinkRepository.countByRoomIdAndLinkId(roomA.getId(), link.getId())).isEqualTo(1);
-		assertThat(roomPlaceSourceRepository.countByRoomLinkId(
+		assertThat(roomPlaceOriginRepository.countByRoomLinkId(
 				roomLinkRepository.findByRoomAndLinkId(roomA, link.getId()).orElseThrow().getId()
 		)).isEqualTo(2);
 	}

@@ -2,7 +2,7 @@ package com.hufs.capstone.backend.place.domain.entity;
 
 import com.hufs.capstone.backend.global.common.entity.AuditableEntity;
 import com.hufs.capstone.backend.link.domain.entity.RoomLink;
-import com.hufs.capstone.backend.place.domain.enums.RoomPlaceSourceType;
+import com.hufs.capstone.backend.place.domain.enums.RoomPlaceAddedVia;
 import com.hufs.capstone.backend.place.domain.vo.PlaceSnapshot;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -21,18 +21,18 @@ import lombok.NoArgsConstructor;
 @Getter
 @Entity
 @Table(
-		name = "room_place_sources",
+		name = "room_place_origins",
 		indexes = {
-			@Index(name = "idx_room_place_sources_room_place_id", columnList = "room_place_id"),
-			@Index(name = "idx_room_place_sources_room_link_id", columnList = "room_link_id")
+			@Index(name = "idx_room_place_origins_room_place_id", columnList = "room_place_id"),
+			@Index(name = "idx_room_place_origins_room_link_id", columnList = "room_link_id")
 		},
 		uniqueConstraints = @UniqueConstraint(
-				name = "uq_room_place_sources_room_place_id_room_link_id",
+				name = "uq_room_place_origins_room_place_id_room_link_id",
 				columnNames = {"room_place_id", "room_link_id"}
 		)
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class RoomPlaceSource extends AuditableEntity {
+public class RoomPlaceOrigin extends AuditableEntity {
 
 	@ManyToOne(fetch = FetchType.LAZY, optional = false)
 	@JoinColumn(name = "room_place_id", nullable = false)
@@ -43,35 +43,35 @@ public class RoomPlaceSource extends AuditableEntity {
 	private RoomLink roomLink;
 
 	@Enumerated(EnumType.STRING)
-	@Column(name = "source_type", nullable = false, length = 30)
-	private RoomPlaceSourceType sourceType;
+	@Column(name = "added_via", nullable = false, length = 30)
+	private RoomPlaceAddedVia addedVia;
 
 	@Column(name = "created_by_user_id", nullable = false)
 	private Long createdByUserId;
 
-	private RoomPlaceSource(
+	private RoomPlaceOrigin(
 			RoomPlace roomPlace,
 			RoomLink roomLink,
-			RoomPlaceSourceType sourceType,
+			RoomPlaceAddedVia addedVia,
 			Long createdByUserId,
 			PlaceSnapshot snapshot
 	) {
 		this.roomPlace = roomPlace;
 		this.roomLink = roomLink;
-		this.sourceType = sourceType;
+		this.addedVia = addedVia;
 		this.createdByUserId = createdByUserId;
 	}
 
-	public static RoomPlaceSource create(
+	public static RoomPlaceOrigin create(
 			RoomPlace roomPlace,
 			RoomLink roomLink,
-			RoomPlaceSourceType sourceType,
+			RoomPlaceAddedVia addedVia,
 			Long createdByUserId,
 			PlaceSnapshot snapshot
 	) {
-		if (roomPlace == null || roomLink == null || sourceType == null || createdByUserId == null || snapshot == null) {
-			throw new IllegalArgumentException("Room place source required values are missing.");
+		if (roomPlace == null || roomLink == null || addedVia == null || createdByUserId == null || snapshot == null) {
+			throw new IllegalArgumentException("Room place origin required values are missing.");
 		}
-		return new RoomPlaceSource(roomPlace, roomLink, sourceType, createdByUserId, snapshot);
+		return new RoomPlaceOrigin(roomPlace, roomLink, addedVia, createdByUserId, snapshot);
 	}
 }

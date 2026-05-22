@@ -28,6 +28,8 @@ class LinkUrlNormalizerTest {
 	void shouldCanonicalizeInstagramPostAndTvUrls() {
 		assertThat(LinkUrlNormalizer.normalize("http://instagram.com/p/ABC123/?utm_source=x").normalizedUrl())
 				.isEqualTo("https://www.instagram.com/p/ABC123/");
+		assertThat(LinkUrlNormalizer.normalize("https://instagr.am/p/ABC123/").normalizedUrl())
+				.isEqualTo("https://www.instagram.com/p/ABC123/");
 		assertThat(LinkUrlNormalizer.normalize("https://www.instagram.com/tv/XYZ789/#x").normalizedUrl())
 				.isEqualTo("https://www.instagram.com/tv/XYZ789/");
 	}

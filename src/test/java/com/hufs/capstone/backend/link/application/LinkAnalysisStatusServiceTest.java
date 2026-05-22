@@ -209,6 +209,7 @@ class LinkAnalysisStatusServiceTest {
 	private static ProcessingResultSnapshot resultSnapshot(String contentText) {
 		return new ProcessingResultSnapshot(
 				null,
+				null,
 				contentText,
 				null,
 				null,

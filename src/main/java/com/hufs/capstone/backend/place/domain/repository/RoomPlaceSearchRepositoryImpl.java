@@ -31,8 +31,8 @@ public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository 
 	private static final QPlaceTag TAG = QPlaceTag.placeTag;
 	private static final QRoom ROOM = QRoom.room;
 	private static final QRoomMember ROOM_MEMBER = QRoomMember.roomMember;
-	private static final QRoomLink SOURCE_ROOM_LINK = QRoomLink.roomLink;
-	private static final QLink SOURCE_LINK = QLink.link;
+	private static final QRoomLink ORIGIN_ROOM_LINK = QRoomLink.roomLink;
+	private static final QLink ORIGIN_LINK = QLink.link;
 
 	private final JPAQueryFactory queryFactory;
 
@@ -167,8 +167,8 @@ public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository 
 				.join(ROOM_PLACE.place, PLACE).fetchJoin()
 				.join(PLACE.serviceCategory, CATEGORY).fetchJoin()
 				.join(PLACE.serviceTag, TAG).fetchJoin()
-				.leftJoin(ROOM_PLACE.sourceRoomLink, SOURCE_ROOM_LINK).fetchJoin()
-				.leftJoin(SOURCE_ROOM_LINK.link, SOURCE_LINK).fetchJoin();
+				.leftJoin(ROOM_PLACE.originRoomLink, ORIGIN_ROOM_LINK).fetchJoin()
+				.leftJoin(ORIGIN_ROOM_LINK.link, ORIGIN_LINK).fetchJoin();
 	}
 
 	private JPAQuery<RoomPlace> baseMyRoomPlaceQuery() {
@@ -179,8 +179,8 @@ public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository 
 				.join(ROOM_PLACE.place, PLACE).fetchJoin()
 				.join(PLACE.serviceCategory, CATEGORY).fetchJoin()
 				.join(PLACE.serviceTag, TAG).fetchJoin()
-				.leftJoin(ROOM_PLACE.sourceRoomLink, SOURCE_ROOM_LINK).fetchJoin()
-				.leftJoin(SOURCE_ROOM_LINK.link, SOURCE_LINK).fetchJoin();
+				.leftJoin(ROOM_PLACE.originRoomLink, ORIGIN_ROOM_LINK).fetchJoin()
+				.leftJoin(ORIGIN_ROOM_LINK.link, ORIGIN_LINK).fetchJoin();
 	}
 
 	private static BooleanExpression roomIdEq(Long roomId) {

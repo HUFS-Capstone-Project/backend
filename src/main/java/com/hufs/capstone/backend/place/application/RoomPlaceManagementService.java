@@ -6,7 +6,7 @@ import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
 import com.hufs.capstone.backend.place.domain.entity.RoomPlaceMemo;
 import com.hufs.capstone.backend.place.domain.repository.RoomPlaceMemoRepository;
 import com.hufs.capstone.backend.place.domain.repository.RoomPlaceRepository;
-import com.hufs.capstone.backend.place.domain.repository.RoomPlaceSourceRepository;
+import com.hufs.capstone.backend.place.domain.repository.RoomPlaceOriginRepository;
 import com.hufs.capstone.backend.room.application.RoomAccessService;
 import com.hufs.capstone.backend.room.domain.entity.Room;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +20,7 @@ public class RoomPlaceManagementService {
 	private final RoomAccessService roomAccessService;
 	private final RoomPlaceRepository roomPlaceRepository;
 	private final RoomPlaceMemoRepository roomPlaceMemoRepository;
-	private final RoomPlaceSourceRepository roomPlaceSourceRepository;
+	private final RoomPlaceOriginRepository roomPlaceOriginRepository;
 
 	@Transactional
 	public void updateMemo(Long userId, String roomId, Long roomPlaceId, String memo) {
@@ -43,7 +43,7 @@ public class RoomPlaceManagementService {
 		Room room = roomAccessService.requireMemberRoom(roomId, userId);
 		RoomPlace roomPlace = getRoomPlaceOrThrow(room.getId(), roomPlaceId);
 		roomPlaceMemoRepository.deleteByRoomPlaceId(roomPlace.getId());
-		roomPlaceSourceRepository.deleteByRoomPlaceId(roomPlace.getId());
+		roomPlaceOriginRepository.deleteByRoomPlaceId(roomPlace.getId());
 		roomPlaceRepository.delete(roomPlace);
 	}
 

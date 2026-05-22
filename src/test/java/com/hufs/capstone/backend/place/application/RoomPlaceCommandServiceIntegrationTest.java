@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
+import com.hufs.capstone.backend.link.domain.LinkSourceType;
 import com.hufs.capstone.backend.link.domain.entity.Link;
 import com.hufs.capstone.backend.link.domain.entity.RoomLink;
 import com.hufs.capstone.backend.link.domain.repository.LinkRepository;
@@ -20,12 +21,12 @@ import com.hufs.capstone.backend.place.domain.entity.Place;
 import com.hufs.capstone.backend.place.domain.entity.PlaceBusinessHours;
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
 import com.hufs.capstone.backend.place.domain.enums.BusinessHoursStatus;
-import com.hufs.capstone.backend.place.domain.enums.RoomPlaceSourceType;
+import com.hufs.capstone.backend.place.domain.enums.RoomPlaceAddedVia;
 import com.hufs.capstone.backend.place.domain.repository.PlaceBusinessHoursRepository;
 import com.hufs.capstone.backend.place.domain.repository.PlaceRepository;
 import com.hufs.capstone.backend.place.domain.repository.RoomPlaceMemoRepository;
 import com.hufs.capstone.backend.place.domain.repository.RoomPlaceRepository;
-import com.hufs.capstone.backend.place.domain.repository.RoomPlaceSourceRepository;
+import com.hufs.capstone.backend.place.domain.repository.RoomPlaceOriginRepository;
 import com.hufs.capstone.backend.place.domain.vo.PlaceSnapshot;
 import com.hufs.capstone.backend.room.domain.entity.Room;
 import com.hufs.capstone.backend.room.domain.entity.RoomMember;
@@ -75,7 +76,7 @@ class RoomPlaceCommandServiceIntegrationTest {
 	private PlaceBusinessHoursRepository placeBusinessHoursRepository;
 
 	@Autowired
-	private RoomPlaceSourceRepository roomPlaceSourceRepository;
+	private RoomPlaceOriginRepository roomPlaceOriginRepository;
 
 	@Autowired
 	private RoomPlaceMemoRepository roomPlaceMemoRepository;
@@ -99,12 +100,13 @@ class RoomPlaceCommandServiceIntegrationTest {
 	private UserRepository userRepository;
 
 	private Room room;
+	private int externalLinkSequence;
 
 	@BeforeEach
 	void setUp() {
 		placeBusinessHoursRepository.deleteAll();
 		roomPlaceMemoRepository.deleteAll();
-		roomPlaceSourceRepository.deleteAll();
+		roomPlaceOriginRepository.deleteAll();
 		roomPlaceRepository.deleteAll();
 		placeRepository.deleteAll();
 		roomLinkRepository.deleteAll();
@@ -114,13 +116,14 @@ class RoomPlaceCommandServiceIntegrationTest {
 		userRepository.deleteAll();
 		room = roomRepository.saveAndFlush(Room.create(ROOM_PUBLIC_ID, "Place Room", "INVITE333333", USER_ID));
 		roomMemberRepository.saveAndFlush(RoomMember.join(room, USER_ID));
+		externalLinkSequence = 0;
 	}
 
 	@AfterEach
 	void tearDown() {
 		placeBusinessHoursRepository.deleteAll();
 		roomPlaceMemoRepository.deleteAll();
-		roomPlaceSourceRepository.deleteAll();
+		roomPlaceOriginRepository.deleteAll();
 		roomPlaceRepository.deleteAll();
 		placeRepository.deleteAll();
 		roomLinkRepository.deleteAll();
@@ -140,8 +143,9 @@ class RoomPlaceCommandServiceIntegrationTest {
 
 		assertThat(place.getServiceCategory().getCode()).isEqualTo("FOOD");
 		assertThat(place.getServiceTag().getCode()).isEqualTo("JAPANESE");
-		assertThat(roomPlace.getSourceType()).isEqualTo(RoomPlaceSourceType.EXTERNAL_SEARCH);
-		assertThat(roomPlace.getSourceRoomLinkId()).isNull();
+		assertThat(roomPlace.getAddedVia()).isEqualTo(RoomPlaceAddedVia.EXTERNAL_SEARCH);
+		assertThat(roomPlace.getOriginRoomLinkId()).isNotNull();
+		assertThat(roomPlace.getOriginRoomLink().getLink().getId()).isEqualTo(result.linkId());
 		assertThat(result.places().get(0).created()).isTrue();
 		assertThat(result.places().get(0).alreadyInRoom()).isFalse();
 	}
@@ -428,20 +432,20 @@ class RoomPlaceCommandServiceIntegrationTest {
 						room,
 						USER_ID,
 						List.of(foodSnapshot("123456789", "Linked Place")),
-						RoomPlaceSourceType.LINK_ANALYSIS,
+						RoomPlaceAddedVia.LINK_ANALYSIS,
 						roomLink
 				)
 		);
 
-		roomPlaceSourceRepository.deleteByRoomPlaceId(saved.places().get(0).roomPlaceId());
-		roomPlaceRepository.clearSourceRoomLinkBySourceRoomLinkId(roomLink.getId());
+		roomPlaceOriginRepository.deleteByRoomPlaceId(saved.places().get(0).roomPlaceId());
+		roomPlaceRepository.clearOriginRoomLinkByOriginRoomLinkId(roomLink.getId());
 		roomLinkRepository.delete(roomLink);
 		roomLinkRepository.flush();
 
 		RoomPlace reloaded = roomPlaceRepository.findByIdAndRoomId(saved.places().get(0).roomPlaceId(), room.getId())
 				.orElseThrow();
 
-		assertThat(reloaded.getSourceRoomLinkId()).isNull();
+		assertThat(reloaded.getOriginRoomLinkId()).isNull();
 		assertThat(reloaded.getPlaceName()).isEqualTo("Linked Place");
 	}
 
@@ -456,7 +460,7 @@ class RoomPlaceCommandServiceIntegrationTest {
 						room,
 						USER_ID,
 						List.of(foodSnapshot("123456789", "Linked Place")),
-						RoomPlaceSourceType.LINK_ANALYSIS,
+						RoomPlaceAddedVia.LINK_ANALYSIS,
 						roomLink
 				)
 		);
@@ -467,12 +471,12 @@ class RoomPlaceCommandServiceIntegrationTest {
 				saved.places().get(0).roomPlaceId()
 		);
 
-		assertThat(detail.sourceRoomLinkId()).isEqualTo(roomLink.getId());
+		assertThat(detail.originRoomLinkId()).isEqualTo(roomLink.getId());
 		assertThat(detail.originalUrl()).isEqualTo(feedUrl);
 	}
 
 	@Test
-	void shouldNotAttachSourceFeedUrlWhenExistingPlaceIsSavedFromAnotherLinkContext() {
+	void shouldKeepExistingOriginWhenExistingPlaceIsSavedFromManualLinkSearch() {
 		saveExternalForTest(foodSnapshot("123456789", "Linked Place"));
 		String feedUrl = "https://www.instagram.com/reel/manual-source-feed";
 		Link link = linkRepository.saveAndFlush(Link.register(feedUrl, feedUrl, "job-manual-feed"));
@@ -483,7 +487,7 @@ class RoomPlaceCommandServiceIntegrationTest {
 						roomRepository.findById(room.getId()).orElseThrow(),
 						USER_ID,
 						List.of(foodSnapshot("123456789", "Linked Place")),
-						RoomPlaceSourceType.LINK_ANALYSIS_MANUAL_SEARCH,
+						RoomPlaceAddedVia.LINK_ANALYSIS_MANUAL_SEARCH,
 						roomLinkRepository.findById(roomLink.getId()).orElseThrow()
 				)
 		));
@@ -496,8 +500,10 @@ class RoomPlaceCommandServiceIntegrationTest {
 
 		assertThat(savedFromLink.places().get(0).created()).isFalse();
 		assertThat(savedFromLink.places().get(0).alreadyInRoom()).isTrue();
-		assertThat(detail.sourceRoomLinkId()).isNull();
-		assertThat(detail.originalUrl()).isNull();
+		assertThat(detail.originRoomLinkId()).isNotNull();
+		assertThat(detail.originalUrl()).contains("external-search");
+		assertThat(detail.linkSourceType()).isEqualTo(LinkSourceType.GENERIC_WEB);
+		assertThat(roomPlaceOriginRepository.countByRoomLinkId(roomLink.getId())).isZero();
 	}
 
 	@Test
@@ -700,16 +706,27 @@ class RoomPlaceCommandServiceIntegrationTest {
 	}
 
 	private RoomPlaceSaveResult saveExternalForTest(Room targetRoom, Long userId, PlaceSnapshot snapshot) {
-		return transactionTemplate.execute(status -> new RoomPlaceSaveResult(
-				null,
-				roomPlaceStorageService.saveAll(
-						roomRepository.findById(targetRoom.getId()).orElseThrow(),
-						userId,
-						List.of(snapshot),
-						RoomPlaceSourceType.EXTERNAL_SEARCH,
-						null
-				)
-		));
+		return transactionTemplate.execute(status -> {
+			Room managedRoom = roomRepository.findById(targetRoom.getId()).orElseThrow();
+			RoomLink roomLink = externalRoomLink(managedRoom);
+			return new RoomPlaceSaveResult(
+					roomLink.getLink().getId(),
+					roomPlaceStorageService.saveAll(
+							managedRoom,
+							userId,
+							List.of(snapshot),
+							RoomPlaceAddedVia.EXTERNAL_SEARCH,
+							roomLink
+					)
+			);
+		});
+	}
+
+	private RoomLink externalRoomLink(Room managedRoom) {
+		int sequence = ++externalLinkSequence;
+		String url = "https://example.com/external-search/" + managedRoom.getPublicId() + "/" + sequence;
+		Link link = linkRepository.saveAndFlush(Link.register(url, url, "external-job-" + sequence));
+		return roomLinkRepository.saveAndFlush(RoomLink.bind(managedRoom, link));
 	}
 
 	private static PlaceSnapshot foodSnapshot(String kakaoPlaceId, String name) {

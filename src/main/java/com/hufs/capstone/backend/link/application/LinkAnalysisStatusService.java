@@ -87,6 +87,7 @@ public class LinkAnalysisStatusService {
 				result.linkId(),
 				result.status(),
 				analysisRequest.getOriginalUrl(),
+				result.linkSourceType(),
 				result.contentText(),
 				result.linkStats(),
 				result.extractionStoreName(),

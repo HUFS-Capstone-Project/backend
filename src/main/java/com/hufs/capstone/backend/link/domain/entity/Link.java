@@ -2,11 +2,14 @@ package com.hufs.capstone.backend.link.domain.entity;
 
 import com.hufs.capstone.backend.global.common.entity.AuditableEntity;
 import com.hufs.capstone.backend.link.domain.LinkAnalysisStatus;
+import com.hufs.capstone.backend.link.domain.LinkSourceType;
+import com.hufs.capstone.backend.link.domain.LinkSourceTypeResolver;
 import com.hufs.capstone.backend.link.domain.ProcessingDispatchStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.util.Objects;
@@ -16,7 +19,12 @@ import lombok.NoArgsConstructor;
 
 @Getter
 @Entity
-@Table(name = "links")
+@Table(
+		name = "links",
+		indexes = {
+			@Index(name = "idx_links_link_source_type", columnList = "link_source_type")
+		}
+)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Link extends AuditableEntity {
 
@@ -25,6 +33,10 @@ public class Link extends AuditableEntity {
 
 	@Column(nullable = false, unique = true, length = 2048)
 	private String normalizedUrl;
+
+	@Enumerated(EnumType.STRING)
+	@Column(name = "link_source_type", nullable = false, length = 30)
+	private LinkSourceType linkSourceType;
 
 	@Column(length = 100)
 	private String processingJobId;
@@ -79,6 +91,7 @@ public class Link extends AuditableEntity {
 	private Link(
 			String originalUrl,
 			String normalizedUrl,
+			LinkSourceType linkSourceType,
 			String processingJobId,
 			ProcessingDispatchStatus dispatchStatus,
 			LinkAnalysisStatus status,
@@ -86,6 +99,7 @@ public class Link extends AuditableEntity {
 	) {
 		this.originalUrl = originalUrl;
 		this.normalizedUrl = normalizedUrl;
+		this.linkSourceType = linkSourceType;
 		this.processingJobId = processingJobId;
 		this.dispatchStatus = dispatchStatus;
 		this.status = status;
@@ -100,6 +114,7 @@ public class Link extends AuditableEntity {
 		return new Link(
 				originalUrl,
 				normalizedUrl,
+				LinkSourceTypeResolver.initialFromUrl(normalizedUrl),
 				normalizedProcessingJobId,
 				dispatchStatus,
 				LinkAnalysisStatus.REQUESTED,
@@ -111,6 +126,7 @@ public class Link extends AuditableEntity {
 		return new Link(
 				originalUrl,
 				normalizedUrl,
+				LinkSourceTypeResolver.initialFromUrl(normalizedUrl),
 				null,
 				ProcessingDispatchStatus.PENDING,
 				LinkAnalysisStatus.REQUESTED,

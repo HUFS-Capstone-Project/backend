@@ -3,7 +3,7 @@ package com.hufs.capstone.backend.place.application.dto;
 import com.hufs.capstone.backend.link.domain.LinkSourceType;
 import com.hufs.capstone.backend.place.domain.entity.Place;
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
-import com.hufs.capstone.backend.place.domain.enums.RoomPlaceSourceType;
+import com.hufs.capstone.backend.place.domain.enums.RoomPlaceAddedVia;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -29,8 +29,8 @@ public record RoomPlaceResult(
 		String sigunguName,
 		String memo,
 		List<RoomPlaceMemoResult> memos,
-		RoomPlaceSourceType addedVia,
-		Long sourceRoomLinkId,
+		RoomPlaceAddedVia addedVia,
+		Long originRoomLinkId,
 		String originalUrl,
 		LinkSourceType linkSourceType,
 		Long createdBy,
@@ -83,10 +83,10 @@ public record RoomPlaceResult(
 				roomPlace.getSigunguName(),
 				currentUserMemo(normalizedMemos, currentUserId),
 				normalizedMemos,
-				roomPlace.getSourceType(),
-				roomPlace.getSourceRoomLinkId(),
+				roomPlace.getAddedVia(),
+				roomPlace.getOriginRoomLinkId(),
 				originalUrl,
-				LinkSourceType.fromUrl(originalUrl),
+				linkSourceType(roomPlace),
 				roomPlace.getCreatedByUserId(),
 				roomPlace.getCreatedAt(),
 				businessHours == null || businessHours.businessHoursStatus() == null
@@ -107,5 +107,12 @@ public record RoomPlaceResult(
 				.map(RoomPlaceMemoResult::memo)
 				.findFirst()
 				.orElse(null);
+	}
+
+	private static LinkSourceType linkSourceType(RoomPlace roomPlace) {
+		if (roomPlace.getOriginRoomLink() != null && roomPlace.getOriginRoomLink().getLink() != null) {
+			return roomPlace.getOriginRoomLink().getLink().getLinkSourceType();
+		}
+		return null;
 	}
 }

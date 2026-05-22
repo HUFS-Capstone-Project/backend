@@ -43,15 +43,15 @@ class LinkAnalysisResultAssemblerTest {
 				  {
 				    "kakaoPlaceId": "123",
 				    "placeName": "Red Button",
-				    "categoryName": "\uAC00\uC815,\uC0DD\uD65C > \uC5EC\uAC00\uC2DC\uC124 > \uBCF4\uB4DC\uCE74\uD398 > \uB808\uB4DC\uBC84\uD2BC",
+				    "categoryName": "가정,생활 > 여가시설 > 보드카페 > 레드버튼",
 				    "categoryGroupCode": "CE7"
 				  }
 				]
 				""");
 		when(placeTaxonomyReadService.resolveCategory(
 				"CE7",
-				"\uAC00\uC815,\uC0DD\uD65C > \uC5EC\uAC00\uC2DC\uC124 > \uBCF4\uB4DC\uCE74\uD398 > \uB808\uB4DC\uBC84\uD2BC"
-		)).thenReturn(new ResolvedPlaceCategory("ACTIVITY", "\uB180\uAC70\uB9AC"));
+				"가정,생활 > 여가시설 > 보드카페 > 레드버튼"
+		)).thenReturn(new ResolvedPlaceCategory("ACTIVITY", "놀거리"));
 
 		LinkAnalysisResult result = assembler.from(link);
 
@@ -61,6 +61,6 @@ class LinkAnalysisResultAssemblerTest {
 		LinkPlaceResult candidate = result.candidatePlaces().get(0);
 		assertThat(candidate.categoryGroupCode()).isEqualTo("CE7");
 		assertThat(candidate.serviceCategoryCode()).isEqualTo("ACTIVITY");
-		assertThat(candidate.serviceCategoryName()).isEqualTo("\uB180\uAC70\uB9AC");
+		assertThat(candidate.serviceCategoryName()).isEqualTo("놀거리");
 	}
 }

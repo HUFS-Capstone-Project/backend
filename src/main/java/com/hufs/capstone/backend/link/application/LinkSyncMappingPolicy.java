@@ -8,6 +8,7 @@ import com.hufs.capstone.backend.external.processing.dto.ProcessingJobResultResp
 import com.hufs.capstone.backend.external.processing.dto.ProcessingJobResponse;
 import com.hufs.capstone.backend.link.application.dto.ProcessingResultSnapshot;
 import com.hufs.capstone.backend.link.domain.LinkAnalysisStatus;
+import com.hufs.capstone.backend.link.domain.LinkSourceTypeResolver;
 import com.hufs.capstone.backend.link.domain.vo.PlaceCandidateSnapshot;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -105,6 +106,7 @@ public class LinkSyncMappingPolicy {
 				placeCandidateSnapshotMapper.fromProcessingCandidates(response.resolvedPlaces());
 		return new ProcessingResultSnapshot(
 				trimToNull(response.originalUrl()),
+				LinkSourceTypeResolver.fromProcessingSourceType(response.content() == null ? null : response.content().sourceType()),
 				trimToNull(response.content() == null ? null : response.content().contentText()),
 				linkStats == null ? null : linkStats.likeCount(),
 				linkStats == null ? null : linkStats.commentCount(),

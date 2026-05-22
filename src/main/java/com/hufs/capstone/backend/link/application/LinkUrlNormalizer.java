@@ -2,6 +2,7 @@ package com.hufs.capstone.backend.link.application;
 
 import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
+import com.hufs.capstone.backend.link.domain.LinkSourceTypeResolver;
 import java.net.URI;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
@@ -16,8 +17,6 @@ final class LinkUrlNormalizer {
 
 	private static final Set<String> ALLOWED_SCHEMES = Set.of("http", "https");
 	private static final int MAX_URL_LENGTH = 2048;
-	private static final String INSTAGRAM_CANONICAL_HOST = "www.instagram.com";
-	private static final String NAVER_BLOG_CANONICAL_HOST = "blog.naver.com";
 
 	private LinkUrlNormalizer() {
 	}
@@ -50,7 +49,7 @@ final class LinkUrlNormalizer {
 		}
 		try {
 			URI parsed = URI.create(url.trim());
-			return INSTAGRAM_CANONICAL_HOST.equalsIgnoreCase(parsed.getHost());
+			return LinkSourceTypeResolver.INSTAGRAM_CANONICAL_HOST.equalsIgnoreCase(parsed.getHost());
 		} catch (IllegalArgumentException ex) {
 			return false;
 		}
@@ -70,7 +69,7 @@ final class LinkUrlNormalizer {
 
 	private static String canonicalInstagramUrl(URI parsed) {
 		String host = lower(parsed.getHost());
-		if (!isInstagramHost(host)) {
+		if (!LinkSourceTypeResolver.isInstagramHost(host)) {
 			return null;
 		}
 
@@ -85,24 +84,20 @@ final class LinkUrlNormalizer {
 			return null;
 		}
 		if ("reel".equals(mediaPath) || "reels".equals(mediaPath)) {
-			return "https://" + INSTAGRAM_CANONICAL_HOST + "/reel/" + shortcode + "/";
+			return "https://" + LinkSourceTypeResolver.INSTAGRAM_CANONICAL_HOST + "/reel/" + shortcode + "/";
 		}
 		if ("p".equals(mediaPath)) {
-			return "https://" + INSTAGRAM_CANONICAL_HOST + "/p/" + shortcode + "/";
+			return "https://" + LinkSourceTypeResolver.INSTAGRAM_CANONICAL_HOST + "/p/" + shortcode + "/";
 		}
 		if ("tv".equals(mediaPath)) {
-			return "https://" + INSTAGRAM_CANONICAL_HOST + "/tv/" + shortcode + "/";
+			return "https://" + LinkSourceTypeResolver.INSTAGRAM_CANONICAL_HOST + "/tv/" + shortcode + "/";
 		}
 		return null;
 	}
 
-	private static boolean isInstagramHost(String host) {
-		return "instagram.com".equals(host) || (host != null && host.endsWith(".instagram.com"));
-	}
-
 	private static String canonicalNaverBlogUrl(URI parsed) {
 		String host = lower(parsed.getHost());
-		if (!NAVER_BLOG_CANONICAL_HOST.equals(host) && !"m.blog.naver.com".equals(host)) {
+		if (!LinkSourceTypeResolver.isCanonicalizableNaverBlogHost(host)) {
 			return null;
 		}
 
@@ -116,7 +111,7 @@ final class LinkUrlNormalizer {
 		if (blogId.isBlank() || !logNo.chars().allMatch(Character::isDigit)) {
 			return null;
 		}
-		return "https://" + NAVER_BLOG_CANONICAL_HOST + "/" + blogId + "/" + logNo;
+		return "https://" + LinkSourceTypeResolver.NAVER_BLOG_CANONICAL_HOST + "/" + blogId + "/" + logNo;
 	}
 
 	private static String canonicalGenericUrl(URI parsed) {

@@ -24,8 +24,8 @@ public interface RoomPlaceRepository extends JpaRepository<RoomPlace, Long>, Roo
 			join fetch rp.place p
 			join fetch p.serviceCategory c
 			join fetch p.serviceTag t
-			left join fetch rp.sourceRoomLink srl
-			left join fetch srl.link
+			left join fetch rp.originRoomLink orl
+			left join fetch orl.link
 			where rp.id = :id
 			  and rp.room.id = :roomId
 			""")
@@ -48,9 +48,9 @@ public interface RoomPlaceRepository extends JpaRepository<RoomPlace, Long>, Roo
 	@Transactional
 	@Query("""
 			update RoomPlace rp
-			set rp.sourceRoomLink = null
-			where rp.sourceRoomLink.id = :roomLinkId
+			set rp.originRoomLink = null
+			where rp.originRoomLink.id = :roomLinkId
 			""")
-	int clearSourceRoomLinkBySourceRoomLinkId(@Param("roomLinkId") Long roomLinkId);
+	int clearOriginRoomLinkByOriginRoomLinkId(@Param("roomLinkId") Long roomLinkId);
 
 }

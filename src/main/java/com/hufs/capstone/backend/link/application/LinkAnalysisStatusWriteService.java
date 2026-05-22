@@ -6,6 +6,8 @@ import com.hufs.capstone.backend.link.application.dto.LinkAnalysisResult;
 import com.hufs.capstone.backend.link.application.dto.ProcessingResultSnapshot;
 import com.hufs.capstone.backend.link.application.event.LinkStatusSyncedEvent;
 import com.hufs.capstone.backend.link.domain.LinkAnalysisStatus;
+import com.hufs.capstone.backend.link.domain.LinkSourceType;
+import com.hufs.capstone.backend.link.domain.LinkSourceTypeResolver;
 import com.hufs.capstone.backend.link.domain.entity.Link;
 import com.hufs.capstone.backend.link.domain.repository.LinkRepository;
 import java.time.Instant;
@@ -65,7 +67,7 @@ public class LinkAnalysisStatusWriteService {
 				return linkAnalysisResultAssembler.from(current);
 			}
 
-			int updated = executeCasUpdate(current.getId(), current.getVersion(), plan);
+			int updated = executeCasUpdate(current, plan);
 			if (updated == 1) {
 				Link refreshed = linkRepository.findById(linkId)
 						.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "Link not found."));
@@ -86,13 +88,18 @@ public class LinkAnalysisStatusWriteService {
 		return linkAnalysisResultAssembler.from(latest);
 	}
 
-	private int executeCasUpdate(Long linkId, Long expectedVersion, CasPlan plan) {
+	private int executeCasUpdate(Link current, CasPlan plan) {
 		ProcessingResultSnapshot result = plan.result();
+		LinkSourceType linkSourceType = LinkSourceTypeResolver.resolveProcessingResult(
+				current.getLinkSourceType(),
+				result.linkSourceType()
+		);
 		return linkRepository.compareAndSetAnalysisResult(
-				linkId,
-				expectedVersion,
+				current.getId(),
+				current.getVersion(),
 				UPDATABLE_STATUSES,
 				plan.targetStatus(),
+				linkSourceType,
 				result.contentText(),
 				result.likeCount(),
 				result.commentCount(),

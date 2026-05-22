@@ -16,7 +16,7 @@ import com.hufs.capstone.backend.link.domain.repository.RoomLinkRepository;
 import com.hufs.capstone.backend.link.domain.vo.PlaceCandidateSnapshot;
 import com.hufs.capstone.backend.place.application.RoomPlaceStorageService;
 import com.hufs.capstone.backend.place.application.dto.RoomPlaceSaveResult;
-import com.hufs.capstone.backend.place.domain.enums.RoomPlaceSourceType;
+import com.hufs.capstone.backend.place.domain.enums.RoomPlaceAddedVia;
 import com.hufs.capstone.backend.place.domain.vo.PlaceSnapshot;
 import com.hufs.capstone.backend.room.domain.entity.Room;
 import java.util.Collection;
@@ -73,7 +73,7 @@ public class RoomPlaceCommandWriteService {
 						analysisRequest.getRoom(),
 						userId,
 						snapshots,
-						RoomPlaceSourceType.LINK_ANALYSIS,
+						RoomPlaceAddedVia.LINK_ANALYSIS,
 						roomLink
 				)
 		);
@@ -100,7 +100,7 @@ public class RoomPlaceCommandWriteService {
 						analysisRequest.getRoom(),
 						userId,
 						List.of(command.snapshot()),
-						RoomPlaceSourceType.LINK_ANALYSIS_MANUAL_SEARCH,
+						RoomPlaceAddedVia.LINK_ANALYSIS_MANUAL_SEARCH,
 						roomLink
 				)
 		);

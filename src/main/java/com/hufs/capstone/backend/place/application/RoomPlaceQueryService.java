@@ -213,10 +213,10 @@ public class RoomPlaceQueryService {
 	}
 
 	private String originalUrl(RoomPlace roomPlace) {
-		if (roomPlace.getSourceRoomLink() == null || roomPlace.getSourceRoomLink().getLink() == null) {
+		if (roomPlace.getOriginRoomLink() == null || roomPlace.getOriginRoomLink().getLink() == null) {
 			return null;
 		}
-		return roomPlace.getSourceRoomLink().getLink().getOriginalUrl();
+		return roomPlace.getOriginRoomLink().getLink().getOriginalUrl();
 	}
 
 	private Map<String, PlaceBusinessHours> findCaches(Collection<RoomPlace> roomPlaces) {

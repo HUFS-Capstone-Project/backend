@@ -4,7 +4,7 @@ import com.hufs.capstone.backend.link.domain.repository.LinkAnalysisRequestRepos
 import com.hufs.capstone.backend.link.domain.repository.RoomLinkRepository;
 import com.hufs.capstone.backend.place.domain.repository.RoomPlaceMemoRepository;
 import com.hufs.capstone.backend.place.domain.repository.RoomPlaceRepository;
-import com.hufs.capstone.backend.place.domain.repository.RoomPlaceSourceRepository;
+import com.hufs.capstone.backend.place.domain.repository.RoomPlaceOriginRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -15,14 +15,14 @@ import org.springframework.transaction.annotation.Transactional;
 public class RoomLinkCleanupWriteService {
 
 	private final LinkAnalysisRequestRepository linkAnalysisRequestRepository;
-	private final RoomPlaceSourceRepository roomPlaceSourceRepository;
+	private final RoomPlaceOriginRepository roomPlaceOriginRepository;
 	private final RoomPlaceMemoRepository roomPlaceMemoRepository;
 	private final RoomPlaceRepository roomPlaceRepository;
 	private final RoomLinkRepository roomLinkRepository;
 
 	@Transactional(propagation = Propagation.MANDATORY)
 	public void deleteAllByRoomId(Long roomId) {
-		roomPlaceSourceRepository.deleteByRoomId(roomId);
+		roomPlaceOriginRepository.deleteByRoomId(roomId);
 		roomPlaceMemoRepository.deleteByRoomId(roomId);
 		roomPlaceRepository.deleteByRoomId(roomId);
 		linkAnalysisRequestRepository.deleteByRoomId(roomId);

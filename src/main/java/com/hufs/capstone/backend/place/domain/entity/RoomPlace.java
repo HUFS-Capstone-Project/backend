@@ -2,7 +2,7 @@ package com.hufs.capstone.backend.place.domain.entity;
 
 import com.hufs.capstone.backend.global.common.entity.AuditableEntity;
 import com.hufs.capstone.backend.link.domain.entity.RoomLink;
-import com.hufs.capstone.backend.place.domain.enums.RoomPlaceSourceType;
+import com.hufs.capstone.backend.place.domain.enums.RoomPlaceAddedVia;
 import com.hufs.capstone.backend.place.domain.vo.PlaceSnapshot;
 import com.hufs.capstone.backend.region.application.dto.ResolvedRegion;
 import com.hufs.capstone.backend.room.domain.entity.Room;
@@ -27,7 +27,7 @@ import lombok.NoArgsConstructor;
 		indexes = {
 			@Index(name = "idx_room_places_room_id", columnList = "room_id"),
 			@Index(name = "idx_room_places_place_id", columnList = "place_id"),
-			@Index(name = "idx_room_places_source_room_link_id", columnList = "source_room_link_id"),
+			@Index(name = "idx_room_places_origin_room_link_id", columnList = "origin_room_link_id"),
 			@Index(name = "idx_room_places_room_id_created_at", columnList = "room_id, created_at"),
 			@Index(name = "idx_room_places_room_sido", columnList = "room_id, sido_code"),
 			@Index(name = "idx_room_places_room_sigungu", columnList = "room_id, sigungu_code")
@@ -51,12 +51,12 @@ public class RoomPlace extends AuditableEntity {
 	private Long createdByUserId;
 
 	@Enumerated(EnumType.STRING)
-	@Column(name = "source_type", nullable = false, length = 30)
-	private RoomPlaceSourceType sourceType;
+	@Column(name = "added_via", nullable = false, length = 30)
+	private RoomPlaceAddedVia addedVia;
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "source_room_link_id")
-	private RoomLink sourceRoomLink;
+	@JoinColumn(name = "origin_room_link_id")
+	private RoomLink originRoomLink;
 
 	@Column(name = "sido_code", length = 2)
 	private String sidoCode;
@@ -74,16 +74,16 @@ public class RoomPlace extends AuditableEntity {
 			Room room,
 			Place place,
 			Long createdByUserId,
-			RoomPlaceSourceType sourceType,
-			RoomLink sourceRoomLink,
+			RoomPlaceAddedVia addedVia,
+			RoomLink originRoomLink,
 			PlaceSnapshot snapshot,
 			ResolvedRegion region
 	) {
 		this.room = room;
 		this.place = place;
 		this.createdByUserId = createdByUserId;
-		this.sourceType = sourceType;
-		this.sourceRoomLink = sourceRoomLink;
+		this.addedVia = addedVia;
+		this.originRoomLink = originRoomLink;
 		applyRegion(region);
 	}
 
@@ -91,15 +91,15 @@ public class RoomPlace extends AuditableEntity {
 			Room room,
 			Place place,
 			Long createdByUserId,
-			RoomPlaceSourceType sourceType,
-			RoomLink sourceRoomLink,
+			RoomPlaceAddedVia addedVia,
+			RoomLink originRoomLink,
 			PlaceSnapshot snapshot,
 			ResolvedRegion region
 	) {
-		if (room == null || place == null || createdByUserId == null || sourceType == null || snapshot == null || region == null) {
+		if (room == null || place == null || createdByUserId == null || addedVia == null || snapshot == null || region == null) {
 			throw new IllegalArgumentException("Room place required values are missing.");
 		}
-		return new RoomPlace(room, place, createdByUserId, sourceType, sourceRoomLink, snapshot, region);
+		return new RoomPlace(room, place, createdByUserId, addedVia, originRoomLink, snapshot, region);
 	}
 
 	public String getKakaoPlaceId() {
@@ -114,13 +114,13 @@ public class RoomPlace extends AuditableEntity {
 		return place.getId();
 	}
 
-	public Long getSourceRoomLinkId() {
-		return sourceRoomLink == null ? null : sourceRoomLink.getId();
+	public Long getOriginRoomLinkId() {
+		return originRoomLink == null ? null : originRoomLink.getId();
 	}
 
-	public void fillSourceRoomLinkIfAbsent(RoomLink roomLink) {
-		if (this.sourceRoomLink == null) {
-			this.sourceRoomLink = roomLink;
+	public void fillOriginRoomLinkIfAbsent(RoomLink roomLink) {
+		if (this.originRoomLink == null) {
+			this.originRoomLink = roomLink;
 		}
 	}
 

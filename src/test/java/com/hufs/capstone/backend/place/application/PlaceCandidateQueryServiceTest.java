@@ -15,7 +15,7 @@ import com.hufs.capstone.backend.place.domain.entity.PlaceTag;
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
 import com.hufs.capstone.backend.place.domain.enums.PlaceCandidateDisabledReason;
 import com.hufs.capstone.backend.place.domain.enums.PlaceSource;
-import com.hufs.capstone.backend.place.domain.enums.RoomPlaceSourceType;
+import com.hufs.capstone.backend.place.domain.enums.RoomPlaceAddedVia;
 import com.hufs.capstone.backend.place.domain.repository.RoomPlaceRepository;
 import com.hufs.capstone.backend.place.domain.vo.PlaceSnapshot;
 import com.hufs.capstone.backend.region.application.dto.ResolvedRegion;
@@ -106,7 +106,7 @@ class PlaceCandidateQueryServiceTest {
 				room,
 				place,
 				100L,
-				RoomPlaceSourceType.EXTERNAL_SEARCH,
+				RoomPlaceAddedVia.EXTERNAL_SEARCH,
 				null,
 				snapshot,
 				ResolvedRegion.unresolved()

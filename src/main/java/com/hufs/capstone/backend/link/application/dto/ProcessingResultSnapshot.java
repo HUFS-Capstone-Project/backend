@@ -1,7 +1,10 @@
 package com.hufs.capstone.backend.link.application.dto;
 
+import com.hufs.capstone.backend.link.domain.LinkSourceType;
+
 public record ProcessingResultSnapshot(
 		String originalUrl,
+		LinkSourceType linkSourceType,
 		String contentText,
 		Long likeCount,
 		Long commentCount,
@@ -15,6 +18,7 @@ public record ProcessingResultSnapshot(
 
 	public static ProcessingResultSnapshot empty() {
 		return new ProcessingResultSnapshot(
+				null,
 				null,
 				null,
 				null,

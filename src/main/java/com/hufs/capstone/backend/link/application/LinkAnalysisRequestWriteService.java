@@ -113,7 +113,7 @@ public class LinkAnalysisRequestWriteService {
 	}
 
 	private Link persistNewLink(LinkUrlNormalizer.NormalizedUrl normalizedUrl) {
-		Link newLink = Link.registerPending(normalizedUrl.normalizedUrl(), normalizedUrl.normalizedUrl());
+		Link newLink = Link.registerPending(normalizedUrl.originalUrl(), normalizedUrl.normalizedUrl());
 		try {
 			return linkRepository.saveAndFlush(newLink);
 		} catch (DataIntegrityViolationException ex) {

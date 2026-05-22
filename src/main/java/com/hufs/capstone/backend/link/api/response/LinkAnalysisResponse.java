@@ -5,6 +5,7 @@ import com.hufs.capstone.backend.link.application.dto.LinkPlaceResult;
 import com.hufs.capstone.backend.link.application.dto.LinkPlaceResult.DisabledReason;
 import com.hufs.capstone.backend.link.application.dto.LinkStatsResult;
 import com.hufs.capstone.backend.link.domain.LinkAnalysisStatus;
+import com.hufs.capstone.backend.link.domain.LinkSourceType;
 import java.math.BigDecimal;
 import java.util.List;
 
@@ -12,6 +13,7 @@ public record LinkAnalysisResponse(
 		Long linkId,
 		LinkAnalysisStatus status,
 		String originalUrl,
+		LinkSourceType linkSourceType,
 		String contentText,
 		LinkStatsResponse linkStats,
 		List<PlaceResponse> candidatePlaces,
@@ -26,6 +28,7 @@ public record LinkAnalysisResponse(
 				result.linkId(),
 				result.status(),
 				result.originalUrl(),
+				result.linkSourceType(),
 				result.contentText(),
 				LinkStatsResponse.from(result.linkStats()),
 				result.candidatePlaces().stream()

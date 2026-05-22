@@ -1,6 +1,7 @@
 package com.hufs.capstone.backend.link.domain.repository;
 
 import com.hufs.capstone.backend.link.domain.LinkAnalysisStatus;
+import com.hufs.capstone.backend.link.domain.LinkSourceType;
 import com.hufs.capstone.backend.link.domain.ProcessingDispatchStatus;
 import com.hufs.capstone.backend.link.domain.entity.Link;
 import java.time.Instant;
@@ -61,6 +62,7 @@ public interface LinkRepository extends JpaRepository<Link, Long> {
 	@Query("""
 			update Link l
 			set l.status = :targetStatus,
+			    l.linkSourceType = :linkSourceType,
 			    l.contentText = :contentText,
 			    l.likeCount = :likeCount,
 			    l.commentCount = :commentCount,
@@ -85,6 +87,7 @@ public interface LinkRepository extends JpaRepository<Link, Long> {
 			@Param("expectedVersion") Long expectedVersion,
 			@Param("updatableStatuses") Collection<LinkAnalysisStatus> updatableStatuses,
 			@Param("targetStatus") LinkAnalysisStatus targetStatus,
+			@Param("linkSourceType") LinkSourceType linkSourceType,
 			@Param("contentText") String contentText,
 			@Param("likeCount") Long likeCount,
 			@Param("commentCount") Long commentCount,

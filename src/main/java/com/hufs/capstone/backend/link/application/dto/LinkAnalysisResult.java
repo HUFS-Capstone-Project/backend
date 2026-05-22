@@ -1,12 +1,14 @@
 package com.hufs.capstone.backend.link.application.dto;
 
 import com.hufs.capstone.backend.link.domain.LinkAnalysisStatus;
+import com.hufs.capstone.backend.link.domain.LinkSourceType;
 import java.util.List;
 
 public record LinkAnalysisResult(
 		Long linkId,
 		LinkAnalysisStatus status,
 		String originalUrl,
+		LinkSourceType linkSourceType,
 		String contentText,
 		LinkStatsResult linkStats,
 		String extractionStoreName,
@@ -29,6 +31,7 @@ public record LinkAnalysisResult(
 		this(
 				linkId,
 				status,
+				null,
 				null,
 				contentText,
 				new LinkStatsResult(null, null, null),

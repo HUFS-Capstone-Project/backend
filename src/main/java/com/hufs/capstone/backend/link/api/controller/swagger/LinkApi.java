@@ -30,7 +30,7 @@ public interface LinkApi {
 	@Operation(
 			tags = {"Link"},
 			summary = "링크 분석 요청 생성 API",
-			description = "방 멤버십을 검증한 뒤 링크 분석 후보를 생성합니다. 이 API는 방에 링크나 장소를 저장하지 않습니다."
+			description = "방 멤버임을 확인한 뒤 링크 분석 후보를 생성합니다. 이 API는 방에 장소를 저장하지 않습니다."
 	)
 	@ApiResponse(responseCode = "201", description = "Created")
 	@ApiResponse(responseCode = "200", description = "OK")
@@ -45,7 +45,7 @@ public interface LinkApi {
 	@Operation(
 			tags = {"Link"},
 			summary = "링크 분석 결과 조회 API",
-			description = "방 멤버십과 analysisRequestId의 방 소속을 검증한 뒤 processing resolved_places 기반 분석 상태와 후보 장소를 조회합니다."
+			description = "방 멤버와 analysisRequestId의 방 소속을 확인한 뒤 분석 상태와 후보 장소를 조회합니다."
 	)
 	@ApiResponse(responseCode = "200", description = "OK")
 	@GetMapping("/link-analysis-requests/{analysisRequestId}")
@@ -57,7 +57,7 @@ public interface LinkApi {
 	@Operation(
 			tags = {"Link"},
 			summary = "링크 분석 요청 재시도 API",
-			description = "재시도 가능한 링크 분석 요청을 새로 생성하지 않고 기존 요청을 다시 분석합니다."
+			description = "재시도 가능한 링크 분석 요청을 새로 만들지 않고 기존 요청으로 다시 분석합니다."
 	)
 	@ApiResponse(responseCode = "200", description = "OK")
 	@PostMapping("/link-analysis-requests/{analysisRequestId}/retry")
@@ -70,7 +70,7 @@ public interface LinkApi {
 	@Operation(
 			tags = {"Link"},
 			summary = "링크 분석 후보 장소 저장 API",
-			description = "선택한 후보 장소를 저장합니다. 이 순간 RoomLink가 생성되며, 장소는 RoomPlaceSource를 통해 해당 링크 출처와 연결됩니다."
+			description = "선택한 후보 장소를 저장합니다. 이 순간 RoomLink가 생성되며, 장소는 RoomPlaceOrigin을 통해 해당 링크 원본과 연결됩니다."
 	)
 	@ApiResponse(responseCode = "200", description = "OK")
 	@PostMapping("/link-analysis-requests/{analysisRequestId}/places")
@@ -84,7 +84,7 @@ public interface LinkApi {
 	@Operation(
 			tags = {"Link"},
 			summary = "링크 분석 후보 장소 수정 API",
-			description = "전역 Link 원본 후보를 변경하지 않고, 현재 방의 RoomLink 컨텍스트에 후보 override를 저장합니다."
+			description = "전역 Link 원본 후보를 바꾸지 않고, 현재 방의 RoomLink 컨텍스트에 후보 override를 저장합니다."
 	)
 	@ApiResponse(responseCode = "200", description = "OK")
 	@PutMapping("/link-analysis-requests/{analysisRequestId}/candidates/{candidateId}/override")
@@ -99,7 +99,7 @@ public interface LinkApi {
 	@Operation(
 			tags = {"Link"},
 			summary = "링크 분석 수동 검색 장소 저장 API",
-			description = "분석 실패 또는 후보 없음 상태에서도 카카오 검색으로 직접 선택한 장소를 해당 링크 출처로 저장합니다."
+			description = "분석 실패 또는 후보 없음 상태에서 카카오 검색으로 직접 선택한 장소를 해당 링크 원본으로 저장합니다."
 	)
 	@ApiResponse(responseCode = "200", description = "OK")
 	@PostMapping("/link-analysis-requests/{analysisRequestId}/places/manual")

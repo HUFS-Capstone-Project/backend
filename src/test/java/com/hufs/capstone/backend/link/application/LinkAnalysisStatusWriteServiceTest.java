@@ -10,6 +10,7 @@ import com.hufs.capstone.backend.link.application.dto.LinkAnalysisResult;
 import com.hufs.capstone.backend.link.application.dto.ProcessingResultSnapshot;
 import com.hufs.capstone.backend.link.application.event.LinkStatusSyncedEvent;
 import com.hufs.capstone.backend.link.domain.LinkAnalysisStatus;
+import com.hufs.capstone.backend.link.domain.LinkSourceType;
 import com.hufs.capstone.backend.link.domain.entity.Link;
 import com.hufs.capstone.backend.link.domain.repository.LinkRepository;
 import java.time.Instant;
@@ -24,6 +25,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
+@SuppressWarnings("null")
 class LinkAnalysisStatusWriteServiceTest {
 
 	@Mock
@@ -62,6 +64,7 @@ class LinkAnalysisStatusWriteServiceTest {
 
 		assertThat(result.status()).isEqualTo(LinkAnalysisStatus.SUCCEEDED);
 		verify(linkRepository, never()).compareAndSetAnalysisResult(
+				any(),
 				any(),
 				any(),
 				any(),
@@ -169,8 +172,60 @@ class LinkAnalysisStatusWriteServiceTest {
 		assertThat(result.errorMessage()).isEqualTo("failed");
 	}
 
+	@Test
+	void applySyncSnapshotShouldUpdateLinkSourceTypeFromProcessingResult() {
+		Link processing = link(5L, 1L);
+		processing.markProcessing();
+		Link synced = link(5L, 2L);
+		synced.markSucceeded("done");
+		when(linkRepository.findById(5L))
+				.thenReturn(Optional.of(processing))
+				.thenReturn(Optional.of(synced));
+		when(linkAnalysisResultAssembler.from(synced))
+				.thenReturn(result(5L, LinkAnalysisStatus.SUCCEEDED, "done", null, null));
+		stubCasUpdate(1);
+
+		linkAnalysisStatusWriteService.applySyncSnapshot(
+				5L,
+				LinkAnalysisStatus.SUCCEEDED,
+				resultSnapshot("done", LinkSourceType.INSTAGRAM),
+				null,
+				null
+		);
+
+		assertThat(capturedLinkSourceType()).isEqualTo(LinkSourceType.INSTAGRAM);
+	}
+
+	@Test
+	void applySyncSnapshotShouldKeepCurrentLinkSourceTypeWhenProcessingResultIsNull() {
+		Link processing = link(6L, 1L, "https://www.instagram.com/p/abc/");
+		processing.markProcessing();
+		Link synced = link(6L, 2L, "https://www.instagram.com/p/abc/");
+		synced.markSucceeded("done");
+		when(linkRepository.findById(6L))
+				.thenReturn(Optional.of(processing))
+				.thenReturn(Optional.of(synced));
+		when(linkAnalysisResultAssembler.from(synced))
+				.thenReturn(result(6L, LinkAnalysisStatus.SUCCEEDED, "done", null, null));
+		stubCasUpdate(1);
+
+		linkAnalysisStatusWriteService.applySyncSnapshot(
+				6L,
+				LinkAnalysisStatus.SUCCEEDED,
+				resultSnapshot("done", null),
+				null,
+				null
+		);
+
+		assertThat(capturedLinkSourceType()).isEqualTo(LinkSourceType.INSTAGRAM);
+	}
+
 	private static Link link(Long id, Long version) {
-		Link link = Link.register("https://example.com/p/" + id, "https://example.com/p/" + id, "job-" + id);
+		return link(id, version, "https://example.com/p/" + id);
+	}
+
+	private static Link link(Long id, Long version, String url) {
+		Link link = Link.register(url, url, "job-" + id);
 		ReflectionTestUtils.setField(link, "id", id);
 		ReflectionTestUtils.setField(link, "version", version);
 		return link;
@@ -195,13 +250,19 @@ class LinkAnalysisStatusWriteServiceTest {
 				any(),
 				any(),
 				any(),
+				any(),
 				any(Instant.class)
 		)).thenReturn(updatedCount);
 	}
 
 	private static ProcessingResultSnapshot resultSnapshot(String contentText) {
+		return resultSnapshot(contentText, null);
+	}
+
+	private static ProcessingResultSnapshot resultSnapshot(String contentText, LinkSourceType linkSourceType) {
 		return new ProcessingResultSnapshot(
 				null,
+				linkSourceType,
 				contentText,
 				null,
 				null,
@@ -222,5 +283,31 @@ class LinkAnalysisStatusWriteServiceTest {
 			String errorMessage
 	) {
 		return new LinkAnalysisResult(linkId, status, contentText, errorCode, errorMessage);
+	}
+
+	private LinkSourceType capturedLinkSourceType() {
+		ArgumentCaptor<LinkSourceType> linkSourceTypeCaptor = ArgumentCaptor.forClass(LinkSourceType.class);
+		verify(linkRepository).compareAndSetAnalysisResult(
+				any(),
+				any(),
+				any(),
+				any(),
+				linkSourceTypeCaptor.capture(),
+				any(),
+				any(),
+				any(),
+				any(),
+				any(),
+				any(),
+				any(),
+				any(),
+				any(),
+				any(),
+				any(),
+				any(),
+				any(),
+				any(Instant.class)
+		);
+		return linkSourceTypeCaptor.getValue();
 	}
 }
