@@ -52,6 +52,18 @@ public class BusinessHoursDisplayResolver {
 		}
 	}
 
+	public BusinessStatus statusAt(String businessHoursJson, ZonedDateTime at) {
+		if (isBlank(businessHoursJson)) {
+			return BusinessStatus.UNKNOWN;
+		}
+		try {
+			BusinessHoursDisplayResult result = resolve(objectMapper.readTree(businessHoursJson), at);
+			return result == null ? BusinessStatus.UNKNOWN : result.businessStatus();
+		} catch (Exception ex) {
+			return BusinessStatus.UNKNOWN;
+		}
+	}
+
 	BusinessHoursDisplayResult resolve(JsonNode businessHours, ZonedDateTime now) {
 		if (businessHours == null || businessHours.isNull()) {
 			return null;
