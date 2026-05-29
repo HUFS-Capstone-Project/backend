@@ -25,7 +25,7 @@ class CourseSelectorTest {
 	private final CourseSelector selector = new CourseSelector(scorer);
 
 	@Test
-	void firstSlot_noPrevious_distanceIgnored() {
+	void firstSlotNoPreviousDistanceIgnored() {
 		AvailableCandidate candidate = candidate(1L, "FOOD", "KOREAN", 37.0, 127.0, Instant.now());
 		AvailablePool pool = new AvailablePool(List.of(candidate));
 		List<CategorySlotCommand> slots = List.of(new CategorySlotCommand("FOOD", "KOREAN"));
@@ -38,7 +38,7 @@ class CourseSelectorTest {
 	}
 
 	@Test
-	void noMatchingCandidate_slotIsSkipped() {
+	void noMatchingCandidateSlotIsSkipped() {
 		AvailableCandidate candidate = candidate(1L, "FOOD", "KOREAN", 37.0, 127.0, Instant.now());
 		AvailablePool pool = new AvailablePool(List.of(candidate));
 		// slot asks for CAFE but pool only has FOOD
@@ -52,7 +52,7 @@ class CourseSelectorTest {
 	}
 
 	@Test
-	void wildcardSlot_matchesAllTagsInCategory() {
+	void wildcardSlotMatchesAllTagsInCategory() {
 		AvailableCandidate cafe1 = candidate(1L, "CAFE", "BAKERY", 37.0, 127.0, Instant.now());
 		AvailableCandidate cafe2 = candidate(2L, "CAFE", "DESSERT", 37.01, 127.0, Instant.now());
 		AvailablePool pool = new AvailablePool(List.of(cafe1, cafe2));
@@ -69,7 +69,7 @@ class CourseSelectorTest {
 	}
 
 	@Test
-	void globallyUsedIds_preventCrossCourseDuplication() {
+	void globallyUsedIdsPreventCrossCourseDuplication() {
 		AvailableCandidate candidate = candidate(1L, "FOOD", "KOREAN", 37.0, 127.0, Instant.now());
 		AvailablePool pool = new AvailablePool(List.of(candidate));
 		List<CategorySlotCommand> slots = List.of(new CategorySlotCommand("FOOD", "KOREAN"));
@@ -87,7 +87,7 @@ class CourseSelectorTest {
 	}
 
 	@Test
-	void sameCourseDuplication_prevented() {
+	void sameCourseDuplicationPrevented() {
 		AvailableCandidate candidate = candidate(1L, "FOOD", "KOREAN", 37.0, 127.0, Instant.now());
 		AvailablePool pool = new AvailablePool(List.of(candidate));
 		// Two identical slots — only one candidate available
@@ -104,7 +104,7 @@ class CourseSelectorTest {
 	}
 
 	@Test
-	void popular_candidateWithoutLink_excluded() {
+	void popularCandidateWithoutLinkExcluded() {
 		AvailableCandidate withLink = candidate(1L, "FOOD", "KOREAN", 37.0, 127.0, Instant.now());
 		AvailableCandidate noLink = candidateNoLink(2L, "FOOD", "KOREAN");
 

@@ -25,7 +25,8 @@ import lombok.NoArgsConstructor;
 		indexes = {
 			@Index(name = "idx_date_courses_room_id_created_at", columnList = "room_id, created_at"),
 			@Index(name = "idx_date_courses_created_by_user_id_created_at", columnList = "created_by_user_id, created_at"),
-			@Index(name = "idx_date_courses_generation_batch_id", columnList = "generation_batch_id")
+			@Index(name = "idx_date_courses_generation_batch_id", columnList = "generation_batch_id"),
+			@Index(name = "idx_date_courses_saved_by_user_id_saved_at", columnList = "saved_by_user_id, saved_at")
 		},
 		uniqueConstraints = {
 			@UniqueConstraint(name = "uq_date_courses_public_id", columnNames = "public_id")
@@ -62,6 +63,12 @@ public class DateCourse extends AuditableEntity {
 
 	@Column(name = "skipped_slot_indices_json", columnDefinition = "text")
 	private String skippedSlotIndicesJson;
+
+	@Column(name = "saved_by_user_id")
+	private Long savedByUserId;
+
+	@Column(name = "saved_at")
+	private Instant savedAt;
 
 	private DateCourse(
 			String publicId,
@@ -102,5 +109,13 @@ public class DateCourse extends AuditableEntity {
 		}
 		return new DateCourse(publicId, room, createdByUserId, courseMode, plannedDateTime,
 				generationBatchId, sigunguCode, categorySequenceJson, skippedSlotIndicesJson);
+	}
+
+	public void markAsSaved(Long userId) {
+		if (this.savedByUserId != null) {
+			throw new IllegalStateException("이미 저장된 코스입니다.");
+		}
+		this.savedByUserId = userId;
+		this.savedAt = Instant.now();
 	}
 }

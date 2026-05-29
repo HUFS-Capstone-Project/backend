@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hufs.capstone.backend.course.application.dto.CategorySlotCommand;
 import com.hufs.capstone.backend.course.application.dto.CourseSelectionResult;
-import com.hufs.capstone.backend.course.application.dto.DateCourseBatchResult;
 import com.hufs.capstone.backend.course.application.dto.DateCourseGenerationCommand;
 import com.hufs.capstone.backend.course.application.dto.DateCourseGenerationResult;
 import com.hufs.capstone.backend.course.application.dto.DateCoursePlaceResult;
@@ -20,7 +19,6 @@ import com.hufs.capstone.backend.place.domain.entity.Place;
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
 import com.hufs.capstone.backend.room.application.RoomAccessService;
 import com.hufs.capstone.backend.room.domain.entity.Room;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -34,14 +32,16 @@ import org.springframework.transaction.annotation.Transactional;
 public class DateCourseGenerationService {
 
 	private final RoomAccessService roomAccessService;
+	private final DateCourseInputValidator inputValidator;
 	private final AvailablePoolBuilder poolBuilder;
 	private final CourseSelector courseSelector;
 	private final DateCourseRepository dateCourseRepository;
-	private final DateCoursePlaceRepository dateCourseParaRepository;
+	private final DateCoursePlaceRepository dateCoursePlaceRepository;
 	private final ObjectMapper objectMapper;
 
 	@Transactional
 	public DateCourseGenerationResult generate(DateCourseGenerationCommand command, Long userId) {
+		inputValidator.validate(command.sigunguCode(), command.categorySequence());
 		Room room = roomAccessService.requireMemberRoom(command.roomPublicId(), userId);
 
 		AvailablePool pool = poolBuilder.build(room.getId(), command.categorySequence(), command.plannedDateTime(), command.sigunguCode());
@@ -58,6 +58,10 @@ public class DateCourseGenerationService {
 		for (CourseMode mode : List.of(CourseMode.GENERAL, CourseMode.TRENDY, CourseMode.POPULAR)) {
 			CourseSelectionResult selection = courseSelector.select(
 					mode, command.categorySequence(), pool, globallyUsedIds, command.plannedDateTime());
+
+			if (selection.pickedPlaces().isEmpty()) {
+				continue;
+			}
 
 			String skippedJson = serializeSkipped(selection.skippedSlotIndices());
 			DateCourse dateCourse = dateCourseRepository.save(DateCourse.create(
@@ -76,9 +80,13 @@ public class DateCourseGenerationService {
 			for (int i = 0; i < selection.pickedPlaces().size(); i++) {
 				places.add(DateCoursePlace.create(dateCourse, selection.pickedPlaces().get(i), i));
 			}
-			dateCourseParaRepository.saveAll(places);
+			dateCoursePlaceRepository.saveAll(places);
 
 			results.add(toResult(dateCourse, selection.pickedPlaces(), selection.skippedSlotIndices()));
+		}
+
+		if (results.isEmpty()) {
+			throw new BusinessException(ErrorCode.E404_NOT_FOUND, "생성 가능한 코스가 없습니다.");
 		}
 
 		return new DateCourseGenerationResult(batchId, results);
@@ -96,7 +104,11 @@ public class DateCourseGenerationService {
 				dateCourse.getPlannedDateTime(),
 				dateCourse.getCreatedAt(),
 				placeResults,
-				skipped
+				skipped,
+				null,
+				null,
+				null,
+				null
 		);
 	}
 
@@ -123,7 +135,7 @@ public class DateCourseGenerationService {
 		try {
 			return objectMapper.writeValueAsString(slots);
 		} catch (JsonProcessingException e) {
-			return "[]";
+			throw new BusinessException(ErrorCode.E500_INTERNAL, "카테고리 슬롯 직렬화에 실패했습니다.");
 		}
 	}
 
@@ -131,7 +143,7 @@ public class DateCourseGenerationService {
 		try {
 			return objectMapper.writeValueAsString(skipped);
 		} catch (JsonProcessingException e) {
-			return "[]";
+			throw new BusinessException(ErrorCode.E500_INTERNAL, "스킵 슬롯 직렬화에 실패했습니다.");
 		}
 	}
 }

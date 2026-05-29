@@ -7,7 +7,6 @@ import com.hufs.capstone.backend.link.domain.LinkSourceType;
 import com.hufs.capstone.backend.link.domain.entity.Link;
 import com.hufs.capstone.backend.link.domain.entity.RoomLink;
 import com.hufs.capstone.backend.place.domain.entity.Place;
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import org.springframework.stereotype.Component;
@@ -15,7 +14,8 @@ import org.springframework.stereotype.Component;
 @Component
 class CourseScorer {
 
-	private static final double MIN_DIST_KM = 0.001;
+	private static final double DIST_WEIGHT = 0.6;
+	private static final double MODE_WEIGHT = 0.4;
 
 	double score(
 			AvailableCandidate candidate,
@@ -24,12 +24,12 @@ class CourseScorer {
 			NormalizationContext ctx,
 			Instant plannedDateTime
 	) {
-		double distFactor = distFactor(candidate, prev);
+		double distScore = distScore(candidate, prev);
 		double modeWeight = modeWeight(candidate, mode, ctx, plannedDateTime);
-		return distFactor * modeWeight;
+		return DIST_WEIGHT * distScore + MODE_WEIGHT * modeWeight;
 	}
 
-	private static double distFactor(AvailableCandidate candidate, AvailableCandidate prev) {
+	private static double distScore(AvailableCandidate candidate, AvailableCandidate prev) {
 		if (prev == null) {
 			return 1.0;
 		}
@@ -43,7 +43,7 @@ class CourseScorer {
 				prevPlace.getLatitude(), prevPlace.getLongitude(),
 				currPlace.getLatitude(), currPlace.getLongitude()
 		);
-		return 1.0 / Math.max(MIN_DIST_KM, dist);
+		return 1.0 / (1.0 + dist);
 	}
 
 	private static double modeWeight(

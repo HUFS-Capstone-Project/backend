@@ -1,8 +1,12 @@
 package com.hufs.capstone.backend.course.application;
 
-import com.hufs.capstone.backend.course.application.dto.DateCourseBatchResult;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hufs.capstone.backend.course.application.dto.DateCoursePageResult;
 import com.hufs.capstone.backend.course.application.dto.DateCoursePlaceResult;
 import com.hufs.capstone.backend.course.application.dto.DateCourseResult;
+import com.hufs.capstone.backend.course.application.dto.MyDateCoursePageResult;
+import com.hufs.capstone.backend.course.application.dto.MyDateCourseResult;
 import com.hufs.capstone.backend.course.domain.entity.DateCourse;
 import com.hufs.capstone.backend.course.domain.entity.DateCoursePlace;
 import com.hufs.capstone.backend.course.domain.repository.DateCoursePlaceRepository;
@@ -13,58 +17,71 @@ import com.hufs.capstone.backend.place.domain.entity.Place;
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
 import com.hufs.capstone.backend.room.application.RoomAccessService;
 import com.hufs.capstone.backend.room.domain.entity.Room;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
+import com.hufs.capstone.backend.user.domain.entity.User;
+import com.hufs.capstone.backend.user.domain.repository.UserRepository;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class DateCourseQueryService {
 
+	private static final int DEFAULT_PAGE = 0;
+	private static final int DEFAULT_LIMIT = 20;
+	private static final int MAX_LIMIT = 100;
+
 	private final RoomAccessService roomAccessService;
 	private final DateCourseRepository dateCourseRepository;
-	private final DateCoursePlaceRepository dateCourseParaRepository;
+	private final DateCoursePlaceRepository dateCoursePlaceRepository;
+	private final UserRepository userRepository;
+	private final ObjectMapper objectMapper;
 
 	@Transactional(readOnly = true)
-	public List<DateCourseBatchResult> listBatches(String roomPublicId, Long userId) {
+	public DateCoursePageResult listSavedCourses(String roomPublicId, Long userId, Integer page, Integer limit) {
 		Room room = roomAccessService.requireMemberRoom(roomPublicId, userId);
+		int normalizedPage = page == null ? DEFAULT_PAGE : page;
+		int normalizedLimit = limit == null ? DEFAULT_LIMIT : limit;
+		if (normalizedPage < 0) {
+			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "page must be >= 0.");
+		}
+		if (normalizedLimit < 1 || normalizedLimit > MAX_LIMIT) {
+			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "limit must be between 1 and 100.");
+		}
 
-		List<DateCourse> courses = dateCourseRepository.findByRoomIdOrderByCreatedAtDesc(room.getId());
+		Page<DateCourse> coursePage = dateCourseRepository.findSavedByRoomIdOrderBySavedAtDesc(
+				room.getId(), PageRequest.of(normalizedPage, normalizedLimit));
+
+		List<DateCourse> courses = coursePage.getContent();
 		if (courses.isEmpty()) {
-			return List.of();
+			return new DateCoursePageResult(List.of(), normalizedPage, normalizedLimit,
+					coursePage.getTotalElements(), coursePage.getTotalPages());
 		}
 
 		List<Long> courseIds = courses.stream().map(DateCourse::getId).toList();
-		List<DateCoursePlace> allPlaces = dateCourseParaRepository.findWithRoomPlacesByCourseIdIn(courseIds);
-
+		List<DateCoursePlace> allPlaces = dateCoursePlaceRepository.findWithRoomPlacesByCourseIdIn(courseIds);
 		Map<Long, List<DateCoursePlace>> placesByCourseId = allPlaces.stream()
 				.collect(Collectors.groupingBy(dcp -> dcp.getDateCourse().getId()));
 
-		Map<String, List<DateCourse>> coursesByBatch = new LinkedHashMap<>();
-		for (DateCourse course : courses) {
-			coursesByBatch.computeIfAbsent(course.getGenerationBatchId(), k -> new ArrayList<>()).add(course);
-		}
+		Map<Long, User> userById = fetchUsers(courses.stream()
+				.map(DateCourse::getSavedByUserId).distinct().toList());
 
-		return coursesByBatch.entrySet().stream()
-				.map(entry -> {
-					List<DateCourse> batchCourses = entry.getValue();
-					DateCourse first = batchCourses.get(0);
-					List<DateCourseResult> courseResults = batchCourses.stream()
-							.map(c -> toCourseResult(c, placesByCourseId.getOrDefault(c.getId(), List.of())))
-							.toList();
-					return new DateCourseBatchResult(
-							entry.getKey(),
-							first.getCreatedAt(),
-							first.getPlannedDateTime(),
-							courseResults
-					);
-				})
+		List<DateCourseResult> items = courses.stream()
+				.map(c -> toCourseResult(c, placesByCourseId.getOrDefault(c.getId(), List.of()),
+						userById.get(c.getSavedByUserId())))
 				.toList();
+
+		return new DateCoursePageResult(items, normalizedPage, normalizedLimit,
+				coursePage.getTotalElements(), coursePage.getTotalPages());
 	}
 
 	@Transactional(readOnly = true)
@@ -74,16 +91,59 @@ public class DateCourseQueryService {
 		DateCourse course = dateCourseRepository.findByPublicIdAndRoomId(coursePublicId, room.getId())
 				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "코스를 찾을 수 없습니다."));
 
-		List<DateCoursePlace> places = dateCourseParaRepository.findWithRoomPlacesByCourseIdIn(List.of(course.getId()));
-		return toCourseResult(course, places);
+		List<DateCoursePlace> places = dateCoursePlaceRepository.findWithRoomPlacesByCourseIdIn(List.of(course.getId()));
+		User saver = course.getSavedByUserId() != null
+				? userRepository.findByIdAndDeletedAtIsNull(course.getSavedByUserId()).orElse(null)
+				: null;
+		return toCourseResult(course, places, saver);
 	}
 
-	private static DateCourseResult toCourseResult(DateCourse course, List<DateCoursePlace> places) {
+	@Transactional(readOnly = true)
+	public MyDateCoursePageResult listMySavedCourses(Long userId, Integer page, Integer limit) {
+		int normalizedPage = page == null ? DEFAULT_PAGE : page;
+		int normalizedLimit = limit == null ? DEFAULT_LIMIT : limit;
+		if (normalizedPage < 0) {
+			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "page must be >= 0.");
+		}
+		if (normalizedLimit < 1 || normalizedLimit > MAX_LIMIT) {
+			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "limit must be between 1 and 100.");
+		}
+
+		Page<DateCourse> coursePage = dateCourseRepository.findSavedByUserIdOrderBySavedAtDesc(
+				userId, PageRequest.of(normalizedPage, normalizedLimit));
+
+		List<DateCourse> courses = coursePage.getContent();
+		if (courses.isEmpty()) {
+			return new MyDateCoursePageResult(List.of(), normalizedPage, normalizedLimit,
+					coursePage.getTotalElements(), coursePage.getTotalPages());
+		}
+
+		List<Long> courseIds = courses.stream().map(DateCourse::getId).toList();
+		List<DateCoursePlace> allPlaces = dateCoursePlaceRepository.findWithRoomPlacesByCourseIdIn(courseIds);
+		Map<Long, List<DateCoursePlace>> placesByCourseId = allPlaces.stream()
+				.collect(Collectors.groupingBy(dcp -> dcp.getDateCourse().getId()));
+
+		List<MyDateCourseResult> items = courses.stream()
+				.map(c -> toMyResult(c, placesByCourseId.getOrDefault(c.getId(), List.of())))
+				.toList();
+
+		return new MyDateCoursePageResult(items, normalizedPage, normalizedLimit,
+				coursePage.getTotalElements(), coursePage.getTotalPages());
+	}
+
+	private Map<Long, User> fetchUsers(Collection<Long> userIds) {
+		List<Long> nonNullIds = userIds.stream().filter(id -> id != null).toList();
+		if (nonNullIds.isEmpty()) {
+			return Map.of();
+		}
+		return userRepository.findByIdInAndDeletedAtIsNull(nonNullIds).stream()
+				.collect(Collectors.toMap(User::getId, Function.identity()));
+	}
+
+	private DateCourseResult toCourseResult(DateCourse course, List<DateCoursePlace> places, User saver) {
 		List<DateCoursePlaceResult> placeResults = places.stream()
 				.map(dcp -> toPlaceResult(dcp.getRoomPlace(), dcp.getSequenceOrder()))
 				.toList();
-
-		List<Integer> skippedSlotIndices = parseSkipped(course.getSkippedSlotIndicesJson());
 
 		return new DateCourseResult(
 				course.getPublicId(),
@@ -92,7 +152,30 @@ public class DateCourseQueryService {
 				course.getPlannedDateTime(),
 				course.getCreatedAt(),
 				placeResults,
-				skippedSlotIndices
+				parseSkipped(course.getSkippedSlotIndicesJson()),
+				saver != null ? saver.getId() : null,
+				saver != null ? saver.getNickname() : null,
+				saver != null ? saver.getProfileImageUrl() : null,
+				course.getSavedAt()
+		);
+	}
+
+	private MyDateCourseResult toMyResult(DateCourse course, List<DateCoursePlace> places) {
+		List<DateCoursePlaceResult> placeResults = places.stream()
+				.map(dcp -> toPlaceResult(dcp.getRoomPlace(), dcp.getSequenceOrder()))
+				.toList();
+
+		Room room = course.getRoom();
+		return new MyDateCourseResult(
+				course.getPublicId(),
+				course.getCourseMode(),
+				course.getGenerationBatchId(),
+				course.getPlannedDateTime(),
+				course.getSavedAt(),
+				room.getPublicId(),
+				room.getName(),
+				placeResults,
+				parseSkipped(course.getSkippedSlotIndicesJson())
 		);
 	}
 
@@ -115,25 +198,15 @@ public class DateCourseQueryService {
 		);
 	}
 
-	private static List<Integer> parseSkipped(String json) {
+	private List<Integer> parseSkipped(String json) {
 		if (json == null || json.isBlank()) {
 			return List.of();
 		}
 		try {
-			List<Integer> result = new ArrayList<>();
-			String trimmed = json.trim();
-			if (trimmed.equals("[]")) {
-				return List.of();
-			}
-			String inner = trimmed.substring(1, trimmed.length() - 1);
-			for (String part : inner.split(",")) {
-				String num = part.trim();
-				if (!num.isEmpty()) {
-					result.add(Integer.parseInt(num));
-				}
-			}
-			return result;
+			return objectMapper.readValue(json, new TypeReference<List<Integer>>() {
+			});
 		} catch (Exception e) {
+			log.warn("Failed to parse skippedSlotIndicesJson: {}", json, e);
 			return List.of();
 		}
 	}

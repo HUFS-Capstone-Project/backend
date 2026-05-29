@@ -4,17 +4,15 @@ import com.hufs.capstone.backend.course.domain.enums.CourseMode;
 import java.time.Instant;
 import java.util.List;
 
-public record DateCourseResult(
+public record MyDateCourseResult(
 		String publicId,
 		CourseMode courseMode,
 		String generationBatchId,
 		Instant plannedDateTime,
-		Instant createdAt,
+		Instant savedAt,
+		String roomPublicId,
+		String roomName,
 		List<DateCoursePlaceResult> places,
-		List<Integer> skippedSlotIndices,
-		Long savedByUserId,
-		String savedByNickname,
-		String savedByProfileImageUrl,
-		Instant savedAt
+		List<Integer> skippedSlotIndices
 ) {
 }

@@ -12,7 +12,11 @@ public record DateCourseResponse(
 		Instant plannedDateTime,
 		Instant createdAt,
 		List<DateCoursePlaceResponse> places,
-		List<Integer> skippedSlotIndices
+		List<Integer> skippedSlotIndices,
+		Long savedByUserId,
+		String savedByNickname,
+		String savedByProfileImageUrl,
+		Instant savedAt
 ) {
 
 	public static DateCourseResponse from(DateCourseResult result) {
@@ -23,7 +27,11 @@ public record DateCourseResponse(
 				result.plannedDateTime(),
 				result.createdAt(),
 				result.places().stream().map(DateCoursePlaceResponse::from).toList(),
-				result.skippedSlotIndices()
+				result.skippedSlotIndices(),
+				result.savedByUserId(),
+				result.savedByNickname(),
+				result.savedByProfileImageUrl(),
+				result.savedAt()
 		);
 	}
 }

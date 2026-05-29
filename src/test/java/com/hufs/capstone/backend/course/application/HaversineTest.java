@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 class HaversineTest {
 
 	@Test
-	void samePoint_returnsZero() {
+	void samePointReturnsZero() {
 		double km = Haversine.km(
 				BigDecimal.valueOf(37.5665),
 				BigDecimal.valueOf(126.9780),
@@ -20,7 +20,7 @@ class HaversineTest {
 	}
 
 	@Test
-	void approxOneKm_betweenNearbyPoints() {
+	void approxOneKmBetweenNearbyPoints() {
 		// Seoul City Hall vs ~1km north
 		double km = Haversine.km(
 				BigDecimal.valueOf(37.5665),
@@ -32,7 +32,7 @@ class HaversineTest {
 	}
 
 	@Test
-	void approxHundredKm_betweenSeoulAndSuwon() {
+	void approxHundredKmBetweenSeoulAndSuwon() {
 		// Seoul to Suwon (~45 km by Haversine)
 		double km = Haversine.km(
 				BigDecimal.valueOf(37.5665),
@@ -44,7 +44,7 @@ class HaversineTest {
 	}
 
 	@Test
-	void antipode_isApproxHalfEarthCircumference() {
+	void antipodeIsApproxHalfEarthCircumference() {
 		// Seoul antipode is roughly in South Atlantic
 		double km = Haversine.km(
 				BigDecimal.valueOf(37.5665),

@@ -24,41 +24,41 @@ class CourseScorerTest {
 	private final CourseScorer scorer = new CourseScorer();
 
 	@Test
-	void general_noPrev_returnsOne() {
+	void generalNoPrevReturnsOne() {
 		AvailableCandidate candidate = candidateWithCoords(37.5, 127.0);
 		double score = scorer.score(candidate, null, CourseMode.GENERAL, noCtx(), Instant.now());
 		assertThat(score).isCloseTo(1.0, within(0.001));
 	}
 
 	@Test
-	void general_withPrev_returnsInverseDistance() {
+	void generalWithPrevReturnsInverseDistance() {
 		AvailableCandidate prev = candidateWithCoords(37.5665, 126.9780);
 		// ~1 km away
 		AvailableCandidate candidate = candidateWithCoords(37.5755, 126.9780);
 		double score = scorer.score(candidate, prev, CourseMode.GENERAL, noCtx(), Instant.now());
-		// dist ~1km → score ≈ 1/1 = 1.0
-		assertThat(score).isCloseTo(1.0, within(0.2));
+		// dist ~1km → distScore=0.5 → score = 0.6*0.5 + 0.4*1.0 = 0.7
+		assertThat(score).isCloseTo(0.7, within(0.1));
 	}
 
 	@Test
-	void general_distClamp_preventsInfinity() {
+	void generalDistClampPreventsInfinity() {
 		AvailableCandidate prev = candidateWithCoords(37.5665, 126.9780);
 		AvailableCandidate candidate = candidateWithCoords(37.5665, 126.9780);  // same point, dist=0
 		double score = scorer.score(candidate, prev, CourseMode.GENERAL, noCtx(), Instant.now());
-		// clamped to 1/0.001 = 1000
-		assertThat(score).isCloseTo(1000.0, within(1.0));
+		// dist=0 → distScore = 1/(1+0) = 1.0 → score = 0.6*1.0 + 0.4*1.0 = 1.0 (no infinity)
+		assertThat(score).isCloseTo(1.0, within(0.001));
 	}
 
 	@Test
-	void trendy_daysSinceZero_isMax() {
+	void trendyDaysSinceZeroIsMax() {
 		AvailableCandidate candidate = candidateWithCreatedAt(Instant.now());
 		double score = scorer.score(candidate, null, CourseMode.TRENDY, noCtx(), Instant.now());
-		// 1.0 + 0.5 * exp(0) = 1.5
-		assertThat(score).isCloseTo(1.5, within(0.05));
+		// modeWeight = 1.0 + 0.5*exp(0) = 1.5 → score = 0.6*1.0 + 0.4*1.5 = 1.2
+		assertThat(score).isCloseTo(1.2, within(0.05));
 	}
 
 	@Test
-	void trendy_daysSinceFar_approachesOne() {
+	void trendyDaysSinceFarApproachesOne() {
 		Instant veryOld = Instant.now().minus(365 * 3L, ChronoUnit.DAYS);
 		AvailableCandidate candidate = candidateWithCreatedAt(veryOld);
 		double score = scorer.score(candidate, null, CourseMode.TRENDY, noCtx(), Instant.now());
@@ -67,33 +67,33 @@ class CourseScorerTest {
 	}
 
 	@Test
-	void trendy_weightRange_between1and1point5() {
+	void trendyWeightRangeBetween1and1point5() {
 		for (int days : new int[]{0, 7, 30, 90, 365}) {
 			Instant savedAt = Instant.now().minus(days, ChronoUnit.DAYS);
 			AvailableCandidate candidate = candidateWithCreatedAt(savedAt);
 			double weight = scorer.score(candidate, null, CourseMode.TRENDY, noCtx(), Instant.now());
-			assertThat(weight).isBetween(1.0, 1.5);
+			assertThat(weight).isBetween(1.0, 1.2);
 		}
 	}
 
 	@Test
-	void popular_noLink_returnsOne() {
+	void popularNoLinkReturnsOne() {
 		AvailableCandidate candidate = candidateNoLink();
 		double score = scorer.score(candidate, null, CourseMode.POPULAR, noCtx(), Instant.now());
 		assertThat(score).isCloseTo(1.0, within(0.001));
 	}
 
 	@Test
-	void popular_maxLikeCount_returnsOnePoint8() {
+	void popularMaxLikeCountReturnsOnePoint8() {
 		NormalizationContext ctx = new NormalizationContext(Map.of(LinkSourceType.INSTAGRAM, 1000L));
 		AvailableCandidate candidate = candidateWithLikeCount(1000L, LinkSourceType.INSTAGRAM);
 		double score = scorer.score(candidate, null, CourseMode.POPULAR, ctx, Instant.now());
-		// 1.0 + 0.8 * (1000/1000) = 1.8
-		assertThat(score).isCloseTo(1.8, within(0.001));
+		// modeWeight = 1.0 + 0.8*(1000/1000) = 1.8 → score = 0.6*1.0 + 0.4*1.8 = 1.32
+		assertThat(score).isCloseTo(1.32, within(0.001));
 	}
 
 	@Test
-	void popular_maxIsZero_returnsOne() {
+	void popularMaxIsZeroReturnsOne() {
 		NormalizationContext ctx = new NormalizationContext(Map.of(LinkSourceType.INSTAGRAM, 0L));
 		AvailableCandidate candidate = candidateWithLikeCount(0L, LinkSourceType.INSTAGRAM);
 		double score = scorer.score(candidate, null, CourseMode.POPULAR, ctx, Instant.now());
@@ -101,12 +101,12 @@ class CourseScorerTest {
 	}
 
 	@Test
-	void popular_weightRange_between1and1point8() {
+	void popularWeightRangeBetween1and1point8() {
 		NormalizationContext ctx = new NormalizationContext(Map.of(LinkSourceType.YOUTUBE, 500L));
 		for (long likes : new long[]{0, 100, 250, 500}) {
 			AvailableCandidate candidate = candidateWithLikeCount(likes, LinkSourceType.YOUTUBE);
 			double weight = scorer.score(candidate, null, CourseMode.POPULAR, ctx, Instant.now());
-			assertThat(weight).isBetween(1.0, 1.8);
+			assertThat(weight).isBetween(1.0, 1.32);
 		}
 	}
 

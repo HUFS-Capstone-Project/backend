@@ -3,18 +3,19 @@ package com.hufs.capstone.backend.course.api.controller;
 import com.hufs.capstone.backend.auth.security.SecurityUtils;
 import com.hufs.capstone.backend.course.api.controller.swagger.DateCourseApi;
 import com.hufs.capstone.backend.course.api.request.DateCourseGenerationRequest;
-import com.hufs.capstone.backend.course.api.response.DateCourseBatchResponse;
 import com.hufs.capstone.backend.course.api.response.DateCourseGenerationResponse;
+import com.hufs.capstone.backend.course.api.response.DateCoursePageResponse;
 import com.hufs.capstone.backend.course.api.response.DateCourseResponse;
 import com.hufs.capstone.backend.course.application.DateCourseGenerationService;
 import com.hufs.capstone.backend.course.application.DateCourseQueryService;
+import com.hufs.capstone.backend.course.application.DateCourseSaveService;
 import com.hufs.capstone.backend.global.response.CommonResponse;
 import jakarta.validation.Valid;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class DateCourseController implements DateCourseApi {
 
 	private final DateCourseGenerationService generationService;
+	private final DateCourseSaveService saveService;
 	private final DateCourseQueryService queryService;
 
 	@Override
@@ -37,12 +39,25 @@ public class DateCourseController implements DateCourseApi {
 	}
 
 	@Override
-	public CommonResponse<List<DateCourseBatchResponse>> listCourses(@PathVariable String roomId) {
+	public CommonResponse<Void> saveCourse(
+			@PathVariable String roomId,
+			@PathVariable String coursePublicId,
+			@RequestHeader(name = "X-XSRF-TOKEN", required = false) String csrfToken
+	) {
+		Long userId = SecurityUtils.currentUserIdOrThrow();
+		saveService.save(roomId, coursePublicId, userId);
+		return CommonResponse.ok(null);
+	}
+
+	@Override
+	public CommonResponse<DateCoursePageResponse> listCourses(
+			@PathVariable String roomId,
+			@RequestParam(required = false) Integer page,
+			@RequestParam(required = false) Integer limit
+	) {
 		Long userId = SecurityUtils.currentUserIdOrThrow();
 		return CommonResponse.ok(
-				queryService.listBatches(roomId, userId).stream()
-						.map(DateCourseBatchResponse::from)
-						.toList()
+				DateCoursePageResponse.from(queryService.listSavedCourses(roomId, userId, page, limit))
 		);
 	}
 

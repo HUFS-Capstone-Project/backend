@@ -6,7 +6,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hufs.capstone.backend.place.application.BusinessHoursDisplayResolver;
 import java.time.Clock;
 import java.time.Instant;
-import java.time.ZoneOffset;
 import org.junit.jupiter.api.Test;
 
 class BusinessHoursAtTimeCheckerTest {
@@ -29,35 +28,35 @@ class BusinessHoursAtTimeCheckerTest {
 			""";
 
 	@Test
-	void openDuringBusinessHours_returnsTrue() {
+	void openDuringBusinessHoursReturnsTrue() {
 		// 2026-05-12 Tuesday 15:00 KST = 06:00 UTC
 		Instant at = Instant.parse("2026-05-12T06:00:00Z");
 		assertThat(checker.isOpenAt(WEEKLY_JSON, at)).isTrue();
 	}
 
 	@Test
-	void beforeOpeningTime_returnsFalse() {
+	void beforeOpeningTimeReturnsFalse() {
 		// 2026-05-12 Tuesday 10:00 KST = 01:00 UTC (before 11:30)
 		Instant at = Instant.parse("2026-05-12T01:00:00Z");
 		assertThat(checker.isOpenAt(WEEKLY_JSON, at)).isFalse();
 	}
 
 	@Test
-	void afterClosingTime_returnsFalse() {
+	void afterClosingTimeReturnsFalse() {
 		// 2026-05-12 Tuesday 22:00 KST = 13:00 UTC (after 21:00)
 		Instant at = Instant.parse("2026-05-12T13:00:00Z");
 		assertThat(checker.isOpenAt(WEEKLY_JSON, at)).isFalse();
 	}
 
 	@Test
-	void closingSoon_returnsTrue() {
+	void closingSoonReturnsTrue() {
 		// 2026-05-12 Tuesday 20:45 KST = 11:45 UTC (within 30 min of 21:00)
 		Instant at = Instant.parse("2026-05-12T11:45:00Z");
 		assertThat(checker.isOpenAt(WEEKLY_JSON, at)).isTrue();
 	}
 
 	@Test
-	void open24Hours_alwaysReturnsTrue() {
+	void open24HoursAlwaysReturnsTrue() {
 		String json = """
 				{"daily_hours":[
 				  {"day":"월","raw":"24시간"},{"day":"화","raw":"24시간"},{"day":"수","raw":"24시간"},
@@ -71,7 +70,7 @@ class BusinessHoursAtTimeCheckerTest {
 	}
 
 	@Test
-	void dayOff_returnsFalse() {
+	void dayOffReturnsFalse() {
 		String json = """
 				{"daily_hours":[
 				  {"day":"화","raw":"정기휴무"},
@@ -84,12 +83,12 @@ class BusinessHoursAtTimeCheckerTest {
 	}
 
 	@Test
-	void nullJson_returnsFalse() {
+	void nullJsonReturnsFalse() {
 		assertThat(checker.isOpenAt(null, Instant.now())).isFalse();
 	}
 
 	@Test
-	void blankJson_returnsFalse() {
+	void blankJsonReturnsFalse() {
 		assertThat(checker.isOpenAt("", Instant.now())).isFalse();
 	}
 }

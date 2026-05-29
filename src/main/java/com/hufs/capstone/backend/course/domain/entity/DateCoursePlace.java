@@ -25,7 +25,7 @@ import lombok.NoArgsConstructor;
 			@UniqueConstraint(
 					name = "uq_date_course_places_course_order",
 					columnNames = {"date_course_id", "sequence_order"}
-			)
+				)
 		}
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
