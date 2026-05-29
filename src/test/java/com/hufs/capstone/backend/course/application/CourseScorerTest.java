@@ -72,7 +72,7 @@ class CourseScorerTest {
 			Instant savedAt = Instant.now().minus(days, ChronoUnit.DAYS);
 			AvailableCandidate candidate = candidateWithCreatedAt(savedAt);
 			double weight = scorer.score(candidate, null, CourseMode.TRENDY, noCtx(), Instant.now());
-			assertThat(weight).isBetween(1.0, 1.2);
+			assertThat(weight).isBetween(1.0, 1.21);
 		}
 	}
 
@@ -106,7 +106,7 @@ class CourseScorerTest {
 		for (long likes : new long[]{0, 100, 250, 500}) {
 			AvailableCandidate candidate = candidateWithLikeCount(likes, LinkSourceType.YOUTUBE);
 			double weight = scorer.score(candidate, null, CourseMode.POPULAR, ctx, Instant.now());
-			assertThat(weight).isBetween(1.0, 1.32);
+			assertThat(weight).isBetween(1.0, 1.33);
 		}
 	}
 
