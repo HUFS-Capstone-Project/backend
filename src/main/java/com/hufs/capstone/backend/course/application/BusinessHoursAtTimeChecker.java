@@ -5,6 +5,7 @@ import com.hufs.capstone.backend.place.domain.enums.BusinessStatus;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -14,7 +15,7 @@ public class BusinessHoursAtTimeChecker {
 
 	private static final ZoneId SEOUL_ZONE = ZoneId.of("Asia/Seoul");
 
-	private static final java.util.Set<BusinessStatus> OPEN_STATUSES = java.util.Set.of(
+	private static final Set<BusinessStatus> OPEN_STATUSES = Set.of(
 			BusinessStatus.OPEN,
 			BusinessStatus.OPEN_24_HOURS,
 			BusinessStatus.CLOSING_SOON

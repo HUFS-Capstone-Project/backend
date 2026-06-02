@@ -35,7 +35,8 @@ class CourseSelector {
 			Instant plannedDateTime
 	) {
 		NormalizationContext ctx = buildNormalizationContext(pool, mode);
-		List<Long> picked = new ArrayList<>();
+		List<RoomPlace> pickedPlaces = new ArrayList<>();
+		Set<Long> pickedIds = new HashSet<>();
 		List<Integer> skipped = new ArrayList<>();
 		AvailableCandidate prev = null;
 
@@ -44,7 +45,7 @@ class CourseSelector {
 			final AvailableCandidate prevForLambda = prev;
 			Optional<AvailableCandidate> best = pool.forSlot(slot).stream()
 					.filter(c -> !globallyUsedIds.contains(c.roomPlace().getId()))
-					.filter(c -> !picked.contains(c.roomPlace().getId()))
+					.filter(c -> !pickedIds.contains(c.roomPlace().getId()))
 					.filter(c -> mode != CourseMode.POPULAR || c.roomPlace().getOriginRoomLink() != null)
 					.max(Comparator.comparingDouble(
 							c -> scorer.score(c, prevForLambda, mode, ctx, plannedDateTime)
@@ -56,17 +57,12 @@ class CourseSelector {
 			}
 
 			AvailableCandidate chosen = best.get();
-			picked.add(chosen.roomPlace().getId());
+			pickedPlaces.add(chosen.roomPlace());
+			pickedIds.add(chosen.roomPlace().getId());
 			prev = chosen;
 		}
 
-		List<RoomPlace> pickedPlaces = pool.all().stream()
-				.filter(c -> picked.contains(c.roomPlace().getId()))
-				.sorted(Comparator.comparingInt(c -> picked.indexOf(c.roomPlace().getId())))
-				.map(AvailableCandidate::roomPlace)
-				.toList();
-
-		globallyUsedIds.addAll(picked);
+		globallyUsedIds.addAll(pickedIds);
 		return new CourseSelectionResult(pickedPlaces, skipped);
 	}
 

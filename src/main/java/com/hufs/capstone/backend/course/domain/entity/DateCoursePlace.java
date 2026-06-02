@@ -52,6 +52,9 @@ public class DateCoursePlace extends AuditableEntity {
 		if (dateCourse == null || roomPlace == null || sequenceOrder == null) {
 			throw new IllegalArgumentException("DateCoursePlace required values are missing.");
 		}
+		if (sequenceOrder < 0) {
+			throw new IllegalArgumentException("DateCoursePlace required values are missing.");
+		}
 		return new DateCoursePlace(dateCourse, roomPlace, sequenceOrder);
 	}
 }

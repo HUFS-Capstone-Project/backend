@@ -32,7 +32,7 @@ class HaversineTest {
 	}
 
 	@Test
-	void approxHundredKmBetweenSeoulAndSuwon() {
+	void approxFortyFiveKmBetweenSeoulAndSuwon() {
 		// Seoul to Suwon (~45 km by Haversine)
 		double km = Haversine.km(
 				BigDecimal.valueOf(37.5665),
