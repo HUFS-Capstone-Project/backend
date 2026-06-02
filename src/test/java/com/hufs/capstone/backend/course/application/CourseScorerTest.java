@@ -67,12 +67,12 @@ class CourseScorerTest {
 	}
 
 	@Test
-	void trendyWeightRangeBetween1and1point5() {
+	void trendyScoreRangeBetween1and1point2() {
 		for (int days : new int[]{0, 7, 30, 90, 365}) {
 			Instant savedAt = Instant.now().minus(days, ChronoUnit.DAYS);
 			AvailableCandidate candidate = candidateWithCreatedAt(savedAt);
-			double weight = scorer.score(candidate, null, CourseMode.TRENDY, noCtx(), Instant.now());
-			assertThat(weight).isBetween(1.0, 1.21);
+			double score = scorer.score(candidate, null, CourseMode.TRENDY, noCtx(), Instant.now());
+			assertThat(score).isBetween(1.0, 1.21);
 		}
 	}
 
@@ -101,12 +101,12 @@ class CourseScorerTest {
 	}
 
 	@Test
-	void popularWeightRangeBetween1and1point8() {
+	void popularScoreRangeBetween1and1point33() {
 		NormalizationContext ctx = new NormalizationContext(Map.of(LinkSourceType.YOUTUBE, 500L));
 		for (long likes : new long[]{0, 100, 250, 500}) {
 			AvailableCandidate candidate = candidateWithLikeCount(likes, LinkSourceType.YOUTUBE);
-			double weight = scorer.score(candidate, null, CourseMode.POPULAR, ctx, Instant.now());
-			assertThat(weight).isBetween(1.0, 1.33);
+			double score = scorer.score(candidate, null, CourseMode.POPULAR, ctx, Instant.now());
+			assertThat(score).isBetween(1.0, 1.33);
 		}
 	}
 

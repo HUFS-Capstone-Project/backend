@@ -45,6 +45,14 @@ DECLARE
     v_bh_expires     TIMESTAMPTZ := '2027-12-31 00:00:00+00';
     v_bh_json        TEXT;
 
+    -- POPULAR 테스트용 link/room_link ID
+    v_rl_food_high   BIGINT;
+    v_rl_food_low    BIGINT;
+    v_rl_cafe_high   BIGINT;
+    v_rl_cafe_low    BIGINT;
+    v_rl_act_high    BIGINT;
+    v_rl_act_low     BIGINT;
+
 BEGIN
     -- 입력 검증
     IF v_user_id = 0 THEN
@@ -259,5 +267,77 @@ BEGIN
     )
     ON CONFLICT (kakao_place_id) DO NOTHING;
 
-    RAISE NOTICE '[seed] 완료 — 장소 11개, 영업시간 11개, room_places 삽입됨 (room: %)', v_room_pid;
+    -- =========================================================================
+    -- POPULAR 코스 테스트용: links + room_links + origin_room_link_id 업데이트
+    --
+    -- 각 카테고리별 장소 2개에 Instagram mock likeCount를 부여한다.
+    --   FOOD:     mock_food_001 → 1000 likes  (POPULAR 당첨 예상)
+    --             mock_food_002 →  100 likes
+    --   CAFE:     mock_cafe_001 →  900 likes  (POPULAR 당첨 예상)
+    --             mock_cafe_002 →   50 likes
+    --   ACTIVITY: mock_act_001  →  800 likes  (POPULAR 당첨 예상)
+    --             mock_act_002  →   30 likes
+    -- =========================================================================
+
+    -- links 삽입
+    INSERT INTO links (
+        original_url, normalized_url,
+        link_source_type, dispatch_status, status,
+        like_count, version, created_at, updated_at
+    ) VALUES
+        ('https://www.instagram.com/p/mock_food_high/', 'https://www.instagram.com/p/mock_food_high/',
+         'INSTAGRAM', 'DISPATCHED', 'SUCCEEDED', 1000, 0, v_now, v_now),
+        ('https://www.instagram.com/p/mock_food_low/',  'https://www.instagram.com/p/mock_food_low/',
+         'INSTAGRAM', 'DISPATCHED', 'SUCCEEDED',  100, 0, v_now, v_now),
+        ('https://www.instagram.com/p/mock_cafe_high/', 'https://www.instagram.com/p/mock_cafe_high/',
+         'INSTAGRAM', 'DISPATCHED', 'SUCCEEDED',  900, 0, v_now, v_now),
+        ('https://www.instagram.com/p/mock_cafe_low/',  'https://www.instagram.com/p/mock_cafe_low/',
+         'INSTAGRAM', 'DISPATCHED', 'SUCCEEDED',   50, 0, v_now, v_now),
+        ('https://www.instagram.com/p/mock_act_high/',  'https://www.instagram.com/p/mock_act_high/',
+         'INSTAGRAM', 'DISPATCHED', 'SUCCEEDED',  800, 0, v_now, v_now),
+        ('https://www.instagram.com/p/mock_act_low/',   'https://www.instagram.com/p/mock_act_low/',
+         'INSTAGRAM', 'DISPATCHED', 'SUCCEEDED',   30, 0, v_now, v_now)
+    ON CONFLICT (normalized_url) DO NOTHING;
+
+    -- room_links 삽입 및 ID 조회
+    INSERT INTO room_links (room_id, link_id, created_at, updated_at)
+        SELECT v_room_id, id, v_now, v_now FROM links
+        WHERE normalized_url IN (
+            'https://www.instagram.com/p/mock_food_high/',
+            'https://www.instagram.com/p/mock_food_low/',
+            'https://www.instagram.com/p/mock_cafe_high/',
+            'https://www.instagram.com/p/mock_cafe_low/',
+            'https://www.instagram.com/p/mock_act_high/',
+            'https://www.instagram.com/p/mock_act_low/'
+        )
+    ON CONFLICT (room_id, link_id) DO NOTHING;
+
+    SELECT rl.id INTO v_rl_food_high FROM room_links rl JOIN links l ON rl.link_id = l.id
+        WHERE rl.room_id = v_room_id AND l.normalized_url = 'https://www.instagram.com/p/mock_food_high/';
+    SELECT rl.id INTO v_rl_food_low  FROM room_links rl JOIN links l ON rl.link_id = l.id
+        WHERE rl.room_id = v_room_id AND l.normalized_url = 'https://www.instagram.com/p/mock_food_low/';
+    SELECT rl.id INTO v_rl_cafe_high FROM room_links rl JOIN links l ON rl.link_id = l.id
+        WHERE rl.room_id = v_room_id AND l.normalized_url = 'https://www.instagram.com/p/mock_cafe_high/';
+    SELECT rl.id INTO v_rl_cafe_low  FROM room_links rl JOIN links l ON rl.link_id = l.id
+        WHERE rl.room_id = v_room_id AND l.normalized_url = 'https://www.instagram.com/p/mock_cafe_low/';
+    SELECT rl.id INTO v_rl_act_high  FROM room_links rl JOIN links l ON rl.link_id = l.id
+        WHERE rl.room_id = v_room_id AND l.normalized_url = 'https://www.instagram.com/p/mock_act_high/';
+    SELECT rl.id INTO v_rl_act_low   FROM room_links rl JOIN links l ON rl.link_id = l.id
+        WHERE rl.room_id = v_room_id AND l.normalized_url = 'https://www.instagram.com/p/mock_act_low/';
+
+    -- room_places.origin_room_link_id 업데이트
+    UPDATE room_places SET origin_room_link_id = v_rl_food_high
+        WHERE room_id = v_room_id AND place_id = (SELECT id FROM places WHERE kakao_place_id = 'mock_food_001');
+    UPDATE room_places SET origin_room_link_id = v_rl_food_low
+        WHERE room_id = v_room_id AND place_id = (SELECT id FROM places WHERE kakao_place_id = 'mock_food_002');
+    UPDATE room_places SET origin_room_link_id = v_rl_cafe_high
+        WHERE room_id = v_room_id AND place_id = (SELECT id FROM places WHERE kakao_place_id = 'mock_cafe_001');
+    UPDATE room_places SET origin_room_link_id = v_rl_cafe_low
+        WHERE room_id = v_room_id AND place_id = (SELECT id FROM places WHERE kakao_place_id = 'mock_cafe_002');
+    UPDATE room_places SET origin_room_link_id = v_rl_act_high
+        WHERE room_id = v_room_id AND place_id = (SELECT id FROM places WHERE kakao_place_id = 'mock_act_001');
+    UPDATE room_places SET origin_room_link_id = v_rl_act_low
+        WHERE room_id = v_room_id AND place_id = (SELECT id FROM places WHERE kakao_place_id = 'mock_act_002');
+
+    RAISE NOTICE '[seed] 완료 — 장소 11개, 영업시간 11개, room_places 삽입, links 6개(POPULAR용) 추가됨 (room: %)', v_room_pid;
 END $$;

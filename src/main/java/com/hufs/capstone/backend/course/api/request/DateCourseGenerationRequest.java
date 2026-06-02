@@ -10,7 +10,7 @@ import java.time.Instant;
 import java.util.List;
 
 public record DateCourseGenerationRequest(
-		@NotEmpty @Size(max = 5) @Valid List<CategorySlotRequest> categorySequence,
+		@NotEmpty @Size(max = 5) List<@NotNull @Valid CategorySlotRequest> categorySequence,
 		@NotNull Instant plannedDateTime,
 		@NotBlank String sigunguCode
 ) {

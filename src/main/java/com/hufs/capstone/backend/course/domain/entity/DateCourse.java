@@ -55,7 +55,7 @@ public class DateCourse extends AuditableEntity {
 	@Column(name = "generation_batch_id", nullable = false, length = 36)
 	private String generationBatchId;
 
-	@Column(name = "sigungu_code", length = 5)
+	@Column(name = "sigungu_code", nullable = false, length = 5)
 	private String sigunguCode;
 
 	@Column(name = "category_sequence_json", columnDefinition = "text")
@@ -104,7 +104,8 @@ public class DateCourse extends AuditableEntity {
 			String skippedSlotIndicesJson
 	) {
 		if (publicId == null || room == null || createdByUserId == null || courseMode == null
-				|| plannedDateTime == null || generationBatchId == null) {
+				|| plannedDateTime == null || generationBatchId == null
+				|| sigunguCode == null || sigunguCode.isBlank()) {
 			throw new IllegalArgumentException("DateCourse required values are missing.");
 		}
 		return new DateCourse(publicId, room, createdByUserId, courseMode, plannedDateTime,
