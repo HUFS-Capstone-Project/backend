@@ -15,12 +15,17 @@ public interface DateCourseRepository extends JpaRepository<DateCourse, Long> {
 	@Modifying(clearAutomatically = true, flushAutomatically = true)
 	@Query("""
 			UPDATE DateCourse dc
-			SET dc.savedByUserId = :userId, dc.savedAt = :savedAt
+			SET dc.savedByUserId = :userId,
+			    dc.savedAt = :savedAt,
+			    dc.courseName = :courseName
 			WHERE dc.id = :id AND dc.savedByUserId IS NULL
 			""")
-	int markAsSavedIfAbsent(@Param("id") Long id,
-	                        @Param("userId") Long userId,
-	                        @Param("savedAt") Instant savedAt);
+	int markAsSavedIfAbsent(
+			@Param("id") Long id,
+			@Param("userId") Long userId,
+			@Param("savedAt") Instant savedAt,
+			@Param("courseName") String courseName
+	);
 
 	Optional<DateCourse> findByDateCourseIdAndRoomId(String dateCourseId, Long roomId);
 

@@ -1,6 +1,7 @@
 package com.hufs.capstone.backend.course.api.controller.swagger;
 
 import com.hufs.capstone.backend.course.api.request.DateCourseGenerationRequest;
+import com.hufs.capstone.backend.course.api.request.DateCourseSaveRequest;
 import com.hufs.capstone.backend.course.api.response.DateCourseGenerationResponse;
 import com.hufs.capstone.backend.course.api.response.DateCoursePageResponse;
 import com.hufs.capstone.backend.course.api.response.DateCourseResponse;
@@ -64,7 +65,7 @@ public interface DateCourseApi {
 	@Operation(
 			tags = {"Date course"},
 			summary = "데이트 코스 저장 API",
-			description = "생성된 코스 후보 중 하나를 선택해 저장합니다. "
+			description = "생성된 코스 후보 중 하나를 선택해 저장합니다."
 					+ "이미 저장된 코스와 동일한 장소 순서이면 409를 반환합니다."
 	)
 	@ApiResponse(responseCode = "200", description = "저장 성공")
@@ -72,6 +73,7 @@ public interface DateCourseApi {
 	CommonResponse<Void> saveCourse(
 			@PathVariable String roomId,
 			@PathVariable String dateCourseId,
+			@Valid @RequestBody DateCourseSaveRequest request,
 			@RequestHeader(name = "X-XSRF-TOKEN", required = false) String csrfToken
 	);
 

@@ -7,6 +7,7 @@ import java.util.List;
 
 public record MyDateCourseResponse(
 		String dateCourseId,
+		String courseName,
 		CourseMode mode,
 		String generationBatchId,
 		Instant startDateTime,
@@ -22,6 +23,7 @@ public record MyDateCourseResponse(
 	public static MyDateCourseResponse from(MyDateCourseResult result) {
 		return new MyDateCourseResponse(
 				result.dateCourseId(),
+				result.courseName(),
 				result.courseMode(),
 				result.generationBatchId(),
 				result.startDateTime(),

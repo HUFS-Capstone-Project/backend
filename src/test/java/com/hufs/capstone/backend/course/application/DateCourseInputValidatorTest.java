@@ -96,4 +96,5 @@ class DateCourseInputValidatorTest {
 				List.of(new CategorySlotCommand("FOOD", "KOREAN"))
 		);
 	}
+
 }

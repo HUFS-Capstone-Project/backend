@@ -190,6 +190,7 @@ public class DateCourseQueryService {
 
 		return new DateCourseResult(
 				course.getDateCourseId(),
+				course.getCourseName(),
 				course.getCourseMode(),
 				course.getGenerationBatchId(),
 				course.getStartDateTime(),
@@ -213,6 +214,7 @@ public class DateCourseQueryService {
 		Room room = course.getRoom();
 		return new MyDateCourseResult(
 				course.getDateCourseId(),
+				course.getCourseName(),
 				course.getCourseMode(),
 				course.getGenerationBatchId(),
 				course.getStartDateTime(),

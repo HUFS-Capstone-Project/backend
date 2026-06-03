@@ -3,6 +3,7 @@ package com.hufs.capstone.backend.course.api.controller;
 import com.hufs.capstone.backend.auth.security.SecurityUtils;
 import com.hufs.capstone.backend.course.api.controller.swagger.DateCourseApi;
 import com.hufs.capstone.backend.course.api.request.DateCourseGenerationRequest;
+import com.hufs.capstone.backend.course.api.request.DateCourseSaveRequest;
 import com.hufs.capstone.backend.course.api.response.DateCourseGenerationResponse;
 import com.hufs.capstone.backend.course.api.response.DateCoursePageResponse;
 import com.hufs.capstone.backend.course.api.response.DateCourseResponse;
@@ -63,10 +64,11 @@ public class DateCourseController implements DateCourseApi {
 	public CommonResponse<Void> saveCourse(
 			@PathVariable String roomId,
 			@PathVariable String dateCourseId,
+			@Valid @RequestBody DateCourseSaveRequest request,
 			@RequestHeader(name = "X-XSRF-TOKEN", required = false) String csrfToken
 	) {
 		Long userId = SecurityUtils.currentUserIdOrThrow();
-		saveService.save(roomId, dateCourseId, userId);
+		saveService.save(roomId, dateCourseId, request.courseName(), userId);
 		return CommonResponse.ok(null);
 	}
 

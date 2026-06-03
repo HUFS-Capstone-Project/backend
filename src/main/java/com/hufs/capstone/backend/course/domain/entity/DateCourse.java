@@ -38,6 +38,9 @@ public class DateCourse extends AuditableEntity {
 	@Column(name = "date_course_id", nullable = false, length = 36)
 	private String dateCourseId;
 
+	@Column(name = "course_name", length = 20)
+	private String courseName;
+
 	@ManyToOne(fetch = FetchType.LAZY, optional = false)
 	@JoinColumn(name = "room_id", nullable = false)
 	private Room room;
@@ -119,13 +122,5 @@ public class DateCourse extends AuditableEntity {
 		}
 		return new DateCourse(dateCourseId, room, createdByUserId, courseMode, startDateTime, endDateTime,
 				generationBatchId, sigunguCode, categorySequenceJson, skippedSlotIndicesJson);
-	}
-
-	public void markAsSaved(Long userId) {
-		if (this.savedByUserId != null) {
-			throw new IllegalStateException("이미 저장된 코스입니다.");
-		}
-		this.savedByUserId = userId;
-		this.savedAt = Instant.now();
 	}
 }

@@ -18,6 +18,7 @@ class DateCourseResponseTest {
 	void placesAndCoordinatesAreOrderedBySequenceOrder() {
 		DateCourseResult result = new DateCourseResult(
 				"course-1",
+				"강남 데이트",
 				CourseMode.GENERAL,
 				"batch-1",
 				Instant.parse("2026-06-03T12:00:00Z"),
@@ -53,6 +54,7 @@ class DateCourseResponseTest {
 				.isEqualByComparingTo("37.1");
 		assertThat(response.orderedCoordinates().get(1).longitude())
 				.isEqualByComparingTo("127.3");
+		assertThat(response.courseName()).isEqualTo("강남 데이트");
 	}
 
 	@Test
@@ -63,6 +65,7 @@ class DateCourseResponseTest {
 						List.of(
 								new DateCourseResult(
 										"course-1",
+										null,
 										CourseMode.GENERAL,
 										"batch-1",
 										Instant.parse("2026-06-03T12:00:00Z"),
@@ -83,12 +86,14 @@ class DateCourseResponseTest {
 		assertThat(response.courses().get(0).places())
 				.extracting(DateCoursePlaceResponse::roomPlaceId)
 				.containsExactly(1L);
+		assertThat(response.courses().get(0).courseName()).isNull();
 	}
 
 	@Test
 	void myDateCourseResponseIncludesOrderedCoordinates() {
 		MyDateCourseResult result = new MyDateCourseResult(
 				"course-1",
+				"마이 코스",
 				CourseMode.GENERAL,
 				"batch-1",
 				Instant.parse("2026-06-03T12:00:00Z"),
@@ -114,6 +119,7 @@ class DateCourseResponseTest {
 		assertThat(response.orderedCoordinates())
 				.extracting(DateCourseCoordinateResponse::sequenceOrder)
 				.containsExactly(0, 1);
+		assertThat(response.courseName()).isEqualTo("마이 코스");
 	}
 
 	private static DateCoursePlaceResult place(int sequenceOrder, String name, String latitude, String longitude) {

@@ -108,6 +108,7 @@ public class DateCourseGenerationService {
 		}
 		return new DateCourseResult(
 				dateCourse.getDateCourseId(),
+				dateCourse.getCourseName(),
 				dateCourse.getCourseMode(),
 				dateCourse.getGenerationBatchId(),
 				dateCourse.getStartDateTime(),
