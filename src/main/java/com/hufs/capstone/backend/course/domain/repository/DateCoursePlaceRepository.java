@@ -20,4 +20,28 @@ public interface DateCoursePlaceRepository extends JpaRepository<DateCoursePlace
 			ORDER BY dcp.sequenceOrder ASC
 			""")
 	List<DateCoursePlace> findWithRoomPlacesByCourseIdIn(@Param("courseIds") List<Long> courseIds);
+
+	@Query("""
+			SELECT dcp FROM DateCoursePlace dcp
+			JOIN FETCH dcp.dateCourse dc
+			JOIN FETCH dcp.roomPlace rp
+			WHERE dc.room.id = :roomId
+			AND dc.savedByUserId IS NOT NULL
+			ORDER BY dc.id ASC, dcp.sequenceOrder ASC
+			""")
+	List<DateCoursePlace> findSavedPlacesByRoomId(@Param("roomId") Long roomId);
+
+	@Query("""
+			SELECT dcp FROM DateCoursePlace dcp
+			JOIN FETCH dcp.dateCourse dc
+			JOIN FETCH dcp.roomPlace rp
+			WHERE dc.room.id = :roomId
+			AND dc.savedByUserId IS NOT NULL
+			AND dc.id <> :excludedCourseId
+			ORDER BY dc.id ASC, dcp.sequenceOrder ASC
+			""")
+	List<DateCoursePlace> findSavedPlacesByRoomIdExcludingCourseId(
+			@Param("roomId") Long roomId,
+			@Param("excludedCourseId") Long excludedCourseId
+	);
 }

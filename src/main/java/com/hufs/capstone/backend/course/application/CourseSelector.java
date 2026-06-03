@@ -5,36 +5,46 @@ import com.hufs.capstone.backend.course.application.dto.CategorySlotCommand;
 import com.hufs.capstone.backend.course.application.dto.CourseSelectionResult;
 import com.hufs.capstone.backend.course.application.dto.NormalizationContext;
 import com.hufs.capstone.backend.course.domain.enums.CourseMode;
-import com.hufs.capstone.backend.link.domain.LinkSourceType;
-import com.hufs.capstone.backend.link.domain.entity.Link;
-import com.hufs.capstone.backend.link.domain.entity.RoomLink;
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Component
-@RequiredArgsConstructor
 class CourseSelector {
 
 	private final CourseScorer scorer;
+	private final List<CourseRecommendationStrategy> strategies;
+
+	@Autowired
+	CourseSelector(CourseScorer scorer, List<CourseRecommendationStrategy> strategies) {
+		this.scorer = scorer;
+		this.strategies = strategies;
+	}
+
+	CourseSelector(CourseScorer scorer) {
+		this(scorer, List.of(
+				new GeneralCourseRecommendationStrategy(),
+				new TrendyCourseRecommendationStrategy(),
+				new PopularCourseRecommendationStrategy()
+		));
+	}
 
 	CourseSelectionResult select(
 			CourseMode mode,
 			List<CategorySlotCommand> slots,
 			AvailablePool pool,
 			Set<Long> globallyUsedIds,
-			Instant plannedDateTime
+			Instant startDateTime
 	) {
-		NormalizationContext ctx = buildNormalizationContext(pool, mode);
+		CourseRecommendationStrategy strategy = strategyFor(mode);
+		NormalizationContext ctx = strategy.normalizationContext(pool);
 		List<RoomPlace> pickedPlaces = new ArrayList<>();
 		Set<Long> pickedIds = new HashSet<>();
 		List<Integer> skipped = new ArrayList<>();
@@ -46,9 +56,9 @@ class CourseSelector {
 			Optional<AvailableCandidate> best = pool.forSlot(slot).stream()
 					.filter(c -> !globallyUsedIds.contains(c.roomPlace().getId()))
 					.filter(c -> !pickedIds.contains(c.roomPlace().getId()))
-					.filter(c -> mode != CourseMode.POPULAR || c.roomPlace().getOriginRoomLink() != null)
+					.filter(strategy::isCandidateAllowed)
 					.max(Comparator.comparingDouble(
-							c -> scorer.score(c, prevForLambda, mode, ctx, plannedDateTime)
+							c -> scorer.score(c, prevForLambda, mode, ctx, startDateTime)
 					));
 
 			if (best.isEmpty()) {
@@ -66,23 +76,11 @@ class CourseSelector {
 		return new CourseSelectionResult(pickedPlaces, skipped);
 	}
 
-	private static NormalizationContext buildNormalizationContext(AvailablePool pool, CourseMode mode) {
-		if (mode != CourseMode.POPULAR) {
-			return new NormalizationContext(Map.of());
-		}
-		Map<LinkSourceType, Long> maxBySourceType = new EnumMap<>(LinkSourceType.class);
-		for (AvailableCandidate candidate : pool.all()) {
-			RoomLink originRoomLink = candidate.roomPlace().getOriginRoomLink();
-			if (originRoomLink == null || originRoomLink.getLink() == null) {
-				continue;
-			}
-			Link link = originRoomLink.getLink();
-			if (link.getLikeCount() == null) {
-				continue;
-			}
-			maxBySourceType.merge(link.getLinkSourceType(), link.getLikeCount(), Math::max);
-		}
-		return new NormalizationContext(maxBySourceType);
+	private CourseRecommendationStrategy strategyFor(CourseMode mode) {
+		return strategies.stream()
+				.filter(strategy -> strategy.supports(mode))
+				.findFirst()
+				.orElseThrow(() -> new IllegalArgumentException("Unsupported course mode: " + mode));
 	}
 
 	Set<Long> newGloballyUsedIds() {

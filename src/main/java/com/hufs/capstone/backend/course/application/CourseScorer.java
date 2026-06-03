@@ -22,10 +22,10 @@ class CourseScorer {
 			AvailableCandidate prev,
 			CourseMode mode,
 			NormalizationContext ctx,
-			Instant plannedDateTime
+			Instant startDateTime
 	) {
 		double distScore = distScore(candidate, prev);
-		double modeWeight = modeWeight(candidate, mode, ctx, plannedDateTime);
+		double modeWeight = modeWeight(candidate, mode, ctx, startDateTime);
 		return DIST_WEIGHT * distScore + MODE_WEIGHT * modeWeight;
 	}
 
@@ -50,18 +50,18 @@ class CourseScorer {
 			AvailableCandidate candidate,
 			CourseMode mode,
 			NormalizationContext ctx,
-			Instant plannedDateTime
+			Instant startDateTime
 	) {
 		return switch (mode) {
 			case GENERAL -> 1.0;
-			case TRENDY -> trendyWeight(candidate, plannedDateTime);
+			case TRENDY -> trendyWeight(candidate, startDateTime);
 			case POPULAR -> popularWeight(candidate, ctx);
 		};
 	}
 
-	private static double trendyWeight(AvailableCandidate candidate, Instant plannedDateTime) {
+	private static double trendyWeight(AvailableCandidate candidate, Instant startDateTime) {
 		Instant savedAt = candidate.roomPlace().getCreatedAt();
-		long daysSince = Math.max(0L, ChronoUnit.DAYS.between(savedAt, plannedDateTime));
+		long daysSince = Math.max(0L, ChronoUnit.DAYS.between(savedAt, startDateTime));
 		return 1.0 + 0.5 * Math.exp(-daysSince / 30.0);
 	}
 

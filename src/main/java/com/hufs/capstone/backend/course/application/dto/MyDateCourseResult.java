@@ -5,10 +5,11 @@ import java.time.Instant;
 import java.util.List;
 
 public record MyDateCourseResult(
-		String publicId,
+		String dateCourseId,
 		CourseMode courseMode,
 		String generationBatchId,
-		Instant plannedDateTime,
+		Instant startDateTime,
+		Instant endDateTime,
 		Instant savedAt,
 		String roomPublicId,
 		String roomName,

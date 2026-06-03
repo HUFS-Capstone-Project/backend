@@ -25,8 +25,9 @@ public interface DateCourseApi {
 
 	@Operation(
 			tags = {"Date course"},
-			summary = "데이트 코스 생성 API",
-			description = "방에 저장된 장소를 바탕으로 General/Trendy/Popular 3가지 코스 후보를 생성합니다."
+			summary = "데이트 코스 추천 생성 API",
+			description = "방에 저장된 장소를 기반으로 GENERAL/TRENDY/POPULAR 코스 후보를 생성합니다. "
+					+ "이미 저장된 코스와 동일한 장소 순서의 후보는 제외합니다."
 	)
 	@ApiResponse(responseCode = "201", description = "코스 생성 성공")
 	@ResponseStatus(HttpStatus.CREATED)
@@ -40,20 +41,21 @@ public interface DateCourseApi {
 	@Operation(
 			tags = {"Date course"},
 			summary = "데이트 코스 저장 API",
-			description = "생성된 코스 후보 중 하나를 선택해 저장합니다."
+			description = "생성된 코스 후보 중 하나를 선택해 저장합니다. "
+					+ "이미 저장된 코스와 동일한 장소 순서이면 409를 반환합니다."
 	)
 	@ApiResponse(responseCode = "200", description = "저장 성공")
-	@PostMapping("/{coursePublicId}/save")
+	@PostMapping("/{dateCourseId}/save")
 	CommonResponse<Void> saveCourse(
 			@PathVariable String roomId,
-			@PathVariable String coursePublicId,
+			@PathVariable String dateCourseId,
 			@RequestHeader(name = "X-XSRF-TOKEN", required = false) String csrfToken
 	);
 
 	@Operation(
 			tags = {"Date course"},
-			summary = "저장된 데이트 코스 목록 조회 API",
-			description = "방에서 멤버들이 저장한 데이트 코스를 최신순으로 페이지네이션 조회합니다."
+			summary = "방 저장 데이트 코스 목록 조회 API",
+			description = "방 멤버가 저장한 데이트 코스를 최신 저장순으로 페이지 조회합니다."
 	)
 	@ApiResponse(responseCode = "200", description = "OK")
 	@GetMapping
@@ -66,12 +68,12 @@ public interface DateCourseApi {
 	@Operation(
 			tags = {"Date course"},
 			summary = "데이트 코스 상세 조회 API",
-			description = "특정 코스의 장소 목록을 조회합니다."
+			description = "특정 데이트 코스의 장소 목록과 직선 polyline용 orderedCoordinates를 조회합니다."
 	)
 	@ApiResponse(responseCode = "200", description = "OK")
-	@GetMapping("/{coursePublicId}")
+	@GetMapping("/{dateCourseId}")
 	CommonResponse<DateCourseResponse> getCourse(
 			@PathVariable String roomId,
-			@PathVariable String coursePublicId
+			@PathVariable String dateCourseId
 	);
 }

@@ -15,8 +15,8 @@ public interface MeDateCourseApi {
 
 	@Operation(
 			tags = {"My date course"},
-			summary = "내가 저장한 데이트 코스 목록 조회 API",
-			description = "현재 로그인한 사용자가 저장한 데이트 코스를 방 구분 없이 최신 저장 순으로 조회합니다."
+			summary = "내 저장 데이트 코스 목록 조회 API",
+			description = "현재 로그인한 사용자가 저장한 데이트 코스를 방 구분 없이 최신 저장순으로 페이지 조회합니다."
 	)
 	@ApiResponse(responseCode = "200", description = "OK")
 	@GetMapping

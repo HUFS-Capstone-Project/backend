@@ -20,6 +20,7 @@ import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
 import com.hufs.capstone.backend.room.application.RoomAccessService;
 import com.hufs.capstone.backend.room.domain.entity.Room;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -35,18 +36,21 @@ public class DateCourseGenerationService {
 	private final DateCourseInputValidator inputValidator;
 	private final AvailablePoolBuilder poolBuilder;
 	private final CourseSelector courseSelector;
+	private final DateCourseDuplicatePolicy duplicatePolicy;
 	private final DateCourseRepository dateCourseRepository;
 	private final DateCoursePlaceRepository dateCoursePlaceRepository;
 	private final ObjectMapper objectMapper;
 
 	@Transactional
 	public DateCourseGenerationResult generate(DateCourseGenerationCommand command, Long userId) {
-		inputValidator.validate(command.sigunguCode(), command.categorySequence());
+		inputValidator.validate(command.sigunguCode(), command.startDateTime(),
+				command.endDateTime(), command.categorySequence());
 		Room room = roomAccessService.requireMemberRoom(command.roomPublicId(), userId);
 
-		AvailablePool pool = poolBuilder.build(room.getId(), command.categorySequence(), command.plannedDateTime(), command.sigunguCode());
+		AvailablePool pool = poolBuilder.build(room.getId(), command.categorySequence(),
+				command.startDateTime(), command.sigunguCode());
 		if (pool.isEmpty()) {
-			throw new BusinessException(ErrorCode.E404_NOT_FOUND, "코스 생성 가능한 장소가 없습니다.");
+			throw new BusinessException(ErrorCode.E404_NOT_FOUND, "데이트 코스 생성에 사용할 수 있는 장소가 없습니다.");
 		}
 
 		String batchId = UUID.randomUUID().toString();
@@ -56,12 +60,17 @@ public class DateCourseGenerationService {
 		List<DateCourseResult> results = new ArrayList<>();
 
 		for (CourseMode mode : List.of(CourseMode.GENERAL, CourseMode.TRENDY, CourseMode.POPULAR)) {
+			Set<Long> candidateUsedIds = new HashSet<>(globallyUsedIds);
 			CourseSelectionResult selection = courseSelector.select(
-					mode, command.categorySequence(), pool, globallyUsedIds, command.plannedDateTime());
+					mode, command.categorySequence(), pool, candidateUsedIds, command.startDateTime());
 
 			if (selection.pickedPlaces().isEmpty()) {
 				continue;
 			}
+			if (duplicatePolicy.existsSavedCourseWithSamePlaces(room.getId(), selection.pickedPlaces())) {
+				continue;
+			}
+			globallyUsedIds = candidateUsedIds;
 
 			String skippedJson = serializeSkipped(selection.skippedSlotIndices());
 			DateCourse dateCourse = dateCourseRepository.save(DateCourse.create(
@@ -69,7 +78,8 @@ public class DateCourseGenerationService {
 					room,
 					userId,
 					mode,
-					command.plannedDateTime(),
+					command.startDateTime(),
+					command.endDateTime(),
 					batchId,
 					command.sigunguCode(),
 					categorySequenceJson,
@@ -86,7 +96,7 @@ public class DateCourseGenerationService {
 		}
 
 		if (results.isEmpty()) {
-			throw new BusinessException(ErrorCode.E404_NOT_FOUND, "생성 가능한 코스가 없습니다.");
+			throw new BusinessException(ErrorCode.E404_NOT_FOUND, "생성할 수 있는 코스가 없습니다.");
 		}
 
 		return new DateCourseGenerationResult(batchId, results);
@@ -98,10 +108,11 @@ public class DateCourseGenerationService {
 			placeResults.add(toPlaceResult(pickedPlaces.get(i), i));
 		}
 		return new DateCourseResult(
-				dateCourse.getPublicId(),
+				dateCourse.getDateCourseId(),
 				dateCourse.getCourseMode(),
 				dateCourse.getGenerationBatchId(),
-				dateCourse.getPlannedDateTime(),
+				dateCourse.getStartDateTime(),
+				dateCourse.getEndDateTime(),
 				dateCourse.getCreatedAt(),
 				placeResults,
 				skipped,
@@ -135,7 +146,7 @@ public class DateCourseGenerationService {
 		try {
 			return objectMapper.writeValueAsString(slots);
 		} catch (JsonProcessingException e) {
-			throw new BusinessException(ErrorCode.E500_INTERNAL, "카테고리 슬롯 직렬화에 실패했습니다.");
+			throw new BusinessException(ErrorCode.E500_INTERNAL, "카테고리 순서 직렬화에 실패했습니다.");
 		}
 	}
 
@@ -143,7 +154,7 @@ public class DateCourseGenerationService {
 		try {
 			return objectMapper.writeValueAsString(skipped);
 		} catch (JsonProcessingException e) {
-			throw new BusinessException(ErrorCode.E500_INTERNAL, "스킵 슬롯 직렬화에 실패했습니다.");
+			throw new BusinessException(ErrorCode.E500_INTERNAL, "건너뛴 슬롯 직렬화에 실패했습니다.");
 		}
 	}
 }

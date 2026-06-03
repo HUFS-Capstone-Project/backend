@@ -6,27 +6,33 @@ import java.time.Instant;
 import java.util.List;
 
 public record MyDateCourseResponse(
-		String publicId,
+		String dateCourseId,
 		CourseMode mode,
 		String generationBatchId,
-		Instant plannedDateTime,
+		Instant startDateTime,
+		Instant endDateTime,
 		Instant savedAt,
 		String roomPublicId,
 		String roomName,
 		List<DateCoursePlaceResponse> places,
+		List<DateCourseCoordinateResponse> orderedCoordinates,
 		List<Integer> skippedSlotIndices
 ) {
 
 	public static MyDateCourseResponse from(MyDateCourseResult result) {
 		return new MyDateCourseResponse(
-				result.publicId(),
+				result.dateCourseId(),
 				result.courseMode(),
 				result.generationBatchId(),
-				result.plannedDateTime(),
+				result.startDateTime(),
+				result.endDateTime(),
 				result.savedAt(),
 				result.roomPublicId(),
 				result.roomName(),
-				result.places().stream().map(DateCoursePlaceResponse::from).toList(),
+				DateCourseResponseMapper.orderedPlaces(result.places()).stream()
+						.map(DateCoursePlaceResponse::from)
+						.toList(),
+				DateCourseResponseMapper.orderedCoordinates(result.places()),
 				result.skippedSlotIndices()
 		);
 	}

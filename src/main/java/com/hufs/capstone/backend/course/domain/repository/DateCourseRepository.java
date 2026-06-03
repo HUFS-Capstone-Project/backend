@@ -2,7 +2,6 @@ package com.hufs.capstone.backend.course.domain.repository;
 
 import com.hufs.capstone.backend.course.domain.entity.DateCourse;
 import java.time.Instant;
-import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -12,8 +11,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface DateCourseRepository extends JpaRepository<DateCourse, Long> {
-
-	Optional<DateCourse> findByPublicId(String publicId);
 
 	@Modifying(clearAutomatically = true, flushAutomatically = true)
 	@Query("""
@@ -25,30 +22,31 @@ public interface DateCourseRepository extends JpaRepository<DateCourse, Long> {
 	                        @Param("userId") Long userId,
 	                        @Param("savedAt") Instant savedAt);
 
-	Optional<DateCourse> findByPublicIdAndRoomId(String publicId, Long roomId);
+	Optional<DateCourse> findByDateCourseIdAndRoomId(String dateCourseId, Long roomId);
 
-	@Query("""
+	@Query(value = """
 			SELECT dc FROM DateCourse dc
 			JOIN FETCH dc.room
 			WHERE dc.room.id = :roomId
 			AND dc.savedByUserId IS NOT NULL
 			ORDER BY dc.savedAt DESC
+			""",
+			countQuery = """
+			SELECT COUNT(dc) FROM DateCourse dc
+			WHERE dc.room.id = :roomId
+			AND dc.savedByUserId IS NOT NULL
 			""")
 	Page<DateCourse> findSavedByRoomIdOrderBySavedAtDesc(@Param("roomId") Long roomId, Pageable pageable);
 
-	@Query("""
+	@Query(value = """
 			SELECT dc FROM DateCourse dc
 			JOIN FETCH dc.room
 			WHERE dc.savedByUserId = :userId
 			ORDER BY dc.savedAt DESC
+			""",
+			countQuery = """
+			SELECT COUNT(dc) FROM DateCourse dc
+			WHERE dc.savedByUserId = :userId
 			""")
 	Page<DateCourse> findSavedByUserIdOrderBySavedAtDesc(@Param("userId") Long userId, Pageable pageable);
-
-	@Query("""
-			SELECT dc FROM DateCourse dc
-			JOIN FETCH dc.room
-			WHERE dc.room.id = :roomId
-			ORDER BY dc.createdAt DESC
-			""")
-	List<DateCourse> findByRoomIdOrderByCreatedAtDesc(@Param("roomId") Long roomId);
 }

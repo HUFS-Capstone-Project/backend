@@ -5,10 +5,11 @@ import java.time.Instant;
 import java.util.List;
 
 public record DateCourseResult(
-		String publicId,
+		String dateCourseId,
 		CourseMode courseMode,
 		String generationBatchId,
-		Instant plannedDateTime,
+		Instant startDateTime,
+		Instant endDateTime,
 		Instant createdAt,
 		List<DateCoursePlaceResult> places,
 		List<Integer> skippedSlotIndices,

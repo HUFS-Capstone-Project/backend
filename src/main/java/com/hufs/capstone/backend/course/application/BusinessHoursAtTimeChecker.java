@@ -23,8 +23,8 @@ public class BusinessHoursAtTimeChecker {
 
 	private final BusinessHoursDisplayResolver resolver;
 
-	public boolean isOpenAt(String businessHoursJson, Instant plannedDateTime) {
-		ZonedDateTime at = plannedDateTime.atZone(SEOUL_ZONE);
+	public boolean isOpenAt(String businessHoursJson, Instant atDateTime) {
+		ZonedDateTime at = atDateTime.atZone(SEOUL_ZONE);
 		BusinessStatus status = resolver.statusAt(businessHoursJson, at);
 		return OPEN_STATUSES.contains(status);
 	}

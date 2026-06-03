@@ -22,7 +22,7 @@ class AvailablePoolBuilder {
 	private final PlaceBusinessHoursRepository placeBusinessHoursRepository;
 	private final BusinessHoursAtTimeChecker businessHoursAtTimeChecker;
 
-	AvailablePool build(Long roomId, List<CategorySlotCommand> slots, Instant plannedDateTime, String sigunguCode) {
+	AvailablePool build(Long roomId, List<CategorySlotCommand> slots, Instant startDateTime, String sigunguCode) {
 		Instant now = Instant.now();
 		List<RoomPlace> roomPlaces = candidateRepository.findCandidates(roomId, slots, now, sigunguCode);
 		if (roomPlaces.isEmpty()) {
@@ -44,7 +44,7 @@ class AvailablePoolBuilder {
 					if (pbh == null || pbh.getBusinessHoursJson() == null) {
 						return false;
 					}
-					return businessHoursAtTimeChecker.isOpenAt(pbh.getBusinessHoursJson(), plannedDateTime);
+					return businessHoursAtTimeChecker.isOpenAt(pbh.getBusinessHoursJson(), startDateTime);
 				})
 				.map(rp -> {
 					PlaceBusinessHours pbh = businessHoursByKakaoId.get(rp.getKakaoPlaceId());

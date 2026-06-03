@@ -6,7 +6,8 @@ import java.util.List;
 public record DateCourseGenerationCommand(
 		String roomPublicId,
 		List<CategorySlotCommand> categorySequence,
-		Instant plannedDateTime,
+		Instant startDateTime,
+		Instant endDateTime,
 		String sigunguCode
 ) {
 }

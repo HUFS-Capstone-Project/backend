@@ -29,14 +29,14 @@ import lombok.NoArgsConstructor;
 			@Index(name = "idx_date_courses_saved_by_user_id_saved_at", columnList = "saved_by_user_id, saved_at")
 		},
 		uniqueConstraints = {
-			@UniqueConstraint(name = "uq_date_courses_public_id", columnNames = "public_id")
+			@UniqueConstraint(name = "uq_date_courses_date_course_id", columnNames = "date_course_id")
 		}
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class DateCourse extends AuditableEntity {
 
-	@Column(name = "public_id", nullable = false, length = 36)
-	private String publicId;
+	@Column(name = "date_course_id", nullable = false, length = 36)
+	private String dateCourseId;
 
 	@ManyToOne(fetch = FetchType.LAZY, optional = false)
 	@JoinColumn(name = "room_id", nullable = false)
@@ -49,8 +49,11 @@ public class DateCourse extends AuditableEntity {
 	@Column(name = "course_mode", nullable = false, length = 20)
 	private CourseMode courseMode;
 
-	@Column(name = "planned_date_time", nullable = false)
-	private Instant plannedDateTime;
+	@Column(name = "start_date_time", nullable = false)
+	private Instant startDateTime;
+
+	@Column(name = "end_date_time", nullable = false)
+	private Instant endDateTime;
 
 	@Column(name = "generation_batch_id", nullable = false, length = 36)
 	private String generationBatchId;
@@ -71,21 +74,23 @@ public class DateCourse extends AuditableEntity {
 	private Instant savedAt;
 
 	private DateCourse(
-			String publicId,
+			String dateCourseId,
 			Room room,
 			Long createdByUserId,
 			CourseMode courseMode,
-			Instant plannedDateTime,
+			Instant startDateTime,
+			Instant endDateTime,
 			String generationBatchId,
 			String sigunguCode,
 			String categorySequenceJson,
 			String skippedSlotIndicesJson
 	) {
-		this.publicId = publicId;
+		this.dateCourseId = dateCourseId;
 		this.room = room;
 		this.createdByUserId = createdByUserId;
 		this.courseMode = courseMode;
-		this.plannedDateTime = plannedDateTime;
+		this.startDateTime = startDateTime;
+		this.endDateTime = endDateTime;
 		this.generationBatchId = generationBatchId;
 		this.sigunguCode = sigunguCode;
 		this.categorySequenceJson = categorySequenceJson;
@@ -93,22 +98,26 @@ public class DateCourse extends AuditableEntity {
 	}
 
 	public static DateCourse create(
-			String publicId,
+			String dateCourseId,
 			Room room,
 			Long createdByUserId,
 			CourseMode courseMode,
-			Instant plannedDateTime,
+			Instant startDateTime,
+			Instant endDateTime,
 			String generationBatchId,
 			String sigunguCode,
 			String categorySequenceJson,
 			String skippedSlotIndicesJson
 	) {
-		if (publicId == null || room == null || createdByUserId == null || courseMode == null
-				|| plannedDateTime == null || generationBatchId == null
+		if (dateCourseId == null || room == null || createdByUserId == null || courseMode == null
+				|| startDateTime == null || endDateTime == null || generationBatchId == null
 				|| sigunguCode == null || sigunguCode.isBlank()) {
 			throw new IllegalArgumentException("DateCourse required values are missing.");
 		}
-		return new DateCourse(publicId, room, createdByUserId, courseMode, plannedDateTime,
+		if (!startDateTime.isBefore(endDateTime)) {
+			throw new IllegalArgumentException("DateCourse startDateTime must be before endDateTime.");
+		}
+		return new DateCourse(dateCourseId, room, createdByUserId, courseMode, startDateTime, endDateTime,
 				generationBatchId, sigunguCode, categorySequenceJson, skippedSlotIndicesJson);
 	}
 

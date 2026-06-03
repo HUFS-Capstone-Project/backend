@@ -41,11 +41,11 @@ public class DateCourseController implements DateCourseApi {
 	@Override
 	public CommonResponse<Void> saveCourse(
 			@PathVariable String roomId,
-			@PathVariable String coursePublicId,
+			@PathVariable String dateCourseId,
 			@RequestHeader(name = "X-XSRF-TOKEN", required = false) String csrfToken
 	) {
 		Long userId = SecurityUtils.currentUserIdOrThrow();
-		saveService.save(roomId, coursePublicId, userId);
+		saveService.save(roomId, dateCourseId, userId);
 		return CommonResponse.ok(null);
 	}
 
@@ -64,9 +64,9 @@ public class DateCourseController implements DateCourseApi {
 	@Override
 	public CommonResponse<DateCourseResponse> getCourse(
 			@PathVariable String roomId,
-			@PathVariable String coursePublicId
+			@PathVariable String dateCourseId
 	) {
 		Long userId = SecurityUtils.currentUserIdOrThrow();
-		return CommonResponse.ok(DateCourseResponse.from(queryService.getCourse(roomId, coursePublicId, userId)));
+		return CommonResponse.ok(DateCourseResponse.from(queryService.getCourse(roomId, dateCourseId, userId)));
 	}
 }
