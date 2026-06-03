@@ -7,8 +7,9 @@
 --   2. Swagger: GET /api/v1/auth/dev/master-token  → userId 확인
 --   3. Swagger: POST /api/v1/rooms                 → publicId 확인
 --   4. 아래 v_user_id, v_room_pid 값 수정 후 저장
---   5. 터미널에서 실행 (PowerShell):
---        Get-Content scripts/seed-local.sql | docker exec -i udidura-postgres psql -U udidura -d udidura
+--   5. 터미널에서 실행:
+--        bash:       docker exec -i udidura-postgres psql -U udidura -d udidura < scripts/seed-local.sql
+--        PowerShell: Get-Content scripts/seed-local.sql | docker exec -i udidura-postgres psql -U udidura -d udidura
 --
 -- 멱등 스크립트: ON CONFLICT DO NOTHING 사용, 중복 실행 안전
 -- Docker 재시작 후에도 named volume(udidura_pg_data)이 데이터를 유지함
