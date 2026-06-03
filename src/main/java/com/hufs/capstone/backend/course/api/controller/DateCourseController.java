@@ -10,7 +10,9 @@ import com.hufs.capstone.backend.course.application.DateCourseGenerationService;
 import com.hufs.capstone.backend.course.application.DateCourseQueryService;
 import com.hufs.capstone.backend.course.application.DateCourseSaveService;
 import com.hufs.capstone.backend.global.response.CommonResponse;
+import com.hufs.capstone.backend.region.api.response.RegionOptionResponse;
 import jakarta.validation.Valid;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -25,6 +27,14 @@ public class DateCourseController implements DateCourseApi {
 	private final DateCourseGenerationService generationService;
 	private final DateCourseSaveService saveService;
 	private final DateCourseQueryService queryService;
+
+	@Override
+	public CommonResponse<List<RegionOptionResponse>> listCourseGenerationSigungus(@PathVariable String roomId) {
+		Long userId = SecurityUtils.currentUserIdOrThrow();
+		return CommonResponse.ok(queryService.listCourseGenerationSigungus(roomId, userId).stream()
+				.map(RegionOptionResponse::from)
+				.toList());
+	}
 
 	@Override
 	public CommonResponse<DateCourseGenerationResponse> generateCourse(

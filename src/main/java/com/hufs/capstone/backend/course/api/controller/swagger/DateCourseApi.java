@@ -5,10 +5,12 @@ import com.hufs.capstone.backend.course.api.response.DateCourseGenerationRespons
 import com.hufs.capstone.backend.course.api.response.DateCoursePageResponse;
 import com.hufs.capstone.backend.course.api.response.DateCourseResponse;
 import com.hufs.capstone.backend.global.response.CommonResponse;
+import com.hufs.capstone.backend.region.api.response.RegionOptionResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
+import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -22,6 +24,16 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 @RequestMapping("/api/v1/rooms/{roomId}/date-courses")
 @SecurityRequirement(name = "bearer-jwt")
 public interface DateCourseApi {
+
+	@Operation(
+			tags = {"Date course"},
+			summary = "코스 생성용 방 시/군/구 필터 목록 조회 API",
+			description = "방에 저장된 장소에 실제로 존재하는 시/군/구 옵션만 반환합니다. "
+					+ "가상 전체(ALL) 옵션은 포함하지 않습니다."
+	)
+	@ApiResponse(responseCode = "200", description = "OK")
+	@GetMapping("/sigungus")
+	CommonResponse<List<RegionOptionResponse>> listCourseGenerationSigungus(@PathVariable String roomId);
 
 	@Operation(
 			tags = {"Date course"},
@@ -68,7 +80,7 @@ public interface DateCourseApi {
 	@Operation(
 			tags = {"Date course"},
 			summary = "데이트 코스 상세 조회 API",
-			description = "특정 데이트 코스의 장소 목록과 직선 polyline용 orderedCoordinates를 조회합니다."
+			description = "특정 데이트 코스의 장소 목록과 직선 경로(polyline) 렌더링용 orderedCoordinates를 조회합니다."
 	)
 	@ApiResponse(responseCode = "200", description = "OK")
 	@GetMapping("/{dateCourseId}")

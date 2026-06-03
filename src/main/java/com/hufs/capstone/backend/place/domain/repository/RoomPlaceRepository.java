@@ -1,6 +1,7 @@
 package com.hufs.capstone.backend.place.domain.repository;
 
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -42,6 +43,16 @@ public interface RoomPlaceRepository extends JpaRepository<RoomPlace, Long>, Roo
 
 	long countByRoomId(Long roomId);
 
+	@Query("""
+			select distinct rp.sigunguCode as code, rp.sigunguName as name
+			from RoomPlace rp
+			where rp.room.id = :roomId
+			  and rp.sigunguCode is not null
+			  and rp.sigunguCode <> ''
+			order by rp.sigunguCode asc
+			""")
+	List<RoomPlaceSigunguOption> findDistinctSigunguOptionsByRoomId(@Param("roomId") Long roomId);
+
 	long deleteByRoomId(Long roomId);
 
 	@Modifying(flushAutomatically = true, clearAutomatically = true)
@@ -53,4 +64,10 @@ public interface RoomPlaceRepository extends JpaRepository<RoomPlace, Long>, Roo
 			""")
 	int clearOriginRoomLinkByOriginRoomLinkId(@Param("roomLinkId") Long roomLinkId);
 
+	interface RoomPlaceSigunguOption {
+
+		String getCode();
+
+		String getName();
+	}
 }

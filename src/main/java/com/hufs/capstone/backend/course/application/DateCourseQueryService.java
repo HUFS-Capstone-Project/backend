@@ -16,6 +16,8 @@ import com.hufs.capstone.backend.global.exception.ErrorCode;
 import com.hufs.capstone.backend.global.exception.FieldValidationException;
 import com.hufs.capstone.backend.place.domain.entity.Place;
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
+import com.hufs.capstone.backend.place.domain.repository.RoomPlaceRepository;
+import com.hufs.capstone.backend.region.application.dto.RegionOptionResult;
 import com.hufs.capstone.backend.room.application.RoomAccessService;
 import com.hufs.capstone.backend.room.domain.entity.Room;
 import com.hufs.capstone.backend.user.domain.entity.User;
@@ -26,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -45,8 +48,24 @@ public class DateCourseQueryService {
 	private final RoomAccessService roomAccessService;
 	private final DateCourseRepository dateCourseRepository;
 	private final DateCoursePlaceRepository dateCoursePlaceRepository;
+	private final RoomPlaceRepository roomPlaceRepository;
 	private final UserRepository userRepository;
 	private final ObjectMapper objectMapper;
+
+	@Transactional(readOnly = true)
+	public List<RegionOptionResult> listCourseGenerationSigungus(String roomPublicId, Long userId) {
+		Room room = roomAccessService.requireMemberRoom(roomPublicId, userId);
+		List<RoomPlaceRepository.RoomPlaceSigunguOption> options =
+				roomPlaceRepository.findDistinctSigunguOptionsByRoomId(room.getId());
+		return IntStream.range(0, options.size())
+				.mapToObj(index -> new RegionOptionResult(
+						options.get(index).getCode(),
+						options.get(index).getName(),
+						index + 1,
+						false
+				))
+				.toList();
+	}
 
 	@Transactional(readOnly = true)
 	public DateCoursePageResult listSavedCourses(String roomPublicId, Long userId, Integer page, Integer limit) {
