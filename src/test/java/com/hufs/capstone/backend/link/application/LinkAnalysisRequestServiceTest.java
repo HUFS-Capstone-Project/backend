@@ -8,8 +8,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.hufs.capstone.backend.global.exception.BusinessException;
-import com.hufs.capstone.backend.global.exception.ErrorCode;
 import com.hufs.capstone.backend.global.exception.FieldValidationException;
 import com.hufs.capstone.backend.link.application.dto.AnalyzeLinkCommand;
 import com.hufs.capstone.backend.link.application.dto.LinkAnalysisRequestResult;
