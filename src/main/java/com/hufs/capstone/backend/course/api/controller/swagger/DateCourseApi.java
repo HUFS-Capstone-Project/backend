@@ -27,13 +27,24 @@ public interface DateCourseApi {
 
 	@Operation(
 			tags = {"Date course"},
-			summary = "코스 생성용 방 시/군/구 필터 목록 조회 API",
-			description = "방에 저장된 장소에 실제로 존재하는 시/군/구 옵션만 반환합니다. "
-					+ "가상 전체(ALL) 옵션은 포함하지 않습니다."
+			summary = "코스 생성용 방 시/도 필터 목록 조회 API",
+			description = "방에 저장된 장소에 실제로 존재하는 시/도 옵션만 반환합니다."
 	)
 	@ApiResponse(responseCode = "200", description = "OK")
-	@GetMapping("/sigungus")
-	CommonResponse<List<RegionOptionResponse>> listCourseGenerationSigungus(@PathVariable String roomId);
+	@GetMapping("/sidos")
+	CommonResponse<List<RegionOptionResponse>> listCourseGenerationSidos(@PathVariable String roomId);
+
+	@Operation(
+			tags = {"Date course"},
+			summary = "코스 생성용 방 시/군/구 필터 목록 조회 API",
+			description = "선택한 시/도에 속하며 방에 저장된 장소에 실제로 존재하는 시/군/구 옵션만 반환합니다."
+	)
+	@ApiResponse(responseCode = "200", description = "OK")
+	@GetMapping("/sidos/{sidoCode}/sigungus")
+	CommonResponse<List<RegionOptionResponse>> listCourseGenerationSigungus(
+			@PathVariable String roomId,
+			@PathVariable String sidoCode
+	);
 
 	@Operation(
 			tags = {"Date course"},

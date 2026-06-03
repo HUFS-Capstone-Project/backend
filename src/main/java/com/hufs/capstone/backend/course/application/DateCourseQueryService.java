@@ -51,10 +51,33 @@ public class DateCourseQueryService {
 	private final ObjectMapper objectMapper;
 
 	@Transactional(readOnly = true)
-	public List<RegionOptionResult> listCourseGenerationSigungus(String roomPublicId, Long userId) {
+	public List<RegionOptionResult> listCourseGenerationSidos(String roomPublicId, Long userId) {
 		Room room = roomAccessService.requireMemberRoom(roomPublicId, userId);
-		List<RoomPlaceRepository.RoomPlaceSigunguOption> options =
-				roomPlaceRepository.findDistinctSigunguOptionsByRoomId(room.getId());
+		return toRegionOptions(roomPlaceRepository.findDistinctSidoOptionsByRoomId(room.getId()));
+	}
+
+	@Transactional(readOnly = true)
+	public List<RegionOptionResult> listCourseGenerationSigungus(String roomPublicId, String sidoCode, Long userId) {
+		Room room = roomAccessService.requireMemberRoom(roomPublicId, userId);
+		String normalizedSidoCode = requireSidoSavedInRoom(room.getId(), sidoCode);
+		return toRegionOptions(
+				roomPlaceRepository.findDistinctSigunguOptionsByRoomIdAndSidoCode(room.getId(), normalizedSidoCode)
+		);
+	}
+
+	private String requireSidoSavedInRoom(Long roomId, String sidoCode) {
+		if (sidoCode == null || sidoCode.isBlank()) {
+			throw new FieldValidationException("sidoCode", "시/도 코드는 필수입니다.", sidoCode);
+		}
+		String normalized = sidoCode.trim();
+		if (!roomPlaceRepository.existsByRoomIdAndSidoCode(roomId, normalized)) {
+			throw new FieldValidationException(
+					"sidoCode", "이 방에 저장된 시/도가 아닙니다.", sidoCode);
+		}
+		return normalized;
+	}
+
+	private static List<RegionOptionResult> toRegionOptions(List<RoomPlaceRepository.RoomPlaceRegionOption> options) {
 		return IntStream.range(0, options.size())
 				.mapToObj(index -> new RegionOptionResult(
 						options.get(index).getCode(),

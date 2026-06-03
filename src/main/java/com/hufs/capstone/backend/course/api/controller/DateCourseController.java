@@ -29,9 +29,20 @@ public class DateCourseController implements DateCourseApi {
 	private final DateCourseQueryService queryService;
 
 	@Override
-	public CommonResponse<List<RegionOptionResponse>> listCourseGenerationSigungus(@PathVariable String roomId) {
+	public CommonResponse<List<RegionOptionResponse>> listCourseGenerationSidos(@PathVariable String roomId) {
 		Long userId = SecurityUtils.currentUserIdOrThrow();
-		return CommonResponse.ok(queryService.listCourseGenerationSigungus(roomId, userId).stream()
+		return CommonResponse.ok(queryService.listCourseGenerationSidos(roomId, userId).stream()
+				.map(RegionOptionResponse::from)
+				.toList());
+	}
+
+	@Override
+	public CommonResponse<List<RegionOptionResponse>> listCourseGenerationSigungus(
+			@PathVariable String roomId,
+			@PathVariable String sidoCode
+	) {
+		Long userId = SecurityUtils.currentUserIdOrThrow();
+		return CommonResponse.ok(queryService.listCourseGenerationSigungus(roomId, sidoCode, userId).stream()
 				.map(RegionOptionResponse::from)
 				.toList());
 	}
