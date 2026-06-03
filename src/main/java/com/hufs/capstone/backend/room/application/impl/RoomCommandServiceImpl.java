@@ -2,6 +2,7 @@ package com.hufs.capstone.backend.room.application.impl;
 
 import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
+import com.hufs.capstone.backend.global.exception.FieldValidationException;
 import com.hufs.capstone.backend.room.application.RoomAccessService;
 import com.hufs.capstone.backend.room.application.RoomCommandService;
 import com.hufs.capstone.backend.room.application.RoomInviteCodeGenerator;
@@ -60,7 +61,7 @@ public class RoomCommandServiceImpl implements RoomCommandService {
 
 		String normalizedInviteCode = requireInviteCode(inviteCode);
 		Room room = roomRepository.findByInviteCodeForUpdate(normalizedInviteCode)
-				.orElseThrow(() -> new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "유효하지 않은 초대코드입니다."));
+				.orElseThrow(() -> new FieldValidationException("inviteCode", "유효하지 않은 초대코드입니다.", inviteCode));
 
 		if (roomMemberRepository.existsByRoomAndUserId(room, userId)) {
 			throw new BusinessException(ErrorCode.E409_CONFLICT, "이미 참여한 방입니다.");
@@ -138,7 +139,7 @@ public class RoomCommandServiceImpl implements RoomCommandService {
 
 	private static String requireInviteCode(String inviteCode) {
 		if (inviteCode == null || inviteCode.isBlank()) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "초대코드는 필수입니다.");
+			throw new FieldValidationException("inviteCode", "초대코드는 필수입니다.");
 		}
 		return inviteCode.trim();
 	}

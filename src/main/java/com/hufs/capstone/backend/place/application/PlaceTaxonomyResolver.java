@@ -82,7 +82,7 @@ public class PlaceTaxonomyResolver {
 		PlaceTag fallbackTag = activeTags.stream()
 				.filter(tag -> KakaoCategoryGroupPolicy.FALLBACK_TAG_CODE.equals(tag.getCode()))
 				.findFirst()
-				.orElseThrow(() -> taxonomyConfigurationError("Missing fallback place tag: " + categoryCode + ".MISC"));
+				.orElseThrow(() -> taxonomyConfigurationError("폴백 장소 태그가 없습니다: " + categoryCode + ".MISC"));
 		PlaceTag matchedTag;
 		if (override == null) {
 			matchedTag = matchTag(kakaoCategoryName, activeTags, fallbackTag);
@@ -106,7 +106,7 @@ public class PlaceTaxonomyResolver {
 
 	private PlaceCategory findCategory(String categoryCode) {
 		return placeCategoryRepository.findByCode(categoryCode)
-				.orElseThrow(() -> taxonomyConfigurationError("Missing place category: " + categoryCode));
+				.orElseThrow(() -> taxonomyConfigurationError("장소 카테고리가 없습니다: " + categoryCode));
 	}
 
 	private List<PlaceTag> findActiveTags(PlaceCategory category) {
@@ -120,7 +120,7 @@ public class PlaceTaxonomyResolver {
 				.filter(tag -> override.tagCode().equals(tag.getCode()))
 				.findFirst()
 				.orElseThrow(() -> taxonomyConfigurationError(
-						"Missing override place tag: " + override.categoryCode() + "." + override.tagCode()
+						"오버라이드 장소 태그가 없습니다: " + override.categoryCode() + "." + override.tagCode()
 				));
 	}
 

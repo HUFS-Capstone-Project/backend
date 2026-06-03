@@ -33,7 +33,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
 import org.springframework.security.web.csrf.CsrfTokenRepository;
-import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
@@ -101,9 +100,6 @@ public class AuthController implements AuthCommonApi, AuthWebApi, AuthMobileApi 
 			HttpServletRequest servletRequest,
 			@RequestHeader(name = "X-Client-Platform", required = false) String clientPlatform
 	) {
-		if (!StringUtils.hasText(request.refreshToken())) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "리프레시 토큰이 필요합니다.");
-		}
 		TokenPair rotated = tokenLifecycleService.rotate(
 				request.refreshToken(),
 				authLoginService.createAppClientContext(servletRequest.getHeader("User-Agent"), servletRequest.getRemoteAddr(), clientPlatform)
@@ -136,9 +132,6 @@ public class AuthController implements AuthCommonApi, AuthWebApi, AuthMobileApi 
 
 	@Override
 	public CommonResponse<Void> mobileLogout(@Valid @RequestBody LogoutRequest request) {
-		if (!StringUtils.hasText(request.refreshToken())) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "리프레시 토큰이 필요합니다.");
-		}
 		tokenLifecycleService.revokeByRawToken(request.refreshToken(), RevokeReason.LOGOUT);
 		return CommonResponse.okMessage("로그아웃되었습니다.");
 	}

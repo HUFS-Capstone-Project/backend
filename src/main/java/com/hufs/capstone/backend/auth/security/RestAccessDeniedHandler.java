@@ -29,7 +29,7 @@ public class RestAccessDeniedHandler implements AccessDeniedHandler {
 	) throws IOException, ServletException {
 		ProblemDetail detail = ProblemDetailFactory.create(
 				ErrorCode.E403_FORBIDDEN,
-				accessDeniedException.getMessage(),
+				ErrorCode.E403_FORBIDDEN.getDefaultMessage(),
 				null,
 				URI.create(request.getRequestURI())
 		);

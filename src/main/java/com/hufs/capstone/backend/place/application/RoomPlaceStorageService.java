@@ -157,19 +157,19 @@ public class RoomPlaceStorageService {
 
 	private static void validateSnapshot(PlaceSnapshot snapshot) {
 		if (snapshot == null || snapshot.source() == null) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "Place snapshot is required.");
+			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "장소 스냅샷은 필수입니다.");
 		}
 		if (snapshot.externalPlaceId() == null || snapshot.externalPlaceId().isBlank()) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "externalPlaceId is required.");
+			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "externalPlaceId는 필수입니다.");
 		}
 		if (!snapshot.hasKakaoPlaceId()) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "kakaoPlaceId is required.");
+			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "kakaoPlaceId는 필수입니다.");
 		}
 	}
 
 	private static void validateOriginRoomLink(RoomLink originRoomLink) {
 		if (originRoomLink == null || originRoomLink.getLink() == null) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "Room place must be saved from a link.");
+			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "방 장소는 링크를 통해 저장해야 합니다.");
 		}
 	}
 

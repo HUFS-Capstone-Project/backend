@@ -4,7 +4,7 @@ import com.hufs.capstone.backend.course.application.dto.CategorySlotCommand;
 import jakarta.validation.constraints.NotBlank;
 
 public record CategorySlotRequest(
-		@NotBlank String categoryCode,
+		@NotBlank(message = "카테고리 코드는 필수입니다.") String categoryCode,
 		String tagCode
 ) {
 

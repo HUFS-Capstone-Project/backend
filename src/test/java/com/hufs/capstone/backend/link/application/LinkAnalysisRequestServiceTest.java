@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 
 import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
+import com.hufs.capstone.backend.global.exception.FieldValidationException;
 import com.hufs.capstone.backend.link.application.dto.AnalyzeLinkCommand;
 import com.hufs.capstone.backend.link.application.dto.LinkAnalysisRequestResult;
 import com.hufs.capstone.backend.link.domain.LinkAnalysisStatus;
@@ -144,8 +145,12 @@ class LinkAnalysisRequestServiceTest {
 				"  ",
 				new AnalyzeLinkCommand("https://example.com/x", null)
 		))
-				.isInstanceOf(BusinessException.class)
-				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.E400_ILLEGAL_ARGUMENT));
+				.isInstanceOf(FieldValidationException.class)
+				.satisfies(ex -> assertThat(((FieldValidationException) ex).getFieldErrors())
+						.anySatisfy(error -> {
+							assertThat(error.field()).isEqualTo("roomId");
+							assertThat(error.message()).isEqualTo("방 ID는 필수입니다.");
+						}));
 	}
 
 	private static Link link(Long id, String processingJobId, LinkAnalysisStatus status) {

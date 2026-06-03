@@ -19,7 +19,7 @@
 
 - 리소스는 **복수형 명사** 위주로 표현한다 (`/api/v1/users`, `/api/v1/courses`).
 - HTTP 메서드: 조회 `GET`, 생성 `POST`, 수정 `PUT` 또는 `PATCH`, 삭제 `DELETE`.
-- 응답·에러 형식은 애플리케이션 전역 규칙(`ProblemDetail`, 공통 응답 래퍼 등)을 따른다.
+- 응답·에러 형식은 애플리케이션 전역 규칙(`ProblemDetail`, 공통 응답 래퍼 등)을 따른다. 에러 응답 계약은 [`error-response.md`](./error-response.md)를 따른다.
 
 ## 현재 엔드포인트 예시
 

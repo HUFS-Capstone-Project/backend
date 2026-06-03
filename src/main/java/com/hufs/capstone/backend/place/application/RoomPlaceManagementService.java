@@ -49,7 +49,7 @@ public class RoomPlaceManagementService {
 
 	private RoomPlace getRoomPlaceOrThrow(Long roomId, Long roomPlaceId) {
 		return roomPlaceRepository.findByIdAndRoomId(roomPlaceId, roomId)
-				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "Room place not found."));
+				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "방 장소를 찾을 수 없습니다."));
 	}
 
 	private static String trimToNull(String value) {

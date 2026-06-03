@@ -14,13 +14,13 @@ public class PkceService {
 
 	public void verify(String codeChallenge, String method, String codeVerifier) {
 		if (!StringUtils.hasText(codeChallenge)) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "code challenge 값이 필요합니다.");
+			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "코드 챌린지는 필수입니다.");
 		}
 		if (!StringUtils.hasText(codeVerifier)) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "code verifier 값이 필요합니다.");
+			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "코드 검증값(verifier)은 필수입니다.");
 		}
 		if (!"S256".equalsIgnoreCase(method)) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "code challenge method는 S256만 지원합니다.");
+			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "코드 챌린지 방식은 S256만 지원합니다.");
 		}
 		String computed = s256(codeVerifier);
 		if (!computed.equals(codeChallenge)) {

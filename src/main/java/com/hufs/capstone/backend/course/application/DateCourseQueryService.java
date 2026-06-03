@@ -13,6 +13,7 @@ import com.hufs.capstone.backend.course.domain.repository.DateCoursePlaceReposit
 import com.hufs.capstone.backend.course.domain.repository.DateCourseRepository;
 import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
+import com.hufs.capstone.backend.global.exception.FieldValidationException;
 import com.hufs.capstone.backend.place.domain.entity.Place;
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
 import com.hufs.capstone.backend.room.application.RoomAccessService;
@@ -20,6 +21,7 @@ import com.hufs.capstone.backend.room.domain.entity.Room;
 import com.hufs.capstone.backend.user.domain.entity.User;
 import com.hufs.capstone.backend.user.domain.repository.UserRepository;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -52,10 +54,10 @@ public class DateCourseQueryService {
 		int normalizedPage = page == null ? DEFAULT_PAGE : page;
 		int normalizedLimit = limit == null ? DEFAULT_LIMIT : limit;
 		if (normalizedPage < 0) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "page must be >= 0.");
+			throw new FieldValidationException("page", "page는 0 이상이어야 합니다.", normalizedPage);
 		}
 		if (normalizedLimit < 1 || normalizedLimit > MAX_LIMIT) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "limit must be between 1 and 100.");
+			throw new FieldValidationException("limit", "limit는 1~100 사이여야 합니다.", normalizedLimit);
 		}
 
 		Page<DateCourse> coursePage = dateCourseRepository.findSavedByRoomIdOrderBySavedAtDesc(
@@ -85,10 +87,10 @@ public class DateCourseQueryService {
 	}
 
 	@Transactional(readOnly = true)
-	public DateCourseResult getCourse(String roomPublicId, String coursePublicId, Long userId) {
+	public DateCourseResult getCourse(String roomPublicId, String dateCourseId, Long userId) {
 		Room room = roomAccessService.requireMemberRoom(roomPublicId, userId);
 
-		DateCourse course = dateCourseRepository.findByPublicIdAndRoomId(coursePublicId, room.getId())
+		DateCourse course = dateCourseRepository.findByDateCourseIdAndRoomId(dateCourseId, room.getId())
 				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "코스를 찾을 수 없습니다."));
 
 		List<DateCoursePlace> places = dateCoursePlaceRepository.findWithRoomPlacesByCourseIdIn(List.of(course.getId()));
@@ -103,10 +105,10 @@ public class DateCourseQueryService {
 		int normalizedPage = page == null ? DEFAULT_PAGE : page;
 		int normalizedLimit = limit == null ? DEFAULT_LIMIT : limit;
 		if (normalizedPage < 0) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "page must be >= 0.");
+			throw new FieldValidationException("page", "page는 0 이상이어야 합니다.", normalizedPage);
 		}
 		if (normalizedLimit < 1 || normalizedLimit > MAX_LIMIT) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "limit must be between 1 and 100.");
+			throw new FieldValidationException("limit", "limit는 1~100 사이여야 합니다.", normalizedLimit);
 		}
 
 		Page<DateCourse> coursePage = dateCourseRepository.findSavedByUserIdOrderBySavedAtDesc(
@@ -142,14 +144,16 @@ public class DateCourseQueryService {
 
 	private DateCourseResult toCourseResult(DateCourse course, List<DateCoursePlace> places, User saver) {
 		List<DateCoursePlaceResult> placeResults = places.stream()
+				.sorted(Comparator.comparingInt(DateCoursePlace::getSequenceOrder))
 				.map(dcp -> toPlaceResult(dcp.getRoomPlace(), dcp.getSequenceOrder()))
 				.toList();
 
 		return new DateCourseResult(
-				course.getPublicId(),
+				course.getDateCourseId(),
 				course.getCourseMode(),
 				course.getGenerationBatchId(),
-				course.getPlannedDateTime(),
+				course.getStartDateTime(),
+				course.getEndDateTime(),
 				course.getCreatedAt(),
 				placeResults,
 				parseSkipped(course.getSkippedSlotIndicesJson()),
@@ -162,15 +166,17 @@ public class DateCourseQueryService {
 
 	private MyDateCourseResult toMyResult(DateCourse course, List<DateCoursePlace> places) {
 		List<DateCoursePlaceResult> placeResults = places.stream()
+				.sorted(Comparator.comparingInt(DateCoursePlace::getSequenceOrder))
 				.map(dcp -> toPlaceResult(dcp.getRoomPlace(), dcp.getSequenceOrder()))
 				.toList();
 
 		Room room = course.getRoom();
 		return new MyDateCourseResult(
-				course.getPublicId(),
+				course.getDateCourseId(),
 				course.getCourseMode(),
 				course.getGenerationBatchId(),
-				course.getPlannedDateTime(),
+				course.getStartDateTime(),
+				course.getEndDateTime(),
 				course.getSavedAt(),
 				room.getPublicId(),
 				room.getName(),

@@ -18,6 +18,7 @@ import com.hufs.capstone.backend.external.processing.dto.ProcessingJobResponse;
 import com.hufs.capstone.backend.external.processing.dto.ProcessingJobResultResponse;
 import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
+import com.hufs.capstone.backend.global.exception.FieldValidationException;
 import com.hufs.capstone.backend.link.application.dto.AnalyzeLinkCommand;
 import com.hufs.capstone.backend.link.application.dto.LinkAnalysisResult;
 import com.hufs.capstone.backend.link.application.dto.LinkAnalysisRequestResult;
@@ -726,16 +727,24 @@ class LinkConcurrencyIntegrationTest {
 				analysisRequestId,
 				new SaveRoomPlacesCommand(List.of("123456789", "123456789"))
 		))
-				.isInstanceOf(BusinessException.class)
-				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.E400_ILLEGAL_ARGUMENT));
+				.isInstanceOf(FieldValidationException.class)
+				.satisfies(ex -> assertThat(((FieldValidationException) ex).getFieldErrors())
+						.anySatisfy(error -> {
+							assertThat(error.field()).isEqualTo("kakaoPlaceIds");
+							assertThat(error.message()).isEqualTo("중복된 카카오 장소 ID를 포함할 수 없습니다.");
+						}));
 		assertThatThrownBy(() -> roomPlaceCommandService.saveRoomPlaces(
 				MEMBER_USER_ID,
 				ROOM_A_PUBLIC_ID,
 				analysisRequestId,
 				new SaveRoomPlacesCommand(List.of("missing"))
 		))
-				.isInstanceOf(BusinessException.class)
-				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.E400_ILLEGAL_ARGUMENT));
+				.isInstanceOf(FieldValidationException.class)
+				.satisfies(ex -> assertThat(((FieldValidationException) ex).getFieldErrors())
+						.anySatisfy(error -> {
+							assertThat(error.field()).isEqualTo("kakaoPlaceIds");
+							assertThat(error.message()).isEqualTo("요청한 장소가 링크 후보에 포함되어 있지 않습니다.");
+						}));
 		assertThat(roomPlaceRepository.countByRoomId(roomA.getId())).isZero();
 	}
 
