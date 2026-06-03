@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 
 import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
+import com.hufs.capstone.backend.global.exception.FieldValidationException;
 import com.hufs.capstone.backend.room.api.response.CreateRoomResponse;
 import com.hufs.capstone.backend.room.application.dto.CreateRoomResult;
 import com.hufs.capstone.backend.room.application.dto.JoinRoomResult;
@@ -108,8 +109,12 @@ class RoomCommandServiceTest {
 		when(roomRepository.findByInviteCodeForUpdate("INVITE123456")).thenReturn(Optional.empty());
 
 		assertThatThrownBy(() -> roomCommandService.joinByInviteCode(USER_ID, "INVITE123456", "127.0.0.1"))
-				.isInstanceOf(BusinessException.class)
-				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.E400_ILLEGAL_ARGUMENT));
+				.isInstanceOf(FieldValidationException.class)
+				.satisfies(ex -> assertThat(((FieldValidationException) ex).getFieldErrors())
+						.anySatisfy(error -> {
+							assertThat(error.field()).isEqualTo("inviteCode");
+							assertThat(error.message()).isEqualTo("유효하지 않은 초대코드입니다.");
+						}));
 	}
 
 	@Test
@@ -154,8 +159,12 @@ class RoomCommandServiceTest {
 	@Test
 	void renameRoomShouldRejectBlankName() {
 		assertThatThrownBy(() -> roomCommandService.renameRoom(USER_ID, "room-id", "   "))
-				.isInstanceOf(BusinessException.class)
-				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.E400_ILLEGAL_ARGUMENT));
+				.isInstanceOf(FieldValidationException.class)
+				.satisfies(ex -> assertThat(((FieldValidationException) ex).getFieldErrors())
+						.anySatisfy(error -> {
+							assertThat(error.field()).isEqualTo("name");
+							assertThat(error.message()).isEqualTo("방 이름은 필수입니다.");
+						}));
 	}
 
 	@Test
@@ -163,8 +172,12 @@ class RoomCommandServiceTest {
 		String tooLongName = "a".repeat(21);
 
 		assertThatThrownBy(() -> roomCommandService.renameRoom(USER_ID, "room-id", tooLongName))
-				.isInstanceOf(BusinessException.class)
-				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.E400_ILLEGAL_ARGUMENT));
+				.isInstanceOf(FieldValidationException.class)
+				.satisfies(ex -> assertThat(((FieldValidationException) ex).getFieldErrors())
+						.anySatisfy(error -> {
+							assertThat(error.field()).isEqualTo("name");
+							assertThat(error.message()).isEqualTo("방 이름은 20자를 초과할 수 없습니다.");
+						}));
 	}
 
 	@Test
@@ -172,7 +185,7 @@ class RoomCommandServiceTest {
 		Room room = room("11111111-1111-1111-1111-111111111111");
 		when(roomAccessService.getRoomOrThrow(room.getPublicId())).thenReturn(room);
 		when(roomAccessService.getMembershipOrThrow(room, USER_ID))
-				.thenThrow(new BusinessException(ErrorCode.E403_FORBIDDEN, "Room access denied."));
+				.thenThrow(new BusinessException(ErrorCode.E403_FORBIDDEN, "방 접근 권한이 없습니다."));
 
 		assertThatThrownBy(() -> roomCommandService.renameRoom(USER_ID, room.getPublicId(), "New Name"))
 				.isInstanceOf(BusinessException.class)
@@ -196,7 +209,7 @@ class RoomCommandServiceTest {
 		Room room = room("11111111-1111-1111-1111-111111111111");
 		when(roomAccessService.getRoomOrThrow(room.getPublicId())).thenReturn(room);
 		when(roomAccessService.getMembershipOrThrow(room, USER_ID))
-				.thenThrow(new BusinessException(ErrorCode.E403_FORBIDDEN, "Room access denied."));
+				.thenThrow(new BusinessException(ErrorCode.E403_FORBIDDEN, "방 접근 권한이 없습니다."));
 
 		assertThatThrownBy(() -> roomCommandService.updateRoomPin(USER_ID, room.getPublicId(), true))
 				.isInstanceOf(BusinessException.class)

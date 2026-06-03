@@ -50,6 +50,10 @@ class RegionControllerIntegrationTest {
 	@WithMockUser
 	void shouldRejectInvalidSidoCode() throws Exception {
 		mockMvc.perform(get("/api/v1/regions/sidos/99/sigungus"))
-				.andExpect(status().isBadRequest());
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("E400_VALIDATION"))
+				.andExpect(jsonPath("$.detail").value("입력값을 확인해 주세요."))
+				.andExpect(jsonPath("$.fieldErrors[0].field").value("sidoCode"))
+				.andExpect(jsonPath("$.fieldErrors[0].message").value("유효하지 않은 시/도 코드입니다."));
 	}
 }

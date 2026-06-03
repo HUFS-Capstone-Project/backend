@@ -56,7 +56,7 @@ public class LinkAnalysisStatusWriteService {
 	) {
 		for (int retry = 0; retry < MAX_CAS_RETRY; retry++) {
 			Link current = linkRepository.findById(linkId)
-					.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "Link not found."));
+					.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "링크를 찾을 수 없습니다."));
 
 			if (current.isTerminal()) {
 				return linkAnalysisResultAssembler.from(current);
@@ -70,7 +70,7 @@ public class LinkAnalysisStatusWriteService {
 			int updated = executeCasUpdate(current, plan);
 			if (updated == 1) {
 				Link refreshed = linkRepository.findById(linkId)
-						.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "Link not found."));
+						.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "링크를 찾을 수 없습니다."));
 				if (plan.targetStatus() == LinkAnalysisStatus.SUCCEEDED) {
 					linkCandidateSyncService.replaceCandidates(
 							refreshed,
@@ -84,7 +84,7 @@ public class LinkAnalysisStatusWriteService {
 
 		log.warn("CAS update conflict. Returning latest link analysis status. linkId={}, targetStatus={}", linkId, targetStatus);
 		Link latest = linkRepository.findById(linkId)
-				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "Link not found."));
+				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "링크를 찾을 수 없습니다."));
 		return linkAnalysisResultAssembler.from(latest);
 	}
 

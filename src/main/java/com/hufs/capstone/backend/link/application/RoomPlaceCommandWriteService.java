@@ -2,6 +2,7 @@ package com.hufs.capstone.backend.link.application;
 
 import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
+import com.hufs.capstone.backend.global.exception.FieldValidationException;
 import com.hufs.capstone.backend.link.application.dto.SaveManualRoomPlaceCommand;
 import com.hufs.capstone.backend.link.application.dto.SaveRoomPlacesCommand;
 import com.hufs.capstone.backend.link.domain.LinkAnalysisStatus;
@@ -55,7 +56,7 @@ public class RoomPlaceCommandWriteService {
 				linkAnalysisAuthorizationService.requireAnalysisRequestForUpdate(userId, roomId, analysisRequestId);
 		Link link = analysisRequest.getLink();
 		if (link.getStatus() != LinkAnalysisStatus.SUCCEEDED) {
-			throw new BusinessException(ErrorCode.E409_CONFLICT, "Link analysis is not completed.");
+			throw new BusinessException(ErrorCode.E409_CONFLICT, "링크 분석이 완료되지 않았습니다.");
 		}
 
 		Map<String, PlaceSnapshot> candidatesByKakaoPlaceId =
@@ -87,7 +88,7 @@ public class RoomPlaceCommandWriteService {
 			SaveManualRoomPlaceCommand command
 	) {
 		if (command == null || command.snapshot() == null) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "Place snapshot is required.");
+			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "장소 스냅샷은 필수입니다.");
 		}
 		LinkAnalysisRequest analysisRequest =
 				linkAnalysisAuthorizationService.requireAnalysisRequestForUpdate(userId, roomId, analysisRequestId);
@@ -117,7 +118,7 @@ public class RoomPlaceCommandWriteService {
 			throw new RoomLinkDuplicateRaceException(room.getPublicId(), link.getId(), ex);
 		} catch (DataAccessException ex) {
 			log.error("Room link save failed. roomId={}, linkId={}", room.getPublicId(), link.getId(), ex);
-			throw new BusinessException(ErrorCode.E500_INTERNAL, "Room link save failed.", ex);
+			throw new BusinessException(ErrorCode.E500_INTERNAL, "방 링크 저장에 실패했습니다.", ex);
 		}
 	}
 
@@ -151,23 +152,23 @@ public class RoomPlaceCommandWriteService {
 				.filter(kakaoPlaceId -> !candidateKakaoPlaceIds.contains(kakaoPlaceId))
 				.toList();
 		if (!invalidIds.isEmpty()) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "Requested place is not in link candidates.");
+			throw new FieldValidationException("kakaoPlaceIds", "요청한 장소가 링크 후보에 포함되어 있지 않습니다.", invalidIds);
 		}
 	}
 
 	private static List<String> normalizeAndValidate(List<String> kakaoPlaceIds) {
 		if (kakaoPlaceIds == null || kakaoPlaceIds.isEmpty()) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "kakaoPlaceIds is required.");
+			throw new FieldValidationException("kakaoPlaceIds", "저장할 장소는 필수입니다.");
 		}
 		List<String> normalized = kakaoPlaceIds.stream()
 				.map(kakaoPlaceId -> kakaoPlaceId == null ? "" : kakaoPlaceId.trim())
 				.toList();
 		if (normalized.stream().anyMatch(String::isBlank)) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "kakaoPlaceIds must not contain blank values.");
+			throw new FieldValidationException("kakaoPlaceIds", "카카오 장소 ID는 필수입니다.");
 		}
 		LinkedHashSet<String> distinct = new LinkedHashSet<>(normalized);
 		if (distinct.size() != normalized.size()) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "kakaoPlaceIds must not contain duplicates.");
+			throw new FieldValidationException("kakaoPlaceIds", "중복된 카카오 장소 ID를 포함할 수 없습니다.");
 		}
 		return List.copyOf(distinct);
 	}

@@ -1,7 +1,6 @@
 package com.hufs.capstone.backend.place.application.dto;
 
-import com.hufs.capstone.backend.global.exception.BusinessException;
-import com.hufs.capstone.backend.global.exception.ErrorCode;
+import com.hufs.capstone.backend.global.exception.FieldValidationException;
 
 public record ExternalPlaceCandidateSearchQuery(
 		String keyword,
@@ -21,11 +20,11 @@ public record ExternalPlaceCandidateSearchQuery(
 	) {
 		String normalizedKeyword = trimToNull(keyword);
 		if (normalizedKeyword == null) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "keyword is required.");
+			throw new FieldValidationException("keyword", "검색어는 필수입니다.");
 		}
 		int normalizedLimit = limit == null ? DEFAULT_LIMIT : limit;
 		if (normalizedLimit < 1 || normalizedLimit > MAX_LIMIT) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "limit must be between 1 and 15.");
+			throw new FieldValidationException("limit", "limit는 1~15 사이여야 합니다.", normalizedLimit);
 		}
 		return new ExternalPlaceCandidateSearchQuery(
 				normalizedKeyword,

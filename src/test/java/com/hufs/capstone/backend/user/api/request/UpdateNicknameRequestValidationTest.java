@@ -34,7 +34,11 @@ class UpdateNicknameRequestValidationTest {
 
 		Set<ConstraintViolation<UpdateNicknameRequest>> violations = validator.validate(request);
 
-		assertThat(violations).anyMatch(v -> "nickname".equals(v.getPropertyPath().toString()));
+		assertThat(violations)
+				.anySatisfy(v -> {
+					assertThat(v.getPropertyPath().toString()).isEqualTo("nickname");
+					assertThat(v.getMessage()).isEqualTo("닉네임은 필수입니다.");
+				});
 	}
 
 	@Test
@@ -43,6 +47,10 @@ class UpdateNicknameRequestValidationTest {
 
 		Set<ConstraintViolation<UpdateNicknameRequest>> violations = validator.validate(request);
 
-		assertThat(violations).anyMatch(v -> "nickname".equals(v.getPropertyPath().toString()));
+		assertThat(violations)
+				.anySatisfy(v -> {
+					assertThat(v.getPropertyPath().toString()).isEqualTo("nickname");
+					assertThat(v.getMessage()).isEqualTo("닉네임은 최대 10자까지 가능합니다.");
+				});
 	}
 }

@@ -1,7 +1,6 @@
 package com.hufs.capstone.backend.region.application.impl;
 
-import com.hufs.capstone.backend.global.exception.BusinessException;
-import com.hufs.capstone.backend.global.exception.ErrorCode;
+import com.hufs.capstone.backend.global.exception.FieldValidationException;
 import com.hufs.capstone.backend.region.application.RegionQueryService;
 import com.hufs.capstone.backend.region.application.dto.RegionFilter;
 import com.hufs.capstone.backend.region.application.dto.RegionOptionResult;
@@ -46,7 +45,7 @@ public class RegionQueryServiceImpl implements RegionQueryService {
 	public List<RegionOptionResult> getSigungus(String sidoCode) {
 		String normalizedSidoCode = normalize(sidoCode);
 		RegionSido sido = regionSidoRepository.findByCodeAndActiveTrue(normalizedSidoCode)
-				.orElseThrow(() -> invalidRegion("Invalid sidoCode."));
+				.orElseThrow(() -> invalidRegion("sidoCode", "유효하지 않은 시/도 코드입니다.", sidoCode));
 		List<RegionSigungu> sigungus = regionSigunguRepository.findActiveBySidoCode(sido.getCode());
 		List<RegionOptionResult> results = new ArrayList<>(sigungus.size() + 1);
 		results.add(allOption());
@@ -70,17 +69,17 @@ public class RegionQueryServiceImpl implements RegionQueryService {
 			return new RegionFilter(null, null);
 		}
 		if (normalizedSidoCode == null) {
-			throw invalidRegion("sidoCode is required when sigunguCode is provided.");
+			throw invalidRegion("sidoCode", "시/군/구 코드가 있으면 시/도 코드는 필수입니다.", sidoCode);
 		}
 		RegionSido sido = regionSidoRepository.findByCodeAndActiveTrue(normalizedSidoCode)
-				.orElseThrow(() -> invalidRegion("Invalid sidoCode."));
+				.orElseThrow(() -> invalidRegion("sidoCode", "유효하지 않은 시/도 코드입니다.", sidoCode));
 		if (normalizedSigunguCode == null) {
 			return new RegionFilter(sido.getCode(), null);
 		}
 		RegionSigungu sigungu = regionSigunguRepository.findActiveByCode(normalizedSigunguCode)
-				.orElseThrow(() -> invalidRegion("Invalid sigunguCode."));
+				.orElseThrow(() -> invalidRegion("sigunguCode", "유효하지 않은 시/군/구 코드입니다.", sigunguCode));
 		if (!sido.getCode().equals(sigungu.getSido().getCode())) {
-			throw invalidRegion("sidoCode and sigunguCode do not match.");
+			throw invalidRegion("sigunguCode", "시/도 코드와 시/군/구 코드가 일치하지 않습니다.", sigunguCode);
 		}
 		return new RegionFilter(sido.getCode(), sigungu.getCode());
 	}
@@ -100,7 +99,7 @@ public class RegionQueryServiceImpl implements RegionQueryService {
 		return trimmed;
 	}
 
-	private static BusinessException invalidRegion(String message) {
-		return new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, message);
+	private static FieldValidationException invalidRegion(String field, String message, Object rejectedValue) {
+		return new FieldValidationException(field, message, rejectedValue);
 	}
 }

@@ -1,7 +1,6 @@
 package com.hufs.capstone.backend.link.application;
 
-import com.hufs.capstone.backend.global.exception.BusinessException;
-import com.hufs.capstone.backend.global.exception.ErrorCode;
+import com.hufs.capstone.backend.global.exception.FieldValidationException;
 import com.hufs.capstone.backend.link.application.dto.AnalyzeLinkCommand;
 import com.hufs.capstone.backend.link.application.dto.LinkAnalysisRequestResult;
 import com.hufs.capstone.backend.link.domain.repository.LinkRepository;
@@ -102,7 +101,7 @@ public class LinkAnalysisRequestService {
 
 	private static String requireRoomId(String roomId) {
 		if (roomId == null || roomId.isBlank()) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "방 ID는 필수입니다.");
+			throw new FieldValidationException("roomId", "방 ID는 필수입니다.");
 		}
 		return roomId.trim();
 	}

@@ -9,4 +9,15 @@ public record FieldErrorDetail(String field, String message, String rejectedValu
 	public static FieldErrorDetail of(String field, String message) {
 		return new FieldErrorDetail(field, message, null);
 	}
+
+	public static FieldErrorDetail of(String field, String message, Object rejectedValue) {
+		return new FieldErrorDetail(field, message, rejectedValueToString(rejectedValue));
+	}
+
+	private static String rejectedValueToString(Object value) {
+		if (value == null) {
+			return null;
+		}
+		return String.valueOf(value);
+	}
 }

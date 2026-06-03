@@ -29,7 +29,7 @@ public class RestAuthenticationEntryPoint implements AuthenticationEntryPoint {
 	) throws IOException, ServletException {
 		ProblemDetail detail = ProblemDetailFactory.create(
 				ErrorCode.E401_UNAUTHORIZED,
-				authException.getMessage(),
+				ErrorCode.E401_UNAUTHORIZED.getDefaultMessage(),
 				null,
 				URI.create(request.getRequestURI())
 		);

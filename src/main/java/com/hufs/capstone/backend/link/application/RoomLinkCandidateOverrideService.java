@@ -2,6 +2,7 @@ package com.hufs.capstone.backend.link.application;
 
 import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
+import com.hufs.capstone.backend.global.exception.FieldValidationException;
 import com.hufs.capstone.backend.link.application.dto.RoomLinkCandidateOverrideResult;
 import com.hufs.capstone.backend.link.domain.entity.Link;
 import com.hufs.capstone.backend.link.domain.entity.LinkAnalysisRequest;
@@ -36,13 +37,13 @@ public class RoomLinkCandidateOverrideService {
 			PlaceSnapshot snapshot
 	) {
 		if (snapshot == null || !snapshot.hasKakaoPlaceId()) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "Valid Kakao place snapshot is required.");
+			throw new FieldValidationException("kakaoPlaceId", "유효한 카카오 장소 스냅샷이 필요합니다.");
 		}
 		LinkAnalysisRequest analysisRequest =
 				linkAnalysisAuthorizationService.requireAnalysisRequestForUpdate(userId, roomId, analysisRequestId);
 		Link link = analysisRequest.getLink();
 		LinkCandidate candidate = linkCandidateRepository.findByIdAndLinkId(candidateId, link.getId())
-				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "Link candidate not found."));
+				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "링크 후보를 찾을 수 없습니다."));
 		RoomLink roomLink = findOrCreateRoomLink(analysisRequest.getRoom(), link);
 		RoomLinkCandidateOverride override = overrideRepository
 				.findByRoomLinkIdAndLinkCandidateIdForUpdate(roomLink.getId(), candidate.getId())

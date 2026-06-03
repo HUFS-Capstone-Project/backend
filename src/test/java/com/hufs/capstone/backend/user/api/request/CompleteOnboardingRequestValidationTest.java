@@ -44,7 +44,11 @@ class CompleteOnboardingRequestValidationTest {
 
 		Set<ConstraintViolation<CompleteOnboardingRequest>> violations = validator.validate(request);
 
-		assertThat(violations).anyMatch(v -> "nickname".equals(v.getPropertyPath().toString()));
+		assertThat(violations)
+				.anySatisfy(v -> {
+					assertThat(v.getPropertyPath().toString()).isEqualTo("nickname");
+					assertThat(v.getMessage()).isEqualTo("닉네임은 필수입니다.");
+				});
 	}
 
 	@Test
@@ -58,7 +62,11 @@ class CompleteOnboardingRequestValidationTest {
 
 		Set<ConstraintViolation<CompleteOnboardingRequest>> violations = validator.validate(request);
 
-		assertThat(violations).anyMatch(v -> "nickname".equals(v.getPropertyPath().toString()));
+		assertThat(violations)
+				.anySatisfy(v -> {
+					assertThat(v.getPropertyPath().toString()).isEqualTo("nickname");
+					assertThat(v.getMessage()).isEqualTo("닉네임은 최대 10자까지 가능합니다.");
+				});
 	}
 
 	@Test
@@ -72,7 +80,15 @@ class CompleteOnboardingRequestValidationTest {
 
 		Set<ConstraintViolation<CompleteOnboardingRequest>> violations = validator.validate(request);
 
-		assertThat(violations).anyMatch(v -> "serviceTermsAgreed".equals(v.getPropertyPath().toString()));
-		assertThat(violations).anyMatch(v -> "privacyPolicyAgreed".equals(v.getPropertyPath().toString()));
+		assertThat(violations)
+				.anySatisfy(v -> {
+					assertThat(v.getPropertyPath().toString()).isEqualTo("serviceTermsAgreed");
+					assertThat(v.getMessage()).isEqualTo("서비스 이용약관 동의는 필수입니다.");
+				});
+		assertThat(violations)
+				.anySatisfy(v -> {
+					assertThat(v.getPropertyPath().toString()).isEqualTo("privacyPolicyAgreed");
+					assertThat(v.getMessage()).isEqualTo("개인정보 수집 및 이용 동의는 필수입니다.");
+				});
 	}
 }

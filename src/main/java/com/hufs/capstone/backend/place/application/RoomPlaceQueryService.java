@@ -2,6 +2,7 @@ package com.hufs.capstone.backend.place.application;
 
 import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
+import com.hufs.capstone.backend.global.exception.FieldValidationException;
 import com.hufs.capstone.backend.place.application.dto.BusinessHoursResult;
 import com.hufs.capstone.backend.place.application.dto.MyRoomPlacePageResult;
 import com.hufs.capstone.backend.place.application.dto.MyRoomPlaceResult;
@@ -100,10 +101,10 @@ public class RoomPlaceQueryService {
 		int normalizedPage = page == null ? DEFAULT_PAGE : page;
 		int normalizedLimit = resolveLimit(limit, size);
 		if (normalizedPage < 0) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "page must be greater than or equal to 0.");
+			throw new FieldValidationException("page", "page는 0 이상이어야 합니다.", normalizedPage);
 		}
 		if (normalizedLimit < 1 || normalizedLimit > MAX_LIMIT) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "limit must be between 1 and 100.");
+			throw new FieldValidationException("limit", "limit는 1~100 사이여야 합니다.", normalizedLimit);
 		}
 		RegionFilter regionFilter = regionQueryService.validateFilter(sidoCode, sigunguCode);
 		Page<RoomPlace> result = roomPlaceRepository.searchRoomPlaces(
@@ -140,7 +141,7 @@ public class RoomPlaceQueryService {
 	public RoomPlaceResult getRoomPlace(Long userId, String roomId, Long roomPlaceId) {
 		Room room = roomAccessService.requireMemberRoom(roomId, userId);
 		RoomPlace roomPlace = roomPlaceRepository.findByIdAndRoomId(roomPlaceId, room.getId())
-				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "Room place not found."));
+				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "방 장소를 찾을 수 없습니다."));
 		PlaceBusinessHours cache = placeBusinessHoursRepository.findByKakaoPlaceId(roomPlace.getKakaoPlaceId())
 				.orElse(null);
 		Map<Long, List<RoomPlaceMemoResult>> memosByRoomPlaceId = findMemoResults(List.of(roomPlace));
@@ -168,10 +169,10 @@ public class RoomPlaceQueryService {
 		int normalizedPage = page == null ? DEFAULT_PAGE : page;
 		int normalizedLimit = resolveLimit(limit, size);
 		if (normalizedPage < 0) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "page must be greater than or equal to 0.");
+			throw new FieldValidationException("page", "page는 0 이상이어야 합니다.", normalizedPage);
 		}
 		if (normalizedLimit < 1 || normalizedLimit > MAX_LIMIT) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "limit must be between 1 and 100.");
+			throw new FieldValidationException("limit", "limit는 1~100 사이여야 합니다.", normalizedLimit);
 		}
 		RegionFilter regionFilter = regionQueryService.validateFilter(sidoCode, sigunguCode);
 		Page<RoomPlace> result = roomPlaceRepository.searchMyRoomPlaces(

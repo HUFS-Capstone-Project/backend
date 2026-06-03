@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
+import com.hufs.capstone.backend.global.exception.FieldValidationException;
 import com.hufs.capstone.backend.link.domain.LinkSourceType;
 import com.hufs.capstone.backend.link.domain.entity.Link;
 import com.hufs.capstone.backend.link.domain.entity.RoomLink;
@@ -407,7 +408,12 @@ class RoomPlaceCommandServiceIntegrationTest {
 				0,
 				20,
 				null
-		)).isInstanceOf(BusinessException.class);
+		)).isInstanceOf(FieldValidationException.class)
+				.satisfies(ex -> assertThat(((FieldValidationException) ex).getFieldErrors())
+						.anySatisfy(error -> {
+							assertThat(error.field()).isEqualTo("sidoCode");
+							assertThat(error.message()).isEqualTo("시/군/구 코드가 있으면 시/도 코드는 필수입니다.");
+						}));
 		assertThatThrownBy(() -> roomPlaceQueryService.searchRoomPlaces(
 				USER_ID,
 				ROOM_PUBLIC_ID,
@@ -419,7 +425,12 @@ class RoomPlaceCommandServiceIntegrationTest {
 				0,
 				20,
 				null
-		)).isInstanceOf(BusinessException.class);
+		)).isInstanceOf(FieldValidationException.class)
+				.satisfies(ex -> assertThat(((FieldValidationException) ex).getFieldErrors())
+						.anySatisfy(error -> {
+							assertThat(error.field()).isEqualTo("sigunguCode");
+							assertThat(error.message()).isEqualTo("시/도 코드와 시/군/구 코드가 일치하지 않습니다.");
+						}));
 	}
 
 	@Test
@@ -657,11 +668,12 @@ class RoomPlaceCommandServiceIntegrationTest {
 	@Test
 	void shouldFillMyRoomPlaceBusinessHoursStatusFromBulkCache() {
 		saveExternalForTest(foodSnapshot("123456789", "Business Hours Place"));
-		PlaceBusinessHours cache = PlaceBusinessHours.create(
-				"123456789",
-				"https://place.map.kakao.com/123456789",
-				"Business Hours Place"
-		);
+		PlaceBusinessHours cache = placeBusinessHoursRepository.findByKakaoPlaceId("123456789")
+				.orElseGet(() -> PlaceBusinessHours.create(
+						"123456789",
+						"https://place.map.kakao.com/123456789",
+						"Business Hours Place"
+				));
 		Instant fetchedAt = Instant.parse("2026-05-14T02:00:00Z");
 		Instant expiresAt = Instant.parse("2026-05-15T02:00:00Z");
 		cache.applyRemotePlace(

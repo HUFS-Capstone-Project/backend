@@ -1,6 +1,7 @@
 package com.hufs.capstone.backend.place.domain.repository;
 
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -42,6 +43,38 @@ public interface RoomPlaceRepository extends JpaRepository<RoomPlace, Long>, Roo
 
 	long countByRoomId(Long roomId);
 
+	@Query("""
+			select distinct rp.sidoCode as code, rp.sidoName as name
+			from RoomPlace rp
+			where rp.room.id = :roomId
+			  and rp.sidoCode is not null
+			  and rp.sidoCode <> ''
+			order by rp.sidoCode asc
+			""")
+	List<RoomPlaceRegionOption> findDistinctSidoOptionsByRoomId(@Param("roomId") Long roomId);
+
+	@Query("""
+			select distinct rp.sigunguCode as code, rp.sigunguName as name
+			from RoomPlace rp
+			where rp.room.id = :roomId
+			  and rp.sidoCode = :sidoCode
+			  and rp.sigunguCode is not null
+			  and rp.sigunguCode <> ''
+			order by rp.sigunguCode asc
+			""")
+	List<RoomPlaceRegionOption> findDistinctSigunguOptionsByRoomIdAndSidoCode(
+			@Param("roomId") Long roomId,
+			@Param("sidoCode") String sidoCode
+	);
+
+	@Query("""
+			select case when count(rp) > 0 then true else false end
+			from RoomPlace rp
+			where rp.room.id = :roomId
+			  and rp.sidoCode = :sidoCode
+			""")
+	boolean existsByRoomIdAndSidoCode(@Param("roomId") Long roomId, @Param("sidoCode") String sidoCode);
+
 	long deleteByRoomId(Long roomId);
 
 	@Modifying(flushAutomatically = true, clearAutomatically = true)
@@ -53,4 +86,10 @@ public interface RoomPlaceRepository extends JpaRepository<RoomPlace, Long>, Roo
 			""")
 	int clearOriginRoomLinkByOriginRoomLinkId(@Param("roomLinkId") Long roomLinkId);
 
+	interface RoomPlaceRegionOption {
+
+		String getCode();
+
+		String getName();
+	}
 }

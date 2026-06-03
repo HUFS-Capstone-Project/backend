@@ -125,7 +125,7 @@ class RoomQueryServiceTest {
 		Room room = room("11111111-1111-1111-1111-111111111111", "Test Room");
 		when(roomAccessService.getRoomOrThrow(room.getPublicId())).thenReturn(room);
 		when(roomAccessService.getMembershipOrThrow(room, USER_ID))
-				.thenThrow(new BusinessException(ErrorCode.E403_FORBIDDEN, "Room access denied."));
+				.thenThrow(new BusinessException(ErrorCode.E403_FORBIDDEN, "방 접근 권한이 없습니다."));
 
 		assertThatThrownBy(() -> roomQueryService.getRoomDetail(USER_ID, room.getPublicId()))
 				.isInstanceOf(BusinessException.class)
