@@ -15,7 +15,6 @@ import com.hufs.capstone.backend.course.domain.repository.DateCoursePlaceReposit
 import com.hufs.capstone.backend.course.domain.repository.DateCourseRepository;
 import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
-import com.hufs.capstone.backend.place.domain.entity.Place;
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
 import com.hufs.capstone.backend.room.application.RoomAccessService;
 import com.hufs.capstone.backend.room.domain.entity.Room;
@@ -105,7 +104,7 @@ public class DateCourseGenerationService {
 	private static DateCourseResult toResult(DateCourse dateCourse, List<RoomPlace> pickedPlaces, List<Integer> skipped) {
 		List<DateCoursePlaceResult> placeResults = new ArrayList<>();
 		for (int i = 0; i < pickedPlaces.size(); i++) {
-			placeResults.add(toPlaceResult(pickedPlaces.get(i), i));
+			placeResults.add(DateCoursePlaceMapper.toPlaceResult(pickedPlaces.get(i), i));
 		}
 		return new DateCourseResult(
 				dateCourse.getDateCourseId(),
@@ -120,25 +119,6 @@ public class DateCourseGenerationService {
 				null,
 				null,
 				null
-		);
-	}
-
-	private static DateCoursePlaceResult toPlaceResult(RoomPlace roomPlace, int sequenceOrder) {
-		Place place = roomPlace.getPlace();
-		return new DateCoursePlaceResult(
-				roomPlace.getId(),
-				place.getId(),
-				place.getKakaoPlaceId(),
-				place.getName(),
-				place.getAddress(),
-				place.getRoadAddress(),
-				place.getLatitude(),
-				place.getLongitude(),
-				place.getServiceCategory().getCode(),
-				place.getServiceCategory().getName(),
-				place.getServiceTag().getCode(),
-				place.getServiceTag().getName(),
-				sequenceOrder
 		);
 	}
 

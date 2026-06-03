@@ -25,6 +25,10 @@ import lombok.NoArgsConstructor;
 			@UniqueConstraint(
 					name = "uq_date_course_places_course_order",
 					columnNames = {"date_course_id", "sequence_order"}
+				),
+			@UniqueConstraint(
+					name = "uq_date_course_places_course_room_place",
+					columnNames = {"date_course_id", "room_place_id"}
 				)
 		}
 )

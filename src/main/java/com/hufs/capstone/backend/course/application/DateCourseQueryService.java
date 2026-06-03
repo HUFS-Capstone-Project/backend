@@ -14,8 +14,6 @@ import com.hufs.capstone.backend.course.domain.repository.DateCourseRepository;
 import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
 import com.hufs.capstone.backend.global.exception.FieldValidationException;
-import com.hufs.capstone.backend.place.domain.entity.Place;
-import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
 import com.hufs.capstone.backend.place.domain.repository.RoomPlaceRepository;
 import com.hufs.capstone.backend.region.application.dto.RegionOptionResult;
 import com.hufs.capstone.backend.room.application.RoomAccessService;
@@ -164,7 +162,7 @@ public class DateCourseQueryService {
 	private DateCourseResult toCourseResult(DateCourse course, List<DateCoursePlace> places, User saver) {
 		List<DateCoursePlaceResult> placeResults = places.stream()
 				.sorted(Comparator.comparingInt(DateCoursePlace::getSequenceOrder))
-				.map(dcp -> toPlaceResult(dcp.getRoomPlace(), dcp.getSequenceOrder()))
+				.map(dcp -> DateCoursePlaceMapper.toPlaceResult(dcp.getRoomPlace(), dcp.getSequenceOrder()))
 				.toList();
 
 		return new DateCourseResult(
@@ -186,7 +184,7 @@ public class DateCourseQueryService {
 	private MyDateCourseResult toMyResult(DateCourse course, List<DateCoursePlace> places) {
 		List<DateCoursePlaceResult> placeResults = places.stream()
 				.sorted(Comparator.comparingInt(DateCoursePlace::getSequenceOrder))
-				.map(dcp -> toPlaceResult(dcp.getRoomPlace(), dcp.getSequenceOrder()))
+				.map(dcp -> DateCoursePlaceMapper.toPlaceResult(dcp.getRoomPlace(), dcp.getSequenceOrder()))
 				.toList();
 
 		Room room = course.getRoom();
@@ -201,25 +199,6 @@ public class DateCourseQueryService {
 				room.getName(),
 				placeResults,
 				parseSkipped(course.getSkippedSlotIndicesJson())
-		);
-	}
-
-	private static DateCoursePlaceResult toPlaceResult(RoomPlace roomPlace, int sequenceOrder) {
-		Place place = roomPlace.getPlace();
-		return new DateCoursePlaceResult(
-				roomPlace.getId(),
-				place.getId(),
-				place.getKakaoPlaceId(),
-				place.getName(),
-				place.getAddress(),
-				place.getRoadAddress(),
-				place.getLatitude(),
-				place.getLongitude(),
-				place.getServiceCategory().getCode(),
-				place.getServiceCategory().getName(),
-				place.getServiceTag().getCode(),
-				place.getServiceTag().getName(),
-				sequenceOrder
 		);
 	}
 
