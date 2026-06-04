@@ -1,6 +1,7 @@
 package com.hufs.capstone.backend.place.domain.repository;
 
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -74,6 +75,12 @@ public interface RoomPlaceRepository extends JpaRepository<RoomPlace, Long>, Roo
 			  and rp.sidoCode = :sidoCode
 			""")
 	boolean existsByRoomIdAndSidoCode(@Param("roomId") Long roomId, @Param("sidoCode") String sidoCode);
+
+	/**
+	 * 코스 수정 시 roomPlaceId 목록이 모두 해당 방에 속하는지 검증하고 엔티티를 확보한다.
+	 */
+	@Query("select rp from RoomPlace rp where rp.id in :ids and rp.room.id = :roomId")
+	List<RoomPlace> findAllByIdInAndRoomId(@Param("ids") Collection<Long> ids, @Param("roomId") Long roomId);
 
 	long deleteByRoomId(Long roomId);
 

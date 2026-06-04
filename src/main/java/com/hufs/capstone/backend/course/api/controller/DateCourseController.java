@@ -4,9 +4,12 @@ import com.hufs.capstone.backend.auth.security.SecurityUtils;
 import com.hufs.capstone.backend.course.api.controller.swagger.DateCourseApi;
 import com.hufs.capstone.backend.course.api.request.DateCourseGenerationRequest;
 import com.hufs.capstone.backend.course.api.request.DateCourseSaveRequest;
+import com.hufs.capstone.backend.course.api.request.DateCourseUpdateRequest;
 import com.hufs.capstone.backend.course.api.response.DateCourseGenerationResponse;
 import com.hufs.capstone.backend.course.api.response.DateCoursePageResponse;
 import com.hufs.capstone.backend.course.api.response.DateCourseResponse;
+import com.hufs.capstone.backend.course.application.DateCourseDeleteService;
+import com.hufs.capstone.backend.course.application.DateCourseEditService;
 import com.hufs.capstone.backend.course.application.DateCourseGenerationService;
 import com.hufs.capstone.backend.course.application.DateCourseQueryService;
 import com.hufs.capstone.backend.course.application.DateCourseSaveService;
@@ -28,6 +31,8 @@ public class DateCourseController implements DateCourseApi {
 	private final DateCourseGenerationService generationService;
 	private final DateCourseSaveService saveService;
 	private final DateCourseQueryService queryService;
+	private final DateCourseEditService editService;
+	private final DateCourseDeleteService deleteService;
 
 	@Override
 	public CommonResponse<List<RegionOptionResponse>> listCourseGenerationSidos(@PathVariable String roomId) {
@@ -91,5 +96,29 @@ public class DateCourseController implements DateCourseApi {
 	) {
 		Long userId = SecurityUtils.currentUserIdOrThrow();
 		return CommonResponse.ok(DateCourseResponse.from(queryService.getCourse(roomId, dateCourseId, userId)));
+	}
+
+	@Override
+	public CommonResponse<DateCourseResponse> updateCourse(
+			@PathVariable String roomId,
+			@PathVariable String dateCourseId,
+			@Valid @RequestBody DateCourseUpdateRequest request,
+			@RequestHeader(name = "X-XSRF-TOKEN", required = false) String csrfToken
+	) {
+		Long userId = SecurityUtils.currentUserIdOrThrow();
+		return CommonResponse.ok(DateCourseResponse.from(
+				editService.update(roomId, dateCourseId, request.courseName(), request.roomPlaceIds(), userId)
+		));
+	}
+
+	@Override
+	public CommonResponse<Void> deleteCourse(
+			@PathVariable String roomId,
+			@PathVariable String dateCourseId,
+			@RequestHeader(name = "X-XSRF-TOKEN", required = false) String csrfToken
+	) {
+		Long userId = SecurityUtils.currentUserIdOrThrow();
+		deleteService.delete(roomId, dateCourseId, userId);
+		return CommonResponse.okMessage("데이트 코스가 삭제되었습니다.");
 	}
 }

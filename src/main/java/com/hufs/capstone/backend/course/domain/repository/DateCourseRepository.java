@@ -27,19 +27,21 @@ public interface DateCourseRepository extends JpaRepository<DateCourse, Long> {
 			@Param("courseName") String courseName
 	);
 
-	Optional<DateCourse> findByDateCourseIdAndRoomId(String dateCourseId, Long roomId);
+	Optional<DateCourse> findByDateCourseIdAndRoomIdAndDeletedAtIsNull(String dateCourseId, Long roomId);
 
 	@Query(value = """
 			SELECT dc FROM DateCourse dc
 			JOIN FETCH dc.room
 			WHERE dc.room.id = :roomId
 			AND dc.savedByUserId IS NOT NULL
+			AND dc.deletedAt IS NULL
 			ORDER BY dc.savedAt DESC
 			""",
 			countQuery = """
 			SELECT COUNT(dc) FROM DateCourse dc
 			WHERE dc.room.id = :roomId
 			AND dc.savedByUserId IS NOT NULL
+			AND dc.deletedAt IS NULL
 			""")
 	Page<DateCourse> findSavedByRoomIdOrderBySavedAtDesc(@Param("roomId") Long roomId, Pageable pageable);
 
@@ -47,11 +49,13 @@ public interface DateCourseRepository extends JpaRepository<DateCourse, Long> {
 			SELECT dc FROM DateCourse dc
 			JOIN FETCH dc.room
 			WHERE dc.savedByUserId = :userId
+			AND dc.deletedAt IS NULL
 			ORDER BY dc.savedAt DESC
 			""",
 			countQuery = """
 			SELECT COUNT(dc) FROM DateCourse dc
 			WHERE dc.savedByUserId = :userId
+			AND dc.deletedAt IS NULL
 			""")
 	Page<DateCourse> findSavedByUserIdOrderBySavedAtDesc(@Param("userId") Long userId, Pageable pageable);
 }

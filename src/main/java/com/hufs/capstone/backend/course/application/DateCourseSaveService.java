@@ -29,12 +29,12 @@ public class DateCourseSaveService {
 		Room room = roomAccessService.requireMemberRoom(roomPublicId, userId);
 		String normalizedName = DateCourseNamePolicy.normalizeAndValidate(courseName);
 
-		DateCourse course = dateCourseRepository.findByDateCourseIdAndRoomId(dateCourseId, room.getId())
+		DateCourse course = dateCourseRepository.findByDateCourseIdAndRoomIdAndDeletedAtIsNull(dateCourseId, room.getId())
 				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "데이트 코스를 찾을 수 없습니다."));
 
 		List<DateCoursePlace> places = dateCoursePlaceRepository.findWithRoomPlacesByCourseIdIn(List.of(course.getId()));
 		if (duplicatePolicy.existsSavedCourseWithSamePlacesExcluding(room.getId(), course.getId(), places)) {
-			throw new BusinessException(ErrorCode.E409_CONFLICT, "동일한 데이트 코스가 이미 저장되어 있습니다.");
+			throw new BusinessException(ErrorCode.E409_DUPLICATE_DATE_COURSE, "동일한 데이트 코스가 이미 저장되어 있습니다.");
 		}
 
 		int updated = dateCourseRepository.markAsSavedIfAbsent(

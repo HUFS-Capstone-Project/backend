@@ -31,6 +31,19 @@ class DateCourseDuplicatePolicy {
 				.contains(dateCoursePlaceSignature(places));
 	}
 
+	/**
+	 * 코스 수정 시 — 최종 확정 RoomPlace 목록(순서 포함)이 자기 자신을 제외한
+	 * 다른 저장 코스와 동일한지 검사한다.
+	 */
+	boolean existsSavedCourseWithSameRoomPlacesExcluding(
+			Long roomId,
+			Long excludedCourseId,
+			List<RoomPlace> orderedPlaces
+	) {
+		return savedCourseSignaturesExcluding(roomId, excludedCourseId)
+				.contains(roomPlaceSignature(orderedPlaces));
+	}
+
 	private Set<List<Long>> savedCourseSignatures(Long roomId) {
 		return signatures(dateCoursePlaceRepository.findSavedPlacesByRoomId(roomId));
 	}

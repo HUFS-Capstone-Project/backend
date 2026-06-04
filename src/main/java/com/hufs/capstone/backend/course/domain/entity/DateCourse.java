@@ -1,7 +1,7 @@
 package com.hufs.capstone.backend.course.domain.entity;
 
 import com.hufs.capstone.backend.course.domain.enums.CourseMode;
-import com.hufs.capstone.backend.global.common.entity.AuditableEntity;
+import com.hufs.capstone.backend.global.common.entity.SoftDeletableEntity;
 import com.hufs.capstone.backend.room.domain.entity.Room;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -33,7 +33,7 @@ import lombok.NoArgsConstructor;
 		}
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class DateCourse extends AuditableEntity {
+public class DateCourse extends SoftDeletableEntity {
 
 	@Column(name = "date_course_id", nullable = false, length = 36)
 	private String dateCourseId;
@@ -122,5 +122,20 @@ public class DateCourse extends AuditableEntity {
 		}
 		return new DateCourse(dateCourseId, room, createdByUserId, courseMode, startDateTime, endDateTime,
 				generationBatchId, sigunguCode, categorySequenceJson, skippedSlotIndicesJson);
+	}
+
+	/**
+	 * 코스 이름을 변경한다. (정규화/검증은 호출 전에 완료되어야 한다)
+	 */
+	public void rename(String courseName) {
+		this.courseName = courseName;
+	}
+
+	/**
+	 * 코스를 수동으로 편집한 이후에는 생성 시점의 "건너뛴 슬롯" 정보가
+	 * 현재 장소 구성과 일치하지 않으므로 비운다.
+	 */
+	public void clearSkippedSlots() {
+		this.skippedSlotIndicesJson = "[]";
 	}
 }
