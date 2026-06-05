@@ -68,7 +68,7 @@ class DateCourseEditServiceTest {
 	// ────────────────────────────────────────────
 
 	@Test
-	void update_정상적으로_코스_전체_교체() {
+	void updateReplacesCoursePlacesSuccessfully() {
 		Room room = mockRoom();
 		DateCourse course = mockSavedCourse(USER_ID, USER_ID);
 		RoomPlace rp1 = mockRoomPlace(1L);
@@ -105,7 +105,7 @@ class DateCourseEditServiceTest {
 	// ────────────────────────────────────────────
 
 	@Test
-	void update_생성자도_저장자도_아닌_경우_403() {
+	void updateThrows403WhenNeitherCreatorNorSaver() {
 		Room room = mockRoom();
 		DateCourse course = mockSavedCourse(888L, 999L); // 생성자, 저장자 모두 요청자 아님
 
@@ -121,7 +121,7 @@ class DateCourseEditServiceTest {
 	}
 
 	@Test
-	void update_생성자이면_저장자가_달라도_수정_가능() {
+	void updateAllowsCreatorEvenIfDifferentSaver() {
 		Room room = mockRoom();
 		// 생성자=요청자(100), 저장자=다른 사람(999)
 		DateCourse course = mockSavedCourse(USER_ID, 999L);
@@ -144,7 +144,7 @@ class DateCourseEditServiceTest {
 	}
 
 	@Test
-	void update_저장자이면_생성자가_달라도_수정_가능() {
+	void updateAllowsSaverEvenIfDifferentCreator() {
 		Room room = mockRoom();
 		// 생성자=다른 사람(888), 저장자=요청자(100)
 		DateCourse course = mockSavedCourse(888L, USER_ID);
@@ -171,7 +171,7 @@ class DateCourseEditServiceTest {
 	// ────────────────────────────────────────────
 
 	@Test
-	void update_존재하지_않는_코스_404() {
+	void updateThrows404WhenCourseNotFound() {
 		Room room = mockRoom();
 		when(roomAccessService.requireMemberRoom(ROOM_PUBLIC_ID, USER_ID)).thenReturn(room);
 		when(dateCourseRepository.findByDateCourseIdAndRoomIdAndDeletedAtIsNull(COURSE_UUID, ROOM_ID))
@@ -185,7 +185,7 @@ class DateCourseEditServiceTest {
 	}
 
 	@Test
-	void update_미저장_후보_코스_404() {
+	void updateThrows404WhenCourseNotSaved() {
 		Room room = mockRoom();
 		DateCourse course = mock(DateCourse.class);
 		when(course.getSavedByUserId()).thenReturn(null);
@@ -206,7 +206,7 @@ class DateCourseEditServiceTest {
 	// ────────────────────────────────────────────
 
 	@Test
-	void update_방에_없는_roomPlaceId_포함_400() {
+	void updateThrows400WhenRoomPlaceNotInRoom() {
 		Room room = mockRoom();
 		DateCourse course = mockSavedCourse(USER_ID, USER_ID);
 		// 2개 요청했지만 1개만 조회됨 → 방에 없는 장소 포함
@@ -224,7 +224,7 @@ class DateCourseEditServiceTest {
 	}
 
 	@Test
-	void update_중복된_roomPlaceId_포함_400() {
+	void updateThrows400WhenDuplicateRoomPlaceIds() {
 		Room room = mockRoom();
 		DateCourse course = mockSavedCourse(USER_ID, USER_ID);
 
@@ -245,7 +245,7 @@ class DateCourseEditServiceTest {
 	// ────────────────────────────────────────────
 
 	@Test
-	void update_동일한_코스_구성_이미_존재시_E409_DUPLICATE_DATE_COURSE() {
+	void updateThrows409WhenDuplicateCourseExists() {
 		Room room = mockRoom();
 		DateCourse course = mockSavedCourse(USER_ID, USER_ID);
 		RoomPlace rp1 = mockRoomPlace(1L);

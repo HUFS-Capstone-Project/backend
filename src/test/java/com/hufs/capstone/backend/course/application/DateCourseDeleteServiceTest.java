@@ -36,7 +36,7 @@ class DateCourseDeleteServiceTest {
 	private DateCourseDeleteService deleteService;
 
 	@Test
-	void delete_정상적으로_soft_delete_호출() {
+	void deleteCallsSoftDelete() {
 		Room room = mockRoom();
 		DateCourse course = mockSavedCourse(USER_ID, USER_ID);
 
@@ -50,7 +50,7 @@ class DateCourseDeleteServiceTest {
 	}
 
 	@Test
-	void delete_저장자이면_삭제_가능() {
+	void deleteAllowsSaverToDelete() {
 		Room room = mockRoom();
 		DateCourse course = mockSavedCourse(888L, USER_ID); // 생성자 다름, 저장자=요청자
 
@@ -64,7 +64,7 @@ class DateCourseDeleteServiceTest {
 	}
 
 	@Test
-	void delete_권한_없는_사용자_403() {
+	void deleteThrows403WhenUnauthorized() {
 		Room room = mockRoom();
 		DateCourse course = mockSavedCourse(888L, 999L); // 생성자도 저장자도 요청자 아님
 
@@ -79,7 +79,7 @@ class DateCourseDeleteServiceTest {
 	}
 
 	@Test
-	void delete_존재하지_않는_코스_404() {
+	void deleteThrows404WhenCourseNotFound() {
 		Room room = mockRoom();
 		when(roomAccessService.requireMemberRoom(ROOM_PUBLIC_ID, USER_ID)).thenReturn(room);
 		when(dateCourseRepository.findByDateCourseIdAndRoomIdAndDeletedAtIsNull(COURSE_UUID, ROOM_ID))
@@ -92,7 +92,7 @@ class DateCourseDeleteServiceTest {
 	}
 
 	@Test
-	void delete_미저장_후보_코스_404() {
+	void deleteThrows404WhenCourseNotSaved() {
 		Room room = mockRoom();
 		DateCourse course = mock(DateCourse.class);
 		when(course.getSavedByUserId()).thenReturn(null);

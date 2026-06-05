@@ -69,7 +69,7 @@ class DateCourseDuplicatePolicyTest {
 	// ────────────────────────────────────────────
 
 	@Test
-	void editUpdate_동일한_RoomPlace_순서_중복_감지() {
+	void editUpdateDetectsDuplicateWithSameRoomPlaceOrder() {
 		List<DateCoursePlace> savedPlaces = List.of(
 				dateCoursePlace(10L, 0, 100L),
 				dateCoursePlace(10L, 1, 200L)
@@ -85,7 +85,7 @@ class DateCourseDuplicatePolicyTest {
 	}
 
 	@Test
-	void editUpdate_순서가_다르면_중복_아님() {
+	void editUpdateNotDuplicateWhenOrderDiffers() {
 		List<DateCoursePlace> savedPlaces = List.of(
 				dateCoursePlace(10L, 0, 100L),
 				dateCoursePlace(10L, 1, 200L)
