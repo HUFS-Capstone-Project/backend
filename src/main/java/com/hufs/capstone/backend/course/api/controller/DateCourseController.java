@@ -73,7 +73,7 @@ public class DateCourseController implements DateCourseApi {
 			@RequestHeader(name = "X-XSRF-TOKEN", required = false) String csrfToken
 	) {
 		Long userId = SecurityUtils.currentUserIdOrThrow();
-		saveService.save(roomId, dateCourseId, request.courseName(), userId);
+		saveService.save(roomId, dateCourseId, request.courseName(), request.roomPlaceIds(), userId);
 		return CommonResponse.ok(null);
 	}
 

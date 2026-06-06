@@ -68,8 +68,14 @@ public interface DateCourseApi {
 	@Operation(
 			tags = {"Date course"},
 			summary = "데이트 코스 저장 API",
-			description = "생성된 코스 후보 중 하나를 선택해 저장합니다."
-					+ "이미 저장된 코스와 동일한 장소 순서이면 409를 반환합니다."
+			description = """
+					생성된 코스 후보 중 하나를 선택해 저장합니다.
+					- roomPlaceIds를 생략하면 추천 생성 시 만들어진 원본 장소 구성 그대로 저장합니다.
+					- roomPlaceIds를 전달하면 저장 전에 해당 장소 구성으로 전체 교체한 뒤 저장합니다.
+					  프론트에서 후보 코스를 편집한 뒤 "저장하기"를 누르는 경우 최종 순서대로 roomPlaceIds를 전달합니다.
+					- 추가하는 장소는 반드시 해당 방에 이미 저장된 장소(roomPlaceId)여야 합니다.
+					- 이미 저장된 코스와 동일한 장소 순서이면 409를 반환합니다.
+					"""
 	)
 	@ApiResponse(responseCode = "200", description = "저장 성공")
 	@PostMapping("/{dateCourseId}/save")
