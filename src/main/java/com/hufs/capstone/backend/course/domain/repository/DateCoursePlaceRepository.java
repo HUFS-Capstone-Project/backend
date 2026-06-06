@@ -3,6 +3,7 @@ package com.hufs.capstone.backend.course.domain.repository;
 import com.hufs.capstone.backend.course.domain.entity.DateCoursePlace;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -27,6 +28,7 @@ public interface DateCoursePlaceRepository extends JpaRepository<DateCoursePlace
 			JOIN FETCH dcp.roomPlace rp
 			WHERE dc.room.id = :roomId
 			AND dc.savedByUserId IS NOT NULL
+			AND dc.deletedAt IS NULL
 			ORDER BY dc.id ASC, dcp.sequenceOrder ASC
 			""")
 	List<DateCoursePlace> findSavedPlacesByRoomId(@Param("roomId") Long roomId);
@@ -37,6 +39,7 @@ public interface DateCoursePlaceRepository extends JpaRepository<DateCoursePlace
 			JOIN FETCH dcp.roomPlace rp
 			WHERE dc.room.id = :roomId
 			AND dc.savedByUserId IS NOT NULL
+			AND dc.deletedAt IS NULL
 			AND dc.id <> :excludedCourseId
 			ORDER BY dc.id ASC, dcp.sequenceOrder ASC
 			""")
@@ -44,4 +47,11 @@ public interface DateCoursePlaceRepository extends JpaRepository<DateCoursePlace
 			@Param("roomId") Long roomId,
 			@Param("excludedCourseId") Long excludedCourseId
 	);
+
+	/**
+	 * 코스의 장소를 전체 교체할 때 기존 장소를 모두 삭제한다.
+	 */
+	@Modifying(clearAutomatically = true, flushAutomatically = true)
+	@Query("DELETE FROM DateCoursePlace dcp WHERE dcp.dateCourse.id = :courseId")
+	int deleteByDateCourseId(@Param("courseId") Long courseId);
 }

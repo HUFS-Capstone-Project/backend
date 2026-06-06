@@ -1,6 +1,7 @@
 package com.hufs.capstone.backend.place.domain.repository;
 
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -74,6 +75,22 @@ public interface RoomPlaceRepository extends JpaRepository<RoomPlace, Long>, Roo
 			  and rp.sidoCode = :sidoCode
 			""")
 	boolean existsByRoomIdAndSidoCode(@Param("roomId") Long roomId, @Param("sidoCode") String sidoCode);
+
+	/**
+	 * 코스 수정 시 roomPlaceId 목록이 모두 해당 방에 속하는지 검증하고 엔티티를 확보한다.
+	 * place/serviceCategory/serviceTag를 fetchJoin으로 즉시 로드한다.
+	 * deleteByDateCourseId의 clearAutomatically=true 이후에도 detached 상태에서 접근 가능하게 하기 위함.
+	 */
+	@Query("""
+			select rp from RoomPlace rp
+			join fetch rp.place p
+			join fetch p.serviceCategory
+			join fetch p.serviceTag
+			left join fetch rp.originRoomLink orl
+			left join fetch orl.link
+			where rp.id in :ids and rp.room.id = :roomId
+			""")
+	List<RoomPlace> findAllByIdInAndRoomId(@Param("ids") Collection<Long> ids, @Param("roomId") Long roomId);
 
 	long deleteByRoomId(Long roomId);
 

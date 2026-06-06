@@ -64,6 +64,42 @@ class DateCourseDuplicatePolicyTest {
 		assertThat(duplicate).isTrue();
 	}
 
+	// ────────────────────────────────────────────
+	// existsSavedCourseWithSameRoomPlacesExcluding (수정 API 전용)
+	// ────────────────────────────────────────────
+
+	@Test
+	void editUpdateDetectsDuplicateWithSameRoomPlaceOrder() {
+		List<DateCoursePlace> savedPlaces = List.of(
+				dateCoursePlace(10L, 0, 100L),
+				dateCoursePlace(10L, 1, 200L)
+		);
+		when(repository.findSavedPlacesByRoomIdExcludingCourseId(1L, 20L)).thenReturn(savedPlaces);
+
+		boolean duplicate = policy.existsSavedCourseWithSameRoomPlacesExcluding(1L, 20L, List.of(
+				roomPlace(100L),
+				roomPlace(200L)
+		));
+
+		assertThat(duplicate).isTrue();
+	}
+
+	@Test
+	void editUpdateNotDuplicateWhenOrderDiffers() {
+		List<DateCoursePlace> savedPlaces = List.of(
+				dateCoursePlace(10L, 0, 100L),
+				dateCoursePlace(10L, 1, 200L)
+		);
+		when(repository.findSavedPlacesByRoomIdExcludingCourseId(1L, 20L)).thenReturn(savedPlaces);
+
+		boolean duplicate = policy.existsSavedCourseWithSameRoomPlacesExcluding(1L, 20L, List.of(
+				roomPlace(200L),
+				roomPlace(100L)
+		));
+
+		assertThat(duplicate).isFalse();
+	}
+
 	private static DateCoursePlace dateCoursePlace(Long courseId, int sequenceOrder, Long roomPlaceId) {
 		DateCourse course = mock(DateCourse.class);
 		when(course.getId()).thenReturn(courseId);
