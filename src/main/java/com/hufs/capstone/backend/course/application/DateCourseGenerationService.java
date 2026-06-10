@@ -19,8 +19,10 @@ import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
 import com.hufs.capstone.backend.room.application.RoomAccessService;
 import com.hufs.capstone.backend.room.domain.entity.Room;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +42,12 @@ public class DateCourseGenerationService {
 	private final DateCoursePlaceRepository dateCoursePlaceRepository;
 	private final ObjectMapper objectMapper;
 
+	/**
+	 * 한 배치 안에서 "코스 전체가 동일"하게 나오는 것을 피하기 위한 최대 재추첨 횟수.
+	 * 장소가 부족해 회피가 불가능하면 마지막 후보를 그대로 사용해 생성을 보장한다.
+	 */
+	private static final int MAX_REROLL = 5;
+
 	@Transactional
 	public DateCourseGenerationResult generate(DateCourseGenerationCommand command, Long userId) {
 		inputValidator.validate(command.sigunguCode(), command.startDateTime(),
@@ -55,21 +63,22 @@ public class DateCourseGenerationService {
 		String batchId = UUID.randomUUID().toString();
 		String categorySequenceJson = serializeSlots(command.categorySequence());
 
-		Set<Long> globallyUsedIds = courseSelector.newGloballyUsedIds();
+		Map<Long, Integer> usageCounts = new HashMap<>();
+		Set<List<Long>> batchSignatures = new HashSet<>();
 		List<DateCourseResult> results = new ArrayList<>();
 
 		for (CourseMode mode : List.of(CourseMode.GENERAL, CourseMode.TRENDY, CourseMode.POPULAR)) {
-			Set<Long> candidateUsedIds = new HashSet<>(globallyUsedIds);
-			CourseSelectionResult selection = courseSelector.select(
-					mode, command.categorySequence(), pool, candidateUsedIds, command.startDateTime());
+			CourseSelectionResult selection = selectAvoidingDuplicates(
+					mode, command, pool, usageCounts, batchSignatures, room.getId());
+			if (selection == null) {
+				continue;
+			}
 
-			if (selection.pickedPlaces().isEmpty()) {
-				continue;
+			List<Long> signature = placeIdSignature(selection.pickedPlaces());
+			batchSignatures.add(signature);
+			for (Long placeId : signature) {
+				usageCounts.merge(placeId, 1, Integer::sum);
 			}
-			if (duplicatePolicy.existsSavedCourseWithSamePlaces(room.getId(), selection.pickedPlaces())) {
-				continue;
-			}
-			globallyUsedIds = candidateUsedIds;
 
 			String skippedJson = serializeSkipped(selection.skippedSlotIndices());
 			DateCourse dateCourse = dateCourseRepository.save(DateCourse.create(
@@ -99,6 +108,43 @@ public class DateCourseGenerationService {
 		}
 
 		return new DateCourseGenerationResult(batchId, results);
+	}
+
+	/**
+	 * 한 모드의 코스를 선택하되, 같은 배치 안에서 "코스 전체가 동일"한 결과를 최대 {@link #MAX_REROLL}회
+	 * 재추첨으로 피한다. 회피에 실패하면(장소 부족) 마지막 유효 후보를 사용해 생성을 보장한다.
+	 * 이미 저장된 코스와 장소·순서가 완전히 같은 후보는 절대 채택하지 않는다.
+	 *
+	 * @return 채택된 선택 결과. 채택 가능한 후보가 없으면(전부 비었거나 전부 저장-중복) {@code null}.
+	 */
+	private CourseSelectionResult selectAvoidingDuplicates(
+			CourseMode mode,
+			DateCourseGenerationCommand command,
+			AvailablePool pool,
+			Map<Long, Integer> usageCounts,
+			Set<List<Long>> batchSignatures,
+			Long roomId
+	) {
+		CourseSelectionResult fallback = null;
+		for (int attempt = 0; attempt < MAX_REROLL; attempt++) {
+			CourseSelectionResult selection = courseSelector.select(
+					mode, command.categorySequence(), pool, usageCounts, command.startDateTime());
+			if (selection.pickedPlaces().isEmpty()) {
+				continue;
+			}
+			if (duplicatePolicy.existsSavedCourseWithSamePlaces(roomId, selection.pickedPlaces())) {
+				continue;
+			}
+			fallback = selection;
+			if (!batchSignatures.contains(placeIdSignature(selection.pickedPlaces()))) {
+				return selection;
+			}
+		}
+		return fallback;
+	}
+
+	private static List<Long> placeIdSignature(List<RoomPlace> places) {
+		return places.stream().map(RoomPlace::getId).toList();
 	}
 
 	private static DateCourseResult toResult(DateCourse dateCourse, List<RoomPlace> pickedPlaces, List<Integer> skipped) {
