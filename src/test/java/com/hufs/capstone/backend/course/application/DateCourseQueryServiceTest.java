@@ -107,7 +107,7 @@ class DateCourseQueryServiceTest {
 				"course-2",
 				Instant.parse("2026-06-11T01:00:00Z")
 		);
-		when(dateCourseRepository.findSavedByRoomIdAfterCursor(10L, null, null, PageRequest.of(0, 2)))
+		when(dateCourseRepository.findSavedByRoomIdFirstPage(10L, PageRequest.of(0, 2)))
 				.thenReturn(List.of(first, second));
 		when(dateCourseRepository.countSavedByRoomId(10L)).thenReturn(2L);
 		when(dateCoursePlaceRepository.findWithRoomPlacesByCourseIdIn(List.of(1L))).thenReturn(List.of());

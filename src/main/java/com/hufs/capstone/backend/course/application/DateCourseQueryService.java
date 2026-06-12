@@ -102,12 +102,17 @@ public class DateCourseQueryService {
 		int normalizedLimit = validateLimit(limit);
 		long totalCount = dateCourseRepository.countSavedByRoomId(room.getId());
 		DateCourseCursor decodedCursor = dateCourseCursorCodec().decode(cursor);
-		List<DateCourse> fetched = dateCourseRepository.findSavedByRoomIdAfterCursor(
-				room.getId(),
-				decodedCursor == null ? null : decodedCursor.savedAt(),
-				decodedCursor == null ? null : decodedCursor.dateCoursePk(),
-				PageRequest.of(0, normalizedLimit + 1)
-		);
+		List<DateCourse> fetched = decodedCursor == null
+				? dateCourseRepository.findSavedByRoomIdFirstPage(
+						room.getId(),
+						PageRequest.of(0, normalizedLimit + 1)
+				)
+				: dateCourseRepository.findSavedByRoomIdAfterCursor(
+						room.getId(),
+						decodedCursor.savedAt(),
+						decodedCursor.dateCoursePk(),
+						PageRequest.of(0, normalizedLimit + 1)
+				);
 		boolean hasNext = fetched.size() > normalizedLimit;
 		List<DateCourse> courses = hasNext ? fetched.subList(0, normalizedLimit) : fetched;
 		List<DateCourseResult> items = toCourseResults(courses);
@@ -205,12 +210,17 @@ public class DateCourseQueryService {
 		int normalizedLimit = validateLimit(limit);
 		long totalCount = dateCourseRepository.countSavedByUserId(userId);
 		DateCourseCursor decodedCursor = dateCourseCursorCodec().decode(cursor);
-		List<DateCourse> fetched = dateCourseRepository.findSavedByUserIdAfterCursor(
-				userId,
-				decodedCursor == null ? null : decodedCursor.savedAt(),
-				decodedCursor == null ? null : decodedCursor.dateCoursePk(),
-				PageRequest.of(0, normalizedLimit + 1)
-		);
+		List<DateCourse> fetched = decodedCursor == null
+				? dateCourseRepository.findSavedByUserIdFirstPage(
+						userId,
+						PageRequest.of(0, normalizedLimit + 1)
+				)
+				: dateCourseRepository.findSavedByUserIdAfterCursor(
+						userId,
+						decodedCursor.savedAt(),
+						decodedCursor.dateCoursePk(),
+						PageRequest.of(0, normalizedLimit + 1)
+				);
 		boolean hasNext = fetched.size() > normalizedLimit;
 		List<DateCourse> courses = hasNext ? fetched.subList(0, normalizedLimit) : fetched;
 		List<MyDateCourseResult> items = toMyResults(courses);

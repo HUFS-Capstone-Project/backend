@@ -52,6 +52,16 @@ public interface DateCourseRepository extends JpaRepository<DateCourse, Long> {
 			WHERE dc.room.id = :roomId
 			AND dc.savedByUserId IS NOT NULL
 			AND dc.deletedAt IS NULL
+			ORDER BY dc.savedAt DESC, dc.id DESC
+			""")
+	List<DateCourse> findSavedByRoomIdFirstPage(@Param("roomId") Long roomId, Pageable pageable);
+
+	@Query("""
+			SELECT dc FROM DateCourse dc
+			JOIN FETCH dc.room
+			WHERE dc.room.id = :roomId
+			AND dc.savedByUserId IS NOT NULL
+			AND dc.deletedAt IS NULL
 			AND (
 				:cursorSavedAt IS NULL
 				OR dc.savedAt < :cursorSavedAt
@@ -87,6 +97,15 @@ public interface DateCourseRepository extends JpaRepository<DateCourse, Long> {
 			AND dc.deletedAt IS NULL
 			""")
 	Page<DateCourse> findSavedByUserIdOrderBySavedAtDesc(@Param("userId") Long userId, Pageable pageable);
+
+	@Query("""
+			SELECT dc FROM DateCourse dc
+			JOIN FETCH dc.room
+			WHERE dc.savedByUserId = :userId
+			AND dc.deletedAt IS NULL
+			ORDER BY dc.savedAt DESC, dc.id DESC
+			""")
+	List<DateCourse> findSavedByUserIdFirstPage(@Param("userId") Long userId, Pageable pageable);
 
 	@Query("""
 			SELECT dc FROM DateCourse dc
