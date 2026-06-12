@@ -5,8 +5,8 @@ import com.hufs.capstone.backend.course.api.controller.swagger.DateCourseApi;
 import com.hufs.capstone.backend.course.api.request.DateCourseGenerationRequest;
 import com.hufs.capstone.backend.course.api.request.DateCourseSaveRequest;
 import com.hufs.capstone.backend.course.api.request.DateCourseUpdateRequest;
+import com.hufs.capstone.backend.course.api.response.DateCourseCursorPageResponse;
 import com.hufs.capstone.backend.course.api.response.DateCourseGenerationResponse;
-import com.hufs.capstone.backend.course.api.response.DateCoursePageResponse;
 import com.hufs.capstone.backend.course.api.response.DateCourseResponse;
 import com.hufs.capstone.backend.course.application.DateCourseDeleteService;
 import com.hufs.capstone.backend.course.application.DateCourseEditService;
@@ -78,14 +78,14 @@ public class DateCourseController implements DateCourseApi {
 	}
 
 	@Override
-	public CommonResponse<DateCoursePageResponse> listCourses(
+	public CommonResponse<DateCourseCursorPageResponse> listCourses(
 			@PathVariable String roomId,
-			@RequestParam(required = false) Integer page,
-			@RequestParam(required = false) Integer limit
+			@RequestParam(required = false) Integer limit,
+			@RequestParam(required = false) String cursor
 	) {
 		Long userId = SecurityUtils.currentUserIdOrThrow();
 		return CommonResponse.ok(
-				DateCoursePageResponse.from(queryService.listSavedCourses(roomId, userId, page, limit))
+				DateCourseCursorPageResponse.from(queryService.listSavedCourses(roomId, userId, limit, cursor))
 		);
 	}
 

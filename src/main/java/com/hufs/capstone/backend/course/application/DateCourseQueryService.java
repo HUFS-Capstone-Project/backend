@@ -2,6 +2,7 @@ package com.hufs.capstone.backend.course.application;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hufs.capstone.backend.course.application.dto.DateCourseCursor;
 import com.hufs.capstone.backend.course.application.dto.DateCoursePageResult;
 import com.hufs.capstone.backend.course.application.dto.DateCoursePlaceResult;
 import com.hufs.capstone.backend.course.application.dto.DateCourseResult;
@@ -14,6 +15,8 @@ import com.hufs.capstone.backend.course.domain.repository.DateCourseRepository;
 import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
 import com.hufs.capstone.backend.global.exception.FieldValidationException;
+import com.hufs.capstone.backend.global.pagination.CursorCodec;
+import com.hufs.capstone.backend.global.pagination.CursorPageResult;
 import com.hufs.capstone.backend.place.domain.repository.RoomPlaceRepository;
 import com.hufs.capstone.backend.region.application.dto.RegionOptionResult;
 import com.hufs.capstone.backend.room.application.RoomAccessService;
@@ -86,6 +89,30 @@ public class DateCourseQueryService {
 						false
 				))
 				.toList();
+	}
+
+	@Transactional(readOnly = true)
+	public CursorPageResult<DateCourseResult> listSavedCourses(
+			String roomPublicId,
+			Long userId,
+			Integer limit,
+			String cursor
+	) {
+		Room room = roomAccessService.requireMemberRoom(roomPublicId, userId);
+		int normalizedLimit = validateLimit(limit);
+		long totalCount = dateCourseRepository.countSavedByRoomId(room.getId());
+		DateCourseCursor decodedCursor = dateCourseCursorCodec().decode(cursor);
+		List<DateCourse> fetched = dateCourseRepository.findSavedByRoomIdAfterCursor(
+				room.getId(),
+				decodedCursor == null ? null : decodedCursor.savedAt(),
+				decodedCursor == null ? null : decodedCursor.dateCoursePk(),
+				PageRequest.of(0, normalizedLimit + 1)
+		);
+		boolean hasNext = fetched.size() > normalizedLimit;
+		List<DateCourse> courses = hasNext ? fetched.subList(0, normalizedLimit) : fetched;
+		List<DateCourseResult> items = toCourseResults(courses);
+		String nextCursor = hasNext ? dateCourseCursorCodec().encode(toCursor(courses.get(courses.size() - 1))) : null;
+		return new CursorPageResult<>(items, normalizedLimit, totalCount, nextCursor, hasNext);
 	}
 
 	@Transactional(readOnly = true)
@@ -173,6 +200,24 @@ public class DateCourseQueryService {
 				coursePage.getTotalElements(), coursePage.getTotalPages());
 	}
 
+	@Transactional(readOnly = true)
+	public CursorPageResult<MyDateCourseResult> listMySavedCourses(Long userId, Integer limit, String cursor) {
+		int normalizedLimit = validateLimit(limit);
+		long totalCount = dateCourseRepository.countSavedByUserId(userId);
+		DateCourseCursor decodedCursor = dateCourseCursorCodec().decode(cursor);
+		List<DateCourse> fetched = dateCourseRepository.findSavedByUserIdAfterCursor(
+				userId,
+				decodedCursor == null ? null : decodedCursor.savedAt(),
+				decodedCursor == null ? null : decodedCursor.dateCoursePk(),
+				PageRequest.of(0, normalizedLimit + 1)
+		);
+		boolean hasNext = fetched.size() > normalizedLimit;
+		List<DateCourse> courses = hasNext ? fetched.subList(0, normalizedLimit) : fetched;
+		List<MyDateCourseResult> items = toMyResults(courses);
+		String nextCursor = hasNext ? dateCourseCursorCodec().encode(toCursor(courses.get(courses.size() - 1))) : null;
+		return new CursorPageResult<>(items, normalizedLimit, totalCount, nextCursor, hasNext);
+	}
+
 	private Map<Long, User> fetchUsers(Collection<Long> userIds) {
 		List<Long> nonNullIds = userIds.stream().filter(id -> id != null).toList();
 		if (nonNullIds.isEmpty()) {
@@ -180,6 +225,35 @@ public class DateCourseQueryService {
 		}
 		return userRepository.findByIdInAndDeletedAtIsNull(nonNullIds).stream()
 				.collect(Collectors.toMap(User::getId, Function.identity()));
+	}
+
+	private List<DateCourseResult> toCourseResults(List<DateCourse> courses) {
+		if (courses.isEmpty()) {
+			return List.of();
+		}
+		List<Long> courseIds = courses.stream().map(DateCourse::getId).toList();
+		List<DateCoursePlace> allPlaces = dateCoursePlaceRepository.findWithRoomPlacesByCourseIdIn(courseIds);
+		Map<Long, List<DateCoursePlace>> placesByCourseId = allPlaces.stream()
+				.collect(Collectors.groupingBy(dcp -> dcp.getDateCourse().getId()));
+		Map<Long, User> userById = fetchUsers(courses.stream()
+				.map(DateCourse::getSavedByUserId).distinct().toList());
+		return courses.stream()
+				.map(c -> toCourseResult(c, placesByCourseId.getOrDefault(c.getId(), List.of()),
+						userById.get(c.getSavedByUserId())))
+				.toList();
+	}
+
+	private List<MyDateCourseResult> toMyResults(List<DateCourse> courses) {
+		if (courses.isEmpty()) {
+			return List.of();
+		}
+		List<Long> courseIds = courses.stream().map(DateCourse::getId).toList();
+		List<DateCoursePlace> allPlaces = dateCoursePlaceRepository.findWithRoomPlacesByCourseIdIn(courseIds);
+		Map<Long, List<DateCoursePlace>> placesByCourseId = allPlaces.stream()
+				.collect(Collectors.groupingBy(dcp -> dcp.getDateCourse().getId()));
+		return courses.stream()
+				.map(c -> toMyResult(c, placesByCourseId.getOrDefault(c.getId(), List.of())))
+				.toList();
 	}
 
 	private DateCourseResult toCourseResult(DateCourse course, List<DateCoursePlace> places, User saver) {
@@ -238,5 +312,21 @@ public class DateCourseQueryService {
 			log.warn("Failed to parse skippedSlotIndicesJson: {}", json, e);
 			return List.of();
 		}
+	}
+
+	private int validateLimit(Integer limit) {
+		int normalizedLimit = limit == null ? DEFAULT_LIMIT : limit;
+		if (normalizedLimit < 1 || normalizedLimit > MAX_LIMIT) {
+			throw new FieldValidationException("limit", "limit must be between 1 and 100.", normalizedLimit);
+		}
+		return normalizedLimit;
+	}
+
+	private CursorCodec<DateCourseCursor> dateCourseCursorCodec() {
+		return new CursorCodec<>(objectMapper, DateCourseCursor.class);
+	}
+
+	private static DateCourseCursor toCursor(DateCourse course) {
+		return new DateCourseCursor(course.getSavedAt(), course.getId());
 	}
 }

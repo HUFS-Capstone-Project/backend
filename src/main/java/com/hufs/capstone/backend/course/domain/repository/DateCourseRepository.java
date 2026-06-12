@@ -2,6 +2,7 @@ package com.hufs.capstone.backend.course.domain.repository;
 
 import com.hufs.capstone.backend.course.domain.entity.DateCourse;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -45,6 +46,34 @@ public interface DateCourseRepository extends JpaRepository<DateCourse, Long> {
 			""")
 	Page<DateCourse> findSavedByRoomIdOrderBySavedAtDesc(@Param("roomId") Long roomId, Pageable pageable);
 
+	@Query("""
+			SELECT dc FROM DateCourse dc
+			JOIN FETCH dc.room
+			WHERE dc.room.id = :roomId
+			AND dc.savedByUserId IS NOT NULL
+			AND dc.deletedAt IS NULL
+			AND (
+				:cursorSavedAt IS NULL
+				OR dc.savedAt < :cursorSavedAt
+				OR (dc.savedAt = :cursorSavedAt AND dc.id < :cursorDateCoursePk)
+			)
+			ORDER BY dc.savedAt DESC, dc.id DESC
+			""")
+	List<DateCourse> findSavedByRoomIdAfterCursor(
+			@Param("roomId") Long roomId,
+			@Param("cursorSavedAt") Instant cursorSavedAt,
+			@Param("cursorDateCoursePk") Long cursorDateCoursePk,
+			Pageable pageable
+	);
+
+	@Query("""
+			SELECT COUNT(dc) FROM DateCourse dc
+			WHERE dc.room.id = :roomId
+			AND dc.savedByUserId IS NOT NULL
+			AND dc.deletedAt IS NULL
+			""")
+	long countSavedByRoomId(@Param("roomId") Long roomId);
+
 	@Query(value = """
 			SELECT dc FROM DateCourse dc
 			JOIN FETCH dc.room
@@ -58,4 +87,30 @@ public interface DateCourseRepository extends JpaRepository<DateCourse, Long> {
 			AND dc.deletedAt IS NULL
 			""")
 	Page<DateCourse> findSavedByUserIdOrderBySavedAtDesc(@Param("userId") Long userId, Pageable pageable);
+
+	@Query("""
+			SELECT dc FROM DateCourse dc
+			JOIN FETCH dc.room
+			WHERE dc.savedByUserId = :userId
+			AND dc.deletedAt IS NULL
+			AND (
+				:cursorSavedAt IS NULL
+				OR dc.savedAt < :cursorSavedAt
+				OR (dc.savedAt = :cursorSavedAt AND dc.id < :cursorDateCoursePk)
+			)
+			ORDER BY dc.savedAt DESC, dc.id DESC
+			""")
+	List<DateCourse> findSavedByUserIdAfterCursor(
+			@Param("userId") Long userId,
+			@Param("cursorSavedAt") Instant cursorSavedAt,
+			@Param("cursorDateCoursePk") Long cursorDateCoursePk,
+			Pageable pageable
+	);
+
+	@Query("""
+			SELECT COUNT(dc) FROM DateCourse dc
+			WHERE dc.savedByUserId = :userId
+			AND dc.deletedAt IS NULL
+			""")
+	long countSavedByUserId(@Param("userId") Long userId);
 }

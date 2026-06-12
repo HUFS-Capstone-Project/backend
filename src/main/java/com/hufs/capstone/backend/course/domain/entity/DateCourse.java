@@ -26,7 +26,9 @@ import lombok.NoArgsConstructor;
 			@Index(name = "idx_date_courses_room_id_created_at", columnList = "room_id, created_at"),
 			@Index(name = "idx_date_courses_created_by_user_id_created_at", columnList = "created_by_user_id, created_at"),
 			@Index(name = "idx_date_courses_generation_batch_id", columnList = "generation_batch_id"),
-			@Index(name = "idx_date_courses_saved_by_user_id_saved_at", columnList = "saved_by_user_id, saved_at")
+			@Index(name = "idx_date_courses_saved_by_user_id_saved_at", columnList = "saved_by_user_id, saved_at"),
+			@Index(name = "idx_date_courses_saved_by_user_saved_id", columnList = "saved_by_user_id, saved_at, id"),
+			@Index(name = "idx_date_courses_room_saved_id", columnList = "room_id, saved_at, id")
 		},
 		uniqueConstraints = {
 			@UniqueConstraint(name = "uq_date_courses_date_course_id", columnNames = "date_course_id")

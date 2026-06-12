@@ -25,7 +25,8 @@ import lombok.NoArgsConstructor;
 		indexes = {
 			@Index(name = "idx_places_source_external_place_id", columnList = "source, external_place_id"),
 			@Index(name = "idx_places_service_category_id", columnList = "service_category_id"),
-			@Index(name = "idx_places_service_tag_id", columnList = "service_tag_id")
+			@Index(name = "idx_places_service_tag_id", columnList = "service_tag_id"),
+			@Index(name = "idx_places_lat_lng", columnList = "latitude, longitude")
 		},
 		uniqueConstraints = {
 			@UniqueConstraint(name = "uq_places_source_external_place_id", columnNames = {"source", "external_place_id"}),

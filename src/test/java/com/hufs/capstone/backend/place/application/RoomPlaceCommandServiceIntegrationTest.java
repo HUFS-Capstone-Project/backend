@@ -3,6 +3,7 @@ package com.hufs.capstone.backend.place.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.hufs.capstone.backend.global.pagination.CursorPageResult;
 import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
 import com.hufs.capstone.backend.global.exception.FieldValidationException;
@@ -17,6 +18,7 @@ import com.hufs.capstone.backend.place.application.dto.PlaceTaxonomyTagResult;
 import com.hufs.capstone.backend.place.application.dto.RoomPlacePageResult;
 import com.hufs.capstone.backend.place.application.dto.RoomPlaceResult;
 import com.hufs.capstone.backend.place.application.dto.RoomPlaceSaveResult;
+import com.hufs.capstone.backend.place.application.dto.RoomPlaceMapResult;
 import com.hufs.capstone.backend.place.application.dto.MyRoomPlacePageResult;
 import com.hufs.capstone.backend.place.domain.entity.Place;
 import com.hufs.capstone.backend.place.domain.entity.PlaceBusinessHours;
@@ -347,6 +349,88 @@ class RoomPlaceCommandServiceIntegrationTest {
 
 		assertThat(myPlaces.items()).extracting("name").containsExactly("My Place");
 		assertThat(friendPlaces.items()).extracting("name").containsExactly("Friend Place");
+	}
+
+	@Test
+	void shouldCursorPageRoomPlacesWithoutDuplicates() {
+		saveExternalForTest(foodSnapshot("123456789", "First Place"));
+		saveExternalForTest(cafeSnapshot("222222222", "Second Place"));
+
+		CursorPageResult<RoomPlaceResult> firstPage = roomPlaceQueryService.searchRoomPlaces(
+				USER_ID,
+				ROOM_PUBLIC_ID,
+				null,
+				null,
+				null,
+				null,
+				null,
+				(Long) null,
+				1,
+				(String) null
+		);
+		CursorPageResult<RoomPlaceResult> secondPage = roomPlaceQueryService.searchRoomPlaces(
+				USER_ID,
+				ROOM_PUBLIC_ID,
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				1,
+				firstPage.nextCursor()
+		);
+
+		assertThat(firstPage.items()).extracting(RoomPlaceResult::name).containsExactly("Second Place");
+		assertThat(firstPage.totalCount()).isEqualTo(2);
+		assertThat(firstPage.hasNext()).isTrue();
+		assertThat(firstPage.nextCursor()).isNotBlank();
+		assertThat(secondPage.items()).extracting(RoomPlaceResult::name).containsExactly("First Place");
+		assertThat(secondPage.totalCount()).isEqualTo(2);
+		assertThat(secondPage.hasNext()).isFalse();
+		assertThat(secondPage.nextCursor()).isNull();
+	}
+
+	@Test
+	void shouldKeepRoomPlaceTotalCountUnfilteredForCursorPage() {
+		saveExternalForTest(foodSnapshot("123456789", "Food Place"));
+		saveExternalForTest(cafeSnapshot("222222222", "Cafe Place"));
+
+		CursorPageResult<RoomPlaceResult> result = roomPlaceQueryService.searchRoomPlaces(
+				USER_ID,
+				ROOM_PUBLIC_ID,
+				null,
+				"FOOD",
+				"ALL",
+				null,
+				null,
+				(Long) null,
+				20,
+				(String) null
+		);
+
+		assertThat(result.items()).extracting(RoomPlaceResult::name).containsExactly("Food Place");
+		assertThat(result.totalCount()).isEqualTo(2);
+	}
+
+	@Test
+	void shouldFindMapPlacesInsideBoundsOnly() {
+		saveExternalForTest(foodSnapshot("123456789", "Inside Place"));
+		saveExternalForTest(cafeSnapshot("222222222", "Outside Place"));
+		saveExternalForTest(noTaxonomySnapshot("333333333", "No Coordinate Place"));
+
+		RoomPlaceMapResult result = roomPlaceQueryService.findMapPlaces(
+				USER_ID,
+				ROOM_PUBLIC_ID,
+				new BigDecimal("37.569000000000"),
+				new BigDecimal("126.971000000000"),
+				new BigDecimal("37.570500000000"),
+				new BigDecimal("126.972500000000")
+		);
+
+		assertThat(result.items()).extracting("name").containsExactly("Inside Place");
+		assertThat(result.limit()).isEqualTo(500);
+		assertThat(result.truncated()).isFalse();
 	}
 
 	@Test
