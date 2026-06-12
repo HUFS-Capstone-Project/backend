@@ -3,6 +3,7 @@ package com.hufs.capstone.backend.external.kakao;
 import com.hufs.capstone.backend.external.kakao.dto.KakaoKeywordSearchResponse;
 import com.hufs.capstone.backend.external.kakao.dto.KakaoKeywordSearchResponse.Document;
 import com.hufs.capstone.backend.place.application.dto.ExternalPlaceCandidateSearchQuery;
+import com.hufs.capstone.backend.place.application.dto.ExternalPlaceCandidateSearchResult;
 import com.hufs.capstone.backend.place.domain.vo.PlaceSnapshot;
 import io.netty.handler.timeout.ReadTimeoutException;
 import java.math.BigDecimal;
@@ -35,13 +36,14 @@ public class KakaoLocalClientImpl implements KakaoLocalClient {
 	}
 
 	@Override
-	public List<PlaceSnapshot> searchByKeyword(ExternalPlaceCandidateSearchQuery query) {
+	public ExternalPlaceCandidateSearchResult searchByKeywordPage(ExternalPlaceCandidateSearchQuery query) {
 		KakaoKeywordSearchResponse response;
 		try {
 			response = kakaoLocalWebClient.get()
 					.uri(uriBuilder -> {
 						uriBuilder.path(KEYWORD_SEARCH_PATH)
 								.queryParam(KAKAO_QUERY_PARAM, query.kakaoSearchQuery())
+								.queryParam("page", query.page())
 								.queryParam("size", query.limit());
 						if (query.categoryGroupCode() != null) {
 							uriBuilder.queryParam("category_group_code", query.categoryGroupCode());
@@ -60,11 +62,30 @@ public class KakaoLocalClientImpl implements KakaoLocalClient {
 			throw new KakaoLocalClientException("Kakao Local response is malformed.", null, "", ex);
 		}
 		if (response == null || response.documents() == null) {
-			return List.of();
+			return new ExternalPlaceCandidateSearchResult(
+					List.of(),
+					query.page(),
+					query.limit(),
+					false,
+					null,
+					0,
+					0
+			);
 		}
-		return response.documents().stream()
+		List<PlaceSnapshot> items = response.documents().stream()
 				.map(this::toSnapshot)
 				.toList();
+		KakaoKeywordSearchResponse.Meta meta = response.meta();
+		boolean hasNext = meta != null && !meta.isEnd();
+		return new ExternalPlaceCandidateSearchResult(
+				items,
+				query.page(),
+				query.limit(),
+				hasNext,
+				hasNext ? query.page() + 1 : null,
+				meta == null ? items.size() : meta.totalCount(),
+				meta == null ? items.size() : meta.pageableCount()
+		);
 	}
 
 	private Function<ClientResponse, Mono<? extends Throwable>> kakaoError() {

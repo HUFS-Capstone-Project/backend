@@ -29,6 +29,8 @@ import lombok.NoArgsConstructor;
 			@Index(name = "idx_room_places_place_id", columnList = "place_id"),
 			@Index(name = "idx_room_places_origin_room_link_id", columnList = "origin_room_link_id"),
 			@Index(name = "idx_room_places_room_id_created_at", columnList = "room_id, created_at"),
+			@Index(name = "idx_room_places_room_created_id_desc", columnList = "room_id, created_at, id"),
+			@Index(name = "idx_room_places_created_by_created_id", columnList = "created_by_user_id, created_at, id"),
 			@Index(name = "idx_room_places_room_sido", columnList = "room_id, sido_code"),
 			@Index(name = "idx_room_places_room_sigungu", columnList = "room_id, sigungu_code")
 		},

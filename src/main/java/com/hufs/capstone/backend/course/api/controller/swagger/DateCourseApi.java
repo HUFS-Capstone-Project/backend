@@ -3,8 +3,8 @@ package com.hufs.capstone.backend.course.api.controller.swagger;
 import com.hufs.capstone.backend.course.api.request.DateCourseGenerationRequest;
 import com.hufs.capstone.backend.course.api.request.DateCourseSaveRequest;
 import com.hufs.capstone.backend.course.api.request.DateCourseUpdateRequest;
+import com.hufs.capstone.backend.course.api.response.DateCourseCursorPageResponse;
 import com.hufs.capstone.backend.course.api.response.DateCourseGenerationResponse;
-import com.hufs.capstone.backend.course.api.response.DateCoursePageResponse;
 import com.hufs.capstone.backend.course.api.response.DateCourseResponse;
 import com.hufs.capstone.backend.global.response.CommonResponse;
 import com.hufs.capstone.backend.region.api.response.RegionOptionResponse;
@@ -56,7 +56,7 @@ public interface DateCourseApi {
 			description = "방에 저장된 장소를 기반으로 GENERAL/TRENDY/POPULAR 코스 후보를 생성합니다. "
 					+ "이미 저장된 코스와 동일한 장소 순서의 후보는 제외합니다."
 	)
-	@ApiResponse(responseCode = "201", description = "코스 생성 성공")
+	@ApiResponse(responseCode = "201", description = "Created")
 	@ResponseStatus(HttpStatus.CREATED)
 	@PostMapping
 	CommonResponse<DateCourseGenerationResponse> generateCourse(
@@ -77,7 +77,7 @@ public interface DateCourseApi {
 					- 이미 저장된 코스와 동일한 장소 순서이면 409를 반환합니다.
 					"""
 	)
-	@ApiResponse(responseCode = "200", description = "저장 성공")
+	@ApiResponse(responseCode = "200", description = "OK")
 	@PostMapping("/{dateCourseId}/save")
 	CommonResponse<Void> saveCourse(
 			@PathVariable String roomId,
@@ -93,10 +93,10 @@ public interface DateCourseApi {
 	)
 	@ApiResponse(responseCode = "200", description = "OK")
 	@GetMapping
-	CommonResponse<DateCoursePageResponse> listCourses(
+	CommonResponse<DateCourseCursorPageResponse> listCourses(
 			@PathVariable String roomId,
-			@RequestParam(required = false) Integer page,
-			@RequestParam(required = false) Integer limit
+			@RequestParam(required = false) Integer limit,
+			@RequestParam(required = false) String cursor
 	);
 
 	@Operation(
@@ -124,11 +124,11 @@ public interface DateCourseApi {
 					  (code=E409_DUPLICATE_DATE_COURSE).
 					"""
 	)
-	@ApiResponse(responseCode = "200", description = "수정 성공, 수정된 코스 반환")
-	@ApiResponse(responseCode = "400", description = "입력값 오류 (장소 0개, 중복 ID, 방 미소속 장소 등)")
-	@ApiResponse(responseCode = "403", description = "수정 권한 없음")
-	@ApiResponse(responseCode = "404", description = "코스를 찾을 수 없음")
-	@ApiResponse(responseCode = "409", description = "동일한 데이트 코스가 이미 저장되어 있음 (code=E409_DUPLICATE_DATE_COURSE)")
+	@ApiResponse(responseCode = "200", description = "OK")
+	@ApiResponse(responseCode = "400", description = "Bad Request")
+	@ApiResponse(responseCode = "403", description = "Forbidden")
+	@ApiResponse(responseCode = "404", description = "Not Found")
+	@ApiResponse(responseCode = "409", description = "Conflict")
 	@PutMapping("/{dateCourseId}")
 	CommonResponse<DateCourseResponse> updateCourse(
 			@PathVariable String roomId,
@@ -145,9 +145,9 @@ public interface DateCourseApi {
 					코스 생성자 또는 저장자만 삭제할 수 있습니다.
 					"""
 	)
-	@ApiResponse(responseCode = "200", description = "삭제 성공")
-	@ApiResponse(responseCode = "403", description = "삭제 권한 없음")
-	@ApiResponse(responseCode = "404", description = "코스를 찾을 수 없음")
+	@ApiResponse(responseCode = "200", description = "OK")
+	@ApiResponse(responseCode = "403", description = "Forbidden")
+	@ApiResponse(responseCode = "404", description = "Not Found")
 	@DeleteMapping("/{dateCourseId}")
 	CommonResponse<Void> deleteCourse(
 			@PathVariable String roomId,

@@ -2,6 +2,8 @@ package com.hufs.capstone.backend.place.application;
 
 import com.hufs.capstone.backend.external.kakao.KakaoLocalClient;
 import com.hufs.capstone.backend.place.application.dto.ExternalPlaceCandidateSearchQuery;
+import com.hufs.capstone.backend.place.application.dto.ExternalPlaceCandidateSearchResult;
+import com.hufs.capstone.backend.place.application.dto.PlaceCandidatePageResult;
 import com.hufs.capstone.backend.place.application.dto.PlaceCandidateResult;
 import com.hufs.capstone.backend.place.application.dto.ResolvedPlaceCategory;
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
@@ -42,6 +44,33 @@ public class PlaceCandidateQueryService {
 		return candidates.stream()
 				.map(candidate -> toCandidateResult(candidate, existingByExternalPlaceId))
 				.toList();
+	}
+
+	public PlaceCandidatePageResult searchExternalCandidatePage(
+			Long userId,
+			String roomId,
+			ExternalPlaceCandidateSearchQuery query
+	) {
+		Room room = roomAccessService.requireMemberRoom(roomId, userId);
+		ExternalPlaceCandidateSearchResult result = kakaoLocalClient.searchByKeywordPage(query);
+		Map<String, RoomPlace> existingByExternalPlaceId = findExistingRoomPlaces(room.getId(), result.items()).stream()
+				.collect(Collectors.toMap(
+						roomPlace -> roomPlace.getPlace().getExternalPlaceId(),
+						Function.identity(),
+						(first, ignored) -> first
+				));
+		List<PlaceCandidateResult> items = result.items().stream()
+				.map(candidate -> toCandidateResult(candidate, existingByExternalPlaceId))
+				.toList();
+		return new PlaceCandidatePageResult(
+				items,
+				result.page(),
+				result.limit(),
+				result.hasNext(),
+				result.nextPage(),
+				result.totalCount(),
+				result.pageableCount()
+		);
 	}
 
 	private List<RoomPlace> findExistingRoomPlaces(Long roomId, List<PlaceSnapshot> candidates) {

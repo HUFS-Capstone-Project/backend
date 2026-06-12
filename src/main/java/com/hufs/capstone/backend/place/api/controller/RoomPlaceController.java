@@ -4,12 +4,15 @@ import com.hufs.capstone.backend.auth.security.SecurityUtils;
 import com.hufs.capstone.backend.global.response.CommonResponse;
 import com.hufs.capstone.backend.place.api.controller.swagger.RoomPlaceApi;
 import com.hufs.capstone.backend.place.api.request.UpdateRoomPlaceMemoRequest;
-import com.hufs.capstone.backend.place.api.response.RoomPlacePageResponse;
+import com.hufs.capstone.backend.place.api.response.RoomPlaceCursorPageResponse;
+import com.hufs.capstone.backend.place.api.response.RoomPlaceMapResponse;
 import com.hufs.capstone.backend.place.api.response.RoomPlaceResponse;
 import com.hufs.capstone.backend.place.application.RoomPlaceManagementService;
 import com.hufs.capstone.backend.place.application.RoomPlaceQueryService;
-import com.hufs.capstone.backend.place.application.dto.RoomPlacePageResult;
+import com.hufs.capstone.backend.global.pagination.CursorPageResult;
+import com.hufs.capstone.backend.place.application.dto.RoomPlaceResult;
 import jakarta.validation.Valid;
+import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -25,7 +28,7 @@ public class RoomPlaceController implements RoomPlaceApi {
 	private final RoomPlaceManagementService roomPlaceManagementService;
 
 	@Override
-	public CommonResponse<RoomPlacePageResponse> searchRoomPlaces(
+	public CommonResponse<RoomPlaceCursorPageResponse> searchRoomPlaces(
 			@PathVariable String roomId,
 			@RequestParam(required = false) String keyword,
 			@RequestParam(required = false) String category,
@@ -34,12 +37,11 @@ public class RoomPlaceController implements RoomPlaceApi {
 			@RequestParam(required = false) String sidoCode,
 			@RequestParam(required = false) String sigunguCode,
 			@RequestParam(required = false) Long createdBy,
-			@RequestParam(required = false) Integer page,
-			@RequestParam(required = false) Integer size,
-			@RequestParam(required = false) Integer limit
+			@RequestParam(required = false) Integer limit,
+			@RequestParam(required = false) String cursor
 	) {
 		Long userId = SecurityUtils.currentUserIdOrThrow();
-		RoomPlacePageResult result = roomPlaceQueryService.searchRoomPlaces(
+		CursorPageResult<RoomPlaceResult> result = roomPlaceQueryService.searchRoomPlaces(
 				userId,
 				roomId,
 				keyword,
@@ -48,11 +50,25 @@ public class RoomPlaceController implements RoomPlaceApi {
 				sidoCode,
 				sigunguCode,
 				createdBy,
-				page,
 				limit,
-				size
+				cursor
 		);
-		return CommonResponse.ok(RoomPlacePageResponse.from(result));
+		return CommonResponse.ok(RoomPlaceCursorPageResponse.from(result));
+	}
+
+	@Override
+	public CommonResponse<RoomPlaceMapResponse> findMapPlaces(
+			@PathVariable String roomId,
+			@RequestParam BigDecimal swLat,
+			@RequestParam BigDecimal swLng,
+			@RequestParam BigDecimal neLat,
+			@RequestParam BigDecimal neLng,
+			@RequestParam(required = false) Integer zoom
+	) {
+		Long userId = SecurityUtils.currentUserIdOrThrow();
+		return CommonResponse.ok(RoomPlaceMapResponse.from(
+				roomPlaceQueryService.findMapPlaces(userId, roomId, swLat, swLng, neLat, neLng)
+		));
 	}
 
 	@Override

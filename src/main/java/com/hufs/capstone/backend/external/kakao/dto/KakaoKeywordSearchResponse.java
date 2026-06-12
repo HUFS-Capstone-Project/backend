@@ -6,7 +6,8 @@ import java.util.List;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record KakaoKeywordSearchResponse(
-		List<Document> documents
+		List<Document> documents,
+		Meta meta
 ) {
 
 	@JsonIgnoreProperties(ignoreUnknown = true)
@@ -27,6 +28,17 @@ public record KakaoKeywordSearchResponse(
 			String y,
 			@JsonProperty("place_url")
 			String placeUrl
+	) {
+	}
+
+	@JsonIgnoreProperties(ignoreUnknown = true)
+	public record Meta(
+			@JsonProperty("total_count")
+			int totalCount,
+			@JsonProperty("pageable_count")
+			int pageableCount,
+			@JsonProperty("is_end")
+			boolean isEnd
 	) {
 	}
 }

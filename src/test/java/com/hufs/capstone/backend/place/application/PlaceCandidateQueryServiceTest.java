@@ -7,6 +7,8 @@ import static org.mockito.Mockito.when;
 
 import com.hufs.capstone.backend.external.kakao.KakaoLocalClient;
 import com.hufs.capstone.backend.place.application.dto.ExternalPlaceCandidateSearchQuery;
+import com.hufs.capstone.backend.place.application.dto.ExternalPlaceCandidateSearchResult;
+import com.hufs.capstone.backend.place.application.dto.PlaceCandidatePageResult;
 import com.hufs.capstone.backend.place.application.dto.PlaceCandidateResult;
 import com.hufs.capstone.backend.place.application.dto.ResolvedPlaceCategory;
 import com.hufs.capstone.backend.place.domain.entity.Place;
@@ -91,6 +93,39 @@ class PlaceCandidateQueryServiceTest {
 		assertThat(results.get(1).serviceCategoryName()).isEqualTo("카페");
 		assertThat(results.get(2).selectable()).isFalse();
 		assertThat(results.get(2).disabledReason()).isEqualTo(PlaceCandidateDisabledReason.MISSING_KAKAO_PLACE_ID);
+	}
+
+	@Test
+	void shouldReturnExternalCandidatePageMetadata() {
+		ExternalPlaceCandidateSearchQuery query = ExternalPlaceCandidateSearchQuery.of("移댄럹", null, null, 2, 10);
+		PlaceSnapshot candidate = snapshot("456", "??移댄럹");
+		when(roomAccessService.requireMemberRoom("room-public-id", 100L)).thenReturn(room);
+		when(kakaoLocalClient.searchByKeywordPage(query)).thenReturn(new ExternalPlaceCandidateSearchResult(
+				List.of(candidate),
+				2,
+				10,
+				true,
+				3,
+				42,
+				40
+		));
+		when(roomPlaceRepository.findExistingByRoomIdAndSourceExternalPlaceIds(
+				eq(1L),
+				eq(PlaceSource.KAKAO),
+				eq(List.of("456"))
+		)).thenReturn(List.of());
+		when(placeTaxonomyReadService.resolveCategory(any(), any()))
+				.thenReturn(new ResolvedPlaceCategory("CAFE", "移댄럹"));
+
+		PlaceCandidatePageResult result = service.searchExternalCandidatePage(100L, "room-public-id", query);
+
+		assertThat(result.items()).hasSize(1);
+		assertThat(result.page()).isEqualTo(2);
+		assertThat(result.limit()).isEqualTo(10);
+		assertThat(result.hasNext()).isTrue();
+		assertThat(result.nextPage()).isEqualTo(3);
+		assertThat(result.totalCount()).isEqualTo(42);
+		assertThat(result.pageableCount()).isEqualTo(40);
 	}
 
 	private static RoomPlace existingRoomPlace(PlaceSnapshot snapshot) {

@@ -20,7 +20,7 @@ public interface HealthCheckApi {
 	)
 	@ApiResponse(
 			responseCode = "200",
-			description = "정상",
+			description = "OK",
 			content = @Content(
 					schema = @Schema(implementation = Map.class),
 					examples = @ExampleObject(

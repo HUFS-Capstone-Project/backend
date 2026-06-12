@@ -16,6 +16,8 @@ import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import org.springframework.data.domain.Page;
@@ -26,11 +28,13 @@ import org.springframework.util.StringUtils;
 public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository {
 
 	private static final QRoomPlace ROOM_PLACE = QRoomPlace.roomPlace;
+	private static final QRoomPlace OTHER_ROOM_PLACE = new QRoomPlace("otherRoomPlace");
 	private static final QPlace PLACE = QPlace.place;
 	private static final QPlaceCategory CATEGORY = QPlaceCategory.placeCategory;
 	private static final QPlaceTag TAG = QPlaceTag.placeTag;
 	private static final QRoom ROOM = QRoom.room;
 	private static final QRoomMember ROOM_MEMBER = QRoomMember.roomMember;
+	private static final QRoomMember OTHER_ROOM_MEMBER = new QRoomMember("otherRoomMember");
 	private static final QRoomLink ORIGIN_ROOM_LINK = QRoomLink.roomLink;
 	private static final QLink ORIGIN_LINK = QLink.link;
 
@@ -86,6 +90,86 @@ public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository 
 	}
 
 	@Override
+	public List<RoomPlace> searchRoomPlacesAfterCursor(
+			Long roomId,
+			String keyword,
+			String categoryCode,
+			String tagCode,
+			String sidoCode,
+			String sigunguCode,
+			Long createdBy,
+			Instant cursorCreatedAt,
+			Long cursorRoomPlaceId,
+			int limit
+	) {
+		return baseRoomPlaceQuery()
+				.where(
+						roomIdEq(roomId),
+						keywordContains(keyword),
+						categoryCodeEq(categoryCode),
+						tagCodeEq(tagCode),
+						sidoCodeEq(sidoCode),
+						sigunguCodeEq(sigunguCode),
+						createdByEq(createdBy),
+						afterRoomPlaceCursor(cursorCreatedAt, cursorRoomPlaceId)
+				)
+				.orderBy(ROOM_PLACE.createdAt.desc(), ROOM_PLACE.id.desc())
+				.limit(limit)
+				.fetch();
+	}
+
+	@Override
+	public long countRoomPlaces(
+			Long roomId,
+			String keyword,
+			String categoryCode,
+			String tagCode,
+			String sidoCode,
+			String sigunguCode,
+			Long createdBy
+	) {
+		Long total = queryFactory
+				.select(ROOM_PLACE.id.countDistinct())
+				.from(ROOM_PLACE)
+				.join(ROOM_PLACE.place, PLACE)
+				.join(PLACE.serviceCategory, CATEGORY)
+				.join(PLACE.serviceTag, TAG)
+				.where(
+						roomIdEq(roomId),
+						keywordContains(keyword),
+						categoryCodeEq(categoryCode),
+						tagCodeEq(tagCode),
+						sidoCodeEq(sidoCode),
+						sigunguCodeEq(sigunguCode),
+						createdByEq(createdBy)
+				)
+				.fetchOne();
+		return total == null ? 0 : total;
+	}
+
+	@Override
+	public List<RoomPlace> findMapPlacesInBounds(
+			Long roomId,
+			BigDecimal minLatitude,
+			BigDecimal maxLatitude,
+			BigDecimal minLongitude,
+			BigDecimal maxLongitude,
+			int limit
+	) {
+		return baseRoomPlaceQuery()
+				.where(
+						roomIdEq(roomId),
+						PLACE.latitude.isNotNull(),
+						PLACE.longitude.isNotNull(),
+						PLACE.latitude.between(minLatitude, maxLatitude),
+						PLACE.longitude.between(minLongitude, maxLongitude)
+				)
+				.orderBy(ROOM_PLACE.createdAt.desc(), ROOM_PLACE.id.desc())
+				.limit(limit)
+				.fetch();
+	}
+
+	@Override
 	public Page<RoomPlace> searchMyRoomPlaces(
 			Long userId,
 			String keyword,
@@ -99,6 +183,7 @@ public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository 
 				.where(
 						createdByEq(userId),
 						memberExists(userId),
+						latestMyRoomPlaceForPlace(userId),
 						keywordContains(keyword),
 						categoryCodeEq(categoryCode),
 						tagCodeEq(tagCode),
@@ -111,7 +196,7 @@ public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository 
 				.fetch();
 
 		Long total = queryFactory
-				.select(ROOM_PLACE.id.countDistinct())
+				.select(PLACE.id.countDistinct())
 				.from(ROOM_PLACE)
 				.join(ROOM_PLACE.place, PLACE)
 				.join(PLACE.serviceCategory, CATEGORY)
@@ -119,6 +204,7 @@ public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository 
 				.where(
 						createdByEq(userId),
 						memberExists(userId),
+						latestMyRoomPlaceForPlace(userId),
 						keywordContains(keyword),
 						categoryCodeEq(categoryCode),
 						tagCodeEq(tagCode),
@@ -127,6 +213,64 @@ public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository 
 				)
 				.fetchOne();
 		return new PageImpl<>(content, pageable, total == null ? 0 : total);
+	}
+
+	@Override
+	public long countMyRoomPlaces(
+			Long userId,
+			String keyword,
+			String categoryCode,
+			String tagCode,
+			String sidoCode,
+			String sigunguCode
+	) {
+		Long total = queryFactory
+				.select(PLACE.id.countDistinct())
+				.from(ROOM_PLACE)
+				.join(ROOM_PLACE.place, PLACE)
+				.join(PLACE.serviceCategory, CATEGORY)
+				.join(PLACE.serviceTag, TAG)
+				.where(
+						createdByEq(userId),
+						memberExists(userId),
+						latestMyRoomPlaceForPlace(userId),
+						keywordContains(keyword),
+						categoryCodeEq(categoryCode),
+						tagCodeEq(tagCode),
+						sidoCodeEq(sidoCode),
+						sigunguCodeEq(sigunguCode)
+				)
+				.fetchOne();
+		return total == null ? 0 : total;
+	}
+
+	@Override
+	public List<RoomPlace> searchMyRoomPlacesAfterCursor(
+			Long userId,
+			String keyword,
+			String categoryCode,
+			String tagCode,
+			String sidoCode,
+			String sigunguCode,
+			Instant cursorCreatedAt,
+			Long cursorRoomPlaceId,
+			int limit
+	) {
+		return baseMyRoomPlaceQuery()
+				.where(
+						createdByEq(userId),
+						memberExists(userId),
+						latestMyRoomPlaceForPlace(userId),
+						keywordContains(keyword),
+						categoryCodeEq(categoryCode),
+						tagCodeEq(tagCode),
+						sidoCodeEq(sidoCode),
+						sigunguCodeEq(sigunguCode),
+						afterRoomPlaceCursor(cursorCreatedAt, cursorRoomPlaceId)
+				)
+				.orderBy(ROOM_PLACE.createdAt.desc(), ROOM_PLACE.id.desc())
+				.limit(limit)
+				.fetch();
 	}
 
 	@Override
@@ -207,6 +351,14 @@ public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository 
 		return createdBy == null ? null : ROOM_PLACE.createdByUserId.eq(createdBy);
 	}
 
+	private static BooleanExpression afterRoomPlaceCursor(Instant createdAt, Long roomPlaceId) {
+		if (createdAt == null || roomPlaceId == null) {
+			return null;
+		}
+		return ROOM_PLACE.createdAt.lt(createdAt)
+				.or(ROOM_PLACE.createdAt.eq(createdAt).and(ROOM_PLACE.id.lt(roomPlaceId)));
+	}
+
 	private static BooleanExpression memberExists(Long userId) {
 		if (userId == null) {
 			return null;
@@ -217,6 +369,35 @@ public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository 
 				.where(
 						ROOM_MEMBER.room.eq(ROOM_PLACE.room),
 						ROOM_MEMBER.userId.eq(userId)
+				)
+				.exists();
+	}
+
+	private static BooleanExpression latestMyRoomPlaceForPlace(Long userId) {
+		if (userId == null) {
+			return null;
+		}
+		return JPAExpressions
+				.selectOne()
+				.from(OTHER_ROOM_PLACE)
+				.where(
+						OTHER_ROOM_PLACE.place.eq(ROOM_PLACE.place),
+						OTHER_ROOM_PLACE.createdByUserId.eq(userId),
+						otherMemberExists(userId),
+						OTHER_ROOM_PLACE.createdAt.gt(ROOM_PLACE.createdAt)
+								.or(OTHER_ROOM_PLACE.createdAt.eq(ROOM_PLACE.createdAt)
+										.and(OTHER_ROOM_PLACE.id.gt(ROOM_PLACE.id)))
+				)
+				.notExists();
+	}
+
+	private static BooleanExpression otherMemberExists(Long userId) {
+		return JPAExpressions
+				.selectOne()
+				.from(OTHER_ROOM_MEMBER)
+				.where(
+						OTHER_ROOM_MEMBER.room.eq(OTHER_ROOM_PLACE.room),
+						OTHER_ROOM_MEMBER.userId.eq(userId)
 				)
 				.exists();
 	}
