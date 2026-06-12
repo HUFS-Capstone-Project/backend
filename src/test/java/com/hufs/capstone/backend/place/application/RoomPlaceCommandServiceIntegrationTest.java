@@ -670,7 +670,7 @@ class RoomPlaceCommandServiceIntegrationTest {
 	}
 
 	@Test
-	void shouldExposeSameKakaoPlaceInDifferentRoomsAsSeparateMyRoomPlaceItems() {
+	void shouldDeduplicateSamePlaceAcrossRoomsInMyRoomPlaceItems() {
 		Room secondRoom = roomRepository.saveAndFlush(Room.create(
 				"55555555-5555-5555-5555-555555555555",
 				"Second Room",
@@ -693,13 +693,28 @@ class RoomPlaceCommandServiceIntegrationTest {
 				null
 		);
 
-		assertThat(result.items()).hasSize(2);
+		assertThat(result.items()).hasSize(1);
 		assertThat(result.items()).extracting(item -> item.place().kakaoPlaceId())
-				.containsExactly("123456789", "123456789");
+				.containsExactly("123456789");
 		assertThat(result.items()).extracting(item -> item.room().roomId())
-				.containsExactly(secondRoom.getPublicId(), ROOM_PUBLIC_ID);
-		assertThat(result.items()).extracting(item -> item.place().roomPlaceId())
-				.doesNotHaveDuplicates();
+				.containsExactly(secondRoom.getPublicId());
+		assertThat(result.totalElements()).isEqualTo(1);
+
+		var cursorResult = roomPlaceQueryService.searchMyRoomPlaces(
+				USER_ID,
+				null,
+				null,
+				null,
+				null,
+				null,
+				20,
+				(String) null
+		);
+
+		assertThat(cursorResult.items()).hasSize(1);
+		assertThat(cursorResult.items().get(0).place().kakaoPlaceId()).isEqualTo("123456789");
+		assertThat(cursorResult.items().get(0).room().roomId()).isEqualTo(secondRoom.getPublicId());
+		assertThat(cursorResult.totalCount()).isEqualTo(1);
 	}
 
 	@Test

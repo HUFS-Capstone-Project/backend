@@ -28,11 +28,13 @@ import org.springframework.util.StringUtils;
 public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository {
 
 	private static final QRoomPlace ROOM_PLACE = QRoomPlace.roomPlace;
+	private static final QRoomPlace OTHER_ROOM_PLACE = new QRoomPlace("otherRoomPlace");
 	private static final QPlace PLACE = QPlace.place;
 	private static final QPlaceCategory CATEGORY = QPlaceCategory.placeCategory;
 	private static final QPlaceTag TAG = QPlaceTag.placeTag;
 	private static final QRoom ROOM = QRoom.room;
 	private static final QRoomMember ROOM_MEMBER = QRoomMember.roomMember;
+	private static final QRoomMember OTHER_ROOM_MEMBER = new QRoomMember("otherRoomMember");
 	private static final QRoomLink ORIGIN_ROOM_LINK = QRoomLink.roomLink;
 	private static final QLink ORIGIN_LINK = QLink.link;
 
@@ -181,6 +183,7 @@ public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository 
 				.where(
 						createdByEq(userId),
 						memberExists(userId),
+						latestMyRoomPlaceForPlace(userId),
 						keywordContains(keyword),
 						categoryCodeEq(categoryCode),
 						tagCodeEq(tagCode),
@@ -193,7 +196,7 @@ public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository 
 				.fetch();
 
 		Long total = queryFactory
-				.select(ROOM_PLACE.id.countDistinct())
+				.select(PLACE.id.countDistinct())
 				.from(ROOM_PLACE)
 				.join(ROOM_PLACE.place, PLACE)
 				.join(PLACE.serviceCategory, CATEGORY)
@@ -201,6 +204,7 @@ public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository 
 				.where(
 						createdByEq(userId),
 						memberExists(userId),
+						latestMyRoomPlaceForPlace(userId),
 						keywordContains(keyword),
 						categoryCodeEq(categoryCode),
 						tagCodeEq(tagCode),
@@ -221,7 +225,7 @@ public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository 
 			String sigunguCode
 	) {
 		Long total = queryFactory
-				.select(ROOM_PLACE.id.countDistinct())
+				.select(PLACE.id.countDistinct())
 				.from(ROOM_PLACE)
 				.join(ROOM_PLACE.place, PLACE)
 				.join(PLACE.serviceCategory, CATEGORY)
@@ -229,6 +233,7 @@ public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository 
 				.where(
 						createdByEq(userId),
 						memberExists(userId),
+						latestMyRoomPlaceForPlace(userId),
 						keywordContains(keyword),
 						categoryCodeEq(categoryCode),
 						tagCodeEq(tagCode),
@@ -255,6 +260,7 @@ public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository 
 				.where(
 						createdByEq(userId),
 						memberExists(userId),
+						latestMyRoomPlaceForPlace(userId),
 						keywordContains(keyword),
 						categoryCodeEq(categoryCode),
 						tagCodeEq(tagCode),
@@ -363,6 +369,35 @@ public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository 
 				.where(
 						ROOM_MEMBER.room.eq(ROOM_PLACE.room),
 						ROOM_MEMBER.userId.eq(userId)
+				)
+				.exists();
+	}
+
+	private static BooleanExpression latestMyRoomPlaceForPlace(Long userId) {
+		if (userId == null) {
+			return null;
+		}
+		return JPAExpressions
+				.selectOne()
+				.from(OTHER_ROOM_PLACE)
+				.where(
+						OTHER_ROOM_PLACE.place.eq(ROOM_PLACE.place),
+						OTHER_ROOM_PLACE.createdByUserId.eq(userId),
+						otherMemberExists(userId),
+						OTHER_ROOM_PLACE.createdAt.gt(ROOM_PLACE.createdAt)
+								.or(OTHER_ROOM_PLACE.createdAt.eq(ROOM_PLACE.createdAt)
+										.and(OTHER_ROOM_PLACE.id.gt(ROOM_PLACE.id)))
+				)
+				.notExists();
+	}
+
+	private static BooleanExpression otherMemberExists(Long userId) {
+		return JPAExpressions
+				.selectOne()
+				.from(OTHER_ROOM_MEMBER)
+				.where(
+						OTHER_ROOM_MEMBER.room.eq(OTHER_ROOM_PLACE.room),
+						OTHER_ROOM_MEMBER.userId.eq(userId)
 				)
 				.exists();
 	}
