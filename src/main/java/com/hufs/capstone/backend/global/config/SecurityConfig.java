@@ -10,12 +10,14 @@ import com.hufs.capstone.backend.auth.security.RestAuthenticationEntryPoint;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.Arrays;
+import java.util.Set;
 import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -38,6 +40,12 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @EnableWebSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
+
+	private static final String BEARER_PREFIX = "Bearer ";
+	private static final Set<String> COOKIE_AUTH_ENDPOINTS = Set.of(
+			"/api/v1/auth/refresh",
+			"/api/v1/auth/logout"
+	);
 
 	private final JwtAuthenticationFilter jwtAuthenticationFilter;
 	private final OAuthAuthorizationContextCaptureFilter oauthAuthorizationContextCaptureFilter;
@@ -86,6 +94,7 @@ public class SecurityConfig {
 								"/api/v1/auth/mobile/logout",
 								"/api/v1/auth/dev/**"
 						)
+						.ignoringRequestMatchers(SecurityConfig::isBearerTokenApiRequest)
 				)
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
 				.formLogin(form -> form.disable())
@@ -146,6 +155,23 @@ public class SecurityConfig {
 		source.registerCorsConfiguration("/oauth2/**", corsConfiguration);
 		source.registerCorsConfiguration("/login/oauth2/**", corsConfiguration);
 		return source;
+	}
+
+	private static boolean isBearerTokenApiRequest(HttpServletRequest request) {
+		if (COOKIE_AUTH_ENDPOINTS.contains(requestPath(request))) {
+			return false;
+		}
+		String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
+		return StringUtils.hasText(authorization) && authorization.regionMatches(true, 0, BEARER_PREFIX, 0, BEARER_PREFIX.length());
+	}
+
+	private static String requestPath(HttpServletRequest request) {
+		String path = request.getRequestURI();
+		String contextPath = request.getContextPath();
+		if (StringUtils.hasText(contextPath) && path.startsWith(contextPath)) {
+			return path.substring(contextPath.length());
+		}
+		return path;
 	}
 
 	static final class SpaCsrfTokenRequestHandler implements CsrfTokenRequestHandler {
