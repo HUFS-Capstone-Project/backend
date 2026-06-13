@@ -35,6 +35,13 @@ public class PlaceTaxonomyResolver {
 	);
 	private static final List<OverrideRule> OVERRIDE_RULES = List.of(
 			new OverrideRule(
+					KakaoCategoryGroupPolicy.KAKAO_FOOD,
+					KakaoCategoryGroupPolicy.SERVICE_CATEGORY_CAFE,
+					"BAKERY",
+					List.of(),
+					List.of("제과", "베이커리")
+			),
+			new OverrideRule(
 					KakaoCategoryGroupPolicy.KAKAO_CAFE,
 					KakaoCategoryGroupPolicy.SERVICE_CATEGORY_ACTIVITY,
 					"BOARD_GAME_CAFE",

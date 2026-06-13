@@ -87,6 +87,19 @@ class PlaceTaxonomyResolverTest {
 	}
 
 	@Test
+	void shouldOverrideKakaoFoodBakeryToCafeBakery() {
+		PlaceTag bakery = tag(20L, cafe, "BAKERY", "제과,베이커리", 1);
+		PlaceTag coffeeDessert = tag(21L, cafe, "COFFEE_DESSERT", "커피·디저트", 2);
+		PlaceTag misc = tag(22L, cafe, "MISC", "기타", 9);
+		when(placeTagRepository.findActiveTaxonomyTags()).thenReturn(List.of(bakery, coffeeDessert, misc));
+
+		ResolvedPlaceTaxonomy result = resolver.resolve("FD6", "음식점 > 간식 > 제과,베이커리");
+
+		assertThat(result.category().getCode()).isEqualTo("CAFE");
+		assertThat(result.tag().getCode()).isEqualTo("BAKERY");
+	}
+
+	@Test
 	void shouldResolvePlainCafeAndCoffeeShopToCoffeeDessert() {
 		PlaceTag bakery = tag(20L, cafe, "BAKERY", "제과,베이커리", 1);
 		PlaceTag coffeeDessert = tag(21L, cafe, "COFFEE_DESSERT", "커피·디저트", 2);
