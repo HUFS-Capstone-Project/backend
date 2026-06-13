@@ -67,6 +67,7 @@ app:
   cors:
     allowed-origins:
       - https://udidura.vercel.app
+      - https://localhost
     allow-credentials: true
   auth:
     jwt:
