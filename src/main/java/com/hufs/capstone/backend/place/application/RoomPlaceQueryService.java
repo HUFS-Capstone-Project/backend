@@ -1,42 +1,24 @@
 package com.hufs.capstone.backend.place.application;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
 import com.hufs.capstone.backend.global.exception.FieldValidationException;
-import com.hufs.capstone.backend.global.pagination.CursorCodec;
 import com.hufs.capstone.backend.global.pagination.CursorPageResult;
-import com.hufs.capstone.backend.place.application.dto.BusinessHoursResult;
 import com.hufs.capstone.backend.place.application.dto.MyRoomPlacePageResult;
 import com.hufs.capstone.backend.place.application.dto.MyRoomPlaceResult;
 import com.hufs.capstone.backend.place.application.dto.RoomPlaceCursor;
 import com.hufs.capstone.backend.place.application.dto.RoomPlaceMapItemResult;
 import com.hufs.capstone.backend.place.application.dto.RoomPlaceMapResult;
 import com.hufs.capstone.backend.place.application.dto.RoomPlacePageResult;
-import com.hufs.capstone.backend.place.application.dto.RoomPlaceMemoResult;
 import com.hufs.capstone.backend.place.application.dto.RoomPlaceResult;
-import com.hufs.capstone.backend.place.domain.entity.PlaceBusinessHours;
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
-import com.hufs.capstone.backend.place.domain.entity.RoomPlaceMemo;
-import com.hufs.capstone.backend.place.domain.repository.PlaceBusinessHoursRepository;
-import com.hufs.capstone.backend.place.domain.repository.RoomPlaceMemoRepository;
 import com.hufs.capstone.backend.place.domain.repository.RoomPlaceRepository;
 import com.hufs.capstone.backend.region.application.RegionQueryService;
 import com.hufs.capstone.backend.region.application.dto.RegionFilter;
 import com.hufs.capstone.backend.room.application.RoomAccessService;
-import com.hufs.capstone.backend.room.application.port.RoomMemberUserProfilePort;
-import com.hufs.capstone.backend.room.application.port.RoomMemberUserProfilePort.RoomMemberUserProfile;
 import com.hufs.capstone.backend.room.domain.entity.Room;
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -56,12 +38,9 @@ public class RoomPlaceQueryService {
 
 	private final RoomAccessService roomAccessService;
 	private final RoomPlaceRepository roomPlaceRepository;
-	private final RoomPlaceMemoRepository roomPlaceMemoRepository;
-	private final RoomMemberUserProfilePort roomMemberUserProfilePort;
 	private final RegionQueryService regionQueryService;
-	private final PlaceBusinessHoursRepository placeBusinessHoursRepository;
-	private final BusinessHoursDisplayResolver businessHoursDisplayResolver;
-	private final ObjectMapper objectMapper;
+	private final RoomPlaceResultMapper roomPlaceResultMapper;
+	private final RoomPlaceCursorPageAssembler cursorPageAssembler;
 
 	@Transactional(readOnly = true)
 	public CursorPageResult<RoomPlaceResult> searchRoomPlaces(
@@ -84,7 +63,7 @@ public class RoomPlaceQueryService {
 		String normalizedCategoryCode = trimToNull(categoryCode);
 		String normalizedTagCode = normalizeTagCode(tagCode);
 		long totalCount = roomPlaceRepository.countByRoomId(room.getId());
-		RoomPlaceCursor decodedCursor = cursorCodec().decode(cursor);
+		RoomPlaceCursor decodedCursor = cursorPageAssembler.decode(cursor);
 		List<RoomPlace> fetched = roomPlaceRepository.searchRoomPlacesAfterCursor(
 				room.getId(),
 				normalizedKeyword,
@@ -99,19 +78,8 @@ public class RoomPlaceQueryService {
 		);
 		boolean hasNext = fetched.size() > normalizedLimit;
 		List<RoomPlace> roomPlaces = hasNext ? fetched.subList(0, normalizedLimit) : fetched;
-		Map<String, PlaceBusinessHours> cachesByKakaoPlaceId = findCaches(roomPlaces);
-		Map<Long, List<RoomPlaceMemoResult>> memosByRoomPlaceId = findMemoResults(roomPlaces);
-		List<RoomPlaceResult> items = roomPlaces.stream()
-				.map(roomPlace -> RoomPlaceResult.from(
-						roomPlace,
-						toBusinessHoursResult(cachesByKakaoPlaceId.get(roomPlace.getKakaoPlaceId())),
-						originalUrl(roomPlace),
-						memosByRoomPlaceId.get(roomPlace.getId()),
-						userId
-				))
-				.toList();
-		String nextCursor = hasNext ? cursorCodec().encode(toCursor(roomPlaces.get(roomPlaces.size() - 1))) : null;
-		return new CursorPageResult<>(items, normalizedLimit, totalCount, nextCursor, hasNext);
+		List<RoomPlaceResult> items = roomPlaceResultMapper.toRoomPlaceResults(roomPlaces, userId);
+		return cursorPageAssembler.assemble(items, roomPlaces, normalizedLimit, totalCount, hasNext);
 	}
 
 	@Transactional(readOnly = true)
@@ -208,18 +176,8 @@ public class RoomPlaceQueryService {
 				PageRequest.of(normalizedPage, normalizedLimit, Sort.by(Sort.Direction.DESC, "createdAt", "id"))
 		);
 		List<RoomPlace> roomPlaces = result.getContent();
-		Map<String, PlaceBusinessHours> cachesByKakaoPlaceId = findCaches(roomPlaces);
-		Map<Long, List<RoomPlaceMemoResult>> memosByRoomPlaceId = findMemoResults(roomPlaces);
 		return new RoomPlacePageResult(
-				roomPlaces.stream()
-						.map(roomPlace -> RoomPlaceResult.from(
-								roomPlace,
-								toBusinessHoursResult(cachesByKakaoPlaceId.get(roomPlace.getKakaoPlaceId())),
-								originalUrl(roomPlace),
-								memosByRoomPlaceId.get(roomPlace.getId()),
-								userId
-						))
-						.toList(),
+				roomPlaceResultMapper.toRoomPlaceResults(roomPlaces, userId),
 				normalizedPage,
 				normalizedLimit,
 				result.getTotalElements(),
@@ -232,16 +190,7 @@ public class RoomPlaceQueryService {
 		Room room = roomAccessService.requireMemberRoom(roomId, userId);
 		RoomPlace roomPlace = roomPlaceRepository.findByIdAndRoomId(roomPlaceId, room.getId())
 				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "방 장소를 찾을 수 없습니다."));
-		PlaceBusinessHours cache = placeBusinessHoursRepository.findByKakaoPlaceId(roomPlace.getKakaoPlaceId())
-				.orElse(null);
-		Map<Long, List<RoomPlaceMemoResult>> memosByRoomPlaceId = findMemoResults(List.of(roomPlace));
-		return RoomPlaceResult.from(
-				roomPlace,
-				toBusinessHoursResult(cache),
-				originalUrl(roomPlace),
-				memosByRoomPlaceId.get(roomPlace.getId()),
-				userId
-		);
+		return roomPlaceResultMapper.toRoomPlaceResult(roomPlace, userId);
 	}
 
 	@Transactional(readOnly = true)
@@ -275,21 +224,8 @@ public class RoomPlaceQueryService {
 				PageRequest.of(normalizedPage, normalizedLimit, Sort.by(Sort.Direction.DESC, "createdAt", "id"))
 		);
 		List<RoomPlace> roomPlaces = result.getContent();
-		Map<String, PlaceBusinessHours> cachesByKakaoPlaceId = findCaches(roomPlaces);
-		Map<Long, List<RoomPlaceMemoResult>> memosByRoomPlaceId = findMemoResults(roomPlaces);
 		return new MyRoomPlacePageResult(
-				roomPlaces.stream()
-						.map(roomPlace -> new MyRoomPlaceResult(
-								RoomPlaceResult.from(
-										roomPlace,
-										toBusinessHoursResult(cachesByKakaoPlaceId.get(roomPlace.getKakaoPlaceId())),
-										originalUrl(roomPlace),
-										memosByRoomPlaceId.get(roomPlace.getId()),
-										userId
-								),
-								MyRoomPlaceResult.RoomResult.from(roomPlace.getRoom())
-						))
-						.toList(),
+				roomPlaceResultMapper.toMyRoomPlaceResults(roomPlaces, userId),
 				normalizedPage,
 				normalizedLimit,
 				result.getTotalElements(),
@@ -321,7 +257,7 @@ public class RoomPlaceQueryService {
 				null,
 				null
 		);
-		RoomPlaceCursor decodedCursor = cursorCodec().decode(cursor);
+		RoomPlaceCursor decodedCursor = cursorPageAssembler.decode(cursor);
 		List<RoomPlace> fetched = roomPlaceRepository.searchMyRoomPlacesAfterCursor(
 				userId,
 				normalizedKeyword,
@@ -335,112 +271,14 @@ public class RoomPlaceQueryService {
 		);
 		boolean hasNext = fetched.size() > normalizedLimit;
 		List<RoomPlace> roomPlaces = hasNext ? fetched.subList(0, normalizedLimit) : fetched;
-		Map<String, PlaceBusinessHours> cachesByKakaoPlaceId = findCaches(roomPlaces);
-		Map<Long, List<RoomPlaceMemoResult>> memosByRoomPlaceId = findMemoResults(roomPlaces);
-		List<MyRoomPlaceResult> items = roomPlaces.stream()
-				.map(roomPlace -> new MyRoomPlaceResult(
-						RoomPlaceResult.from(
-								roomPlace,
-								toBusinessHoursResult(cachesByKakaoPlaceId.get(roomPlace.getKakaoPlaceId())),
-								originalUrl(roomPlace),
-								memosByRoomPlaceId.get(roomPlace.getId()),
-								userId
-						),
-						MyRoomPlaceResult.RoomResult.from(roomPlace.getRoom())
-				))
-				.toList();
-		String nextCursor = hasNext ? cursorCodec().encode(toCursor(roomPlaces.get(roomPlaces.size() - 1))) : null;
-		return new CursorPageResult<>(items, normalizedLimit, totalCount, nextCursor, hasNext);
+		List<MyRoomPlaceResult> items = roomPlaceResultMapper.toMyRoomPlaceResults(roomPlaces, userId);
+		return cursorPageAssembler.assemble(items, roomPlaces, normalizedLimit, totalCount, hasNext);
 	}
 
 	private void validateCreatedByFilter(Room room, Long createdBy) {
 		if (createdBy != null) {
 			roomAccessService.getMembershipOrThrow(room, createdBy);
 		}
-	}
-
-	private String originalUrl(RoomPlace roomPlace) {
-		if (roomPlace.getOriginRoomLink() == null || roomPlace.getOriginRoomLink().getLink() == null) {
-			return null;
-		}
-		return roomPlace.getOriginRoomLink().getLink().getOriginalUrl();
-	}
-
-	private Map<String, PlaceBusinessHours> findCaches(Collection<RoomPlace> roomPlaces) {
-		List<String> kakaoPlaceIds = roomPlaces.stream()
-				.map(RoomPlace::getKakaoPlaceId)
-				.filter(kakaoPlaceId -> kakaoPlaceId != null && !kakaoPlaceId.isBlank())
-				.toList();
-		if (kakaoPlaceIds.isEmpty()) {
-			return Map.of();
-		}
-		return placeBusinessHoursRepository.findByKakaoPlaceIdIn(kakaoPlaceIds)
-				.stream()
-				.collect(Collectors.toMap(
-						PlaceBusinessHours::getKakaoPlaceId,
-						Function.identity(),
-						(first, second) -> first
-				));
-	}
-
-	private Map<Long, List<RoomPlaceMemoResult>> findMemoResults(Collection<RoomPlace> roomPlaces) {
-		if (roomPlaces == null || roomPlaces.isEmpty()) {
-			return Map.of();
-		}
-		List<Long> roomPlaceIds = roomPlaces.stream()
-				.map(RoomPlace::getId)
-				.toList();
-		List<RoomPlaceMemo> memos = roomPlaceMemoRepository.findByRoomPlaceIdInOrderByUpdatedAtAscIdAsc(roomPlaceIds);
-		Set<Long> authorUserIds = new LinkedHashSet<>();
-		memos.forEach(memo -> authorUserIds.add(memo.getUserId()));
-		Map<Long, RoomMemberUserProfile> profilesByUserId = findProfiles(authorUserIds);
-		Map<Long, List<RoomPlaceMemoResult>> resultsByRoomPlaceId = new HashMap<>();
-		memos.forEach(memo -> resultsByRoomPlaceId
-				.computeIfAbsent(memo.getRoomPlaceId(), ignored -> new ArrayList<>())
-				.add(toMemoResult(memo, profilesByUserId)));
-		return resultsByRoomPlaceId.entrySet().stream()
-				.collect(Collectors.toMap(
-						Map.Entry::getKey,
-						entry -> List.copyOf(entry.getValue())
-				));
-	}
-
-	private Map<Long, RoomMemberUserProfile> findProfiles(Set<Long> userIds) {
-		if (userIds.isEmpty()) {
-			return Map.of();
-		}
-		return roomMemberUserProfilePort.findActiveProfiles(userIds).stream()
-				.collect(Collectors.toMap(
-						RoomMemberUserProfile::userId,
-						Function.identity(),
-						(first, second) -> first
-				));
-	}
-
-	private RoomPlaceMemoResult toMemoResult(
-			RoomPlaceMemo memo,
-			Map<Long, RoomMemberUserProfile> profilesByUserId
-	) {
-		RoomMemberUserProfile profile = profilesByUserId.get(memo.getUserId());
-		return new RoomPlaceMemoResult(
-				memo.getUserId(),
-				profile == null ? null : profile.nickname(),
-				profile == null ? null : profile.profileImageUrl(),
-				memo.getMemo(),
-				memo.getUpdatedAt()
-		);
-	}
-
-	private BusinessHoursResult toBusinessHoursResult(PlaceBusinessHours cache) {
-		if (cache == null) {
-			return null;
-		}
-		return new BusinessHoursResult(
-				businessHoursDisplayResolver.resolve(cache.getBusinessHoursJson(), cache.getBusinessHoursStatus()),
-				cache.getBusinessHoursStatus(),
-				cache.getBusinessHoursFetchedAt(),
-				cache.getBusinessHoursExpiresAt()
-		);
 	}
 
 	private static String trimToNull(String value) {
@@ -472,14 +310,6 @@ public class RoomPlaceQueryService {
 			throw new FieldValidationException("limit", "limit must be between 1 and 100.", normalizedLimit);
 		}
 		return normalizedLimit;
-	}
-
-	private CursorCodec<RoomPlaceCursor> cursorCodec() {
-		return new CursorCodec<>(objectMapper, RoomPlaceCursor.class);
-	}
-
-	private static RoomPlaceCursor toCursor(RoomPlace roomPlace) {
-		return new RoomPlaceCursor(roomPlace.getCreatedAt(), roomPlace.getId());
 	}
 
 	private static Bounds validateBounds(BigDecimal swLat, BigDecimal swLng, BigDecimal neLat, BigDecimal neLng) {

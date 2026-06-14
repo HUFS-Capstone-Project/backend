@@ -65,7 +65,7 @@ public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository 
 						sigunguCodeEq(sigunguCode),
 						createdByEq(createdBy)
 				)
-				.orderBy(ROOM_PLACE.createdAt.desc(), ROOM_PLACE.id.desc())
+				.orderBy(RoomPlaceSearchOrder.newestFirst())
 				.offset(pageable.getOffset())
 				.limit(pageable.getPageSize())
 				.fetch();
@@ -113,7 +113,7 @@ public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository 
 						createdByEq(createdBy),
 						afterRoomPlaceCursor(cursorCreatedAt, cursorRoomPlaceId)
 				)
-				.orderBy(ROOM_PLACE.createdAt.desc(), ROOM_PLACE.id.desc())
+				.orderBy(RoomPlaceSearchOrder.newestFirst())
 				.limit(limit)
 				.fetch();
 	}
@@ -164,7 +164,7 @@ public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository 
 						PLACE.latitude.between(minLatitude, maxLatitude),
 						PLACE.longitude.between(minLongitude, maxLongitude)
 				)
-				.orderBy(ROOM_PLACE.createdAt.desc(), ROOM_PLACE.id.desc())
+				.orderBy(RoomPlaceSearchOrder.newestFirst())
 				.limit(limit)
 				.fetch();
 	}
@@ -190,7 +190,7 @@ public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository 
 						sidoCodeEq(sidoCode),
 						sigunguCodeEq(sigunguCode)
 				)
-				.orderBy(ROOM_PLACE.createdAt.desc(), ROOM_PLACE.id.desc())
+				.orderBy(RoomPlaceSearchOrder.newestFirst())
 				.offset(pageable.getOffset())
 				.limit(pageable.getPageSize())
 				.fetch();
@@ -268,7 +268,7 @@ public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository 
 						sigunguCodeEq(sigunguCode),
 						afterRoomPlaceCursor(cursorCreatedAt, cursorRoomPlaceId)
 				)
-				.orderBy(ROOM_PLACE.createdAt.desc(), ROOM_PLACE.id.desc())
+				.orderBy(RoomPlaceSearchOrder.newestFirst())
 				.limit(limit)
 				.fetch();
 	}

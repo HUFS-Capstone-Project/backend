@@ -22,11 +22,10 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Component
-@RequiredArgsConstructor
 public class BusinessHoursDisplayResolver {
 
 	private static final ZoneId SEOUL_ZONE = ZoneId.of("Asia/Seoul");
@@ -35,8 +34,18 @@ public class BusinessHoursDisplayResolver {
 	private static final Duration CLOSING_SOON_THRESHOLD = Duration.ofMinutes(30);
 	private static final List<String> DAYS = List.of("월", "화", "수", "목", "금", "토", "일");
 
-	private final ObjectMapper objectMapper;
+	private final BusinessHoursPayloadParser payloadParser;
 	private final Clock clock;
+
+	@Autowired
+	public BusinessHoursDisplayResolver(BusinessHoursPayloadParser payloadParser, Clock clock) {
+		this.payloadParser = payloadParser;
+		this.clock = clock;
+	}
+
+	public BusinessHoursDisplayResolver(ObjectMapper objectMapper, Clock clock) {
+		this(new BusinessHoursPayloadParser(objectMapper), clock);
+	}
 
 	public BusinessHoursDisplayResult resolve(String businessHoursJson, BusinessHoursStatus businessHoursStatus) {
 		if (businessHoursStatus != BusinessHoursStatus.SUCCEEDED || isBlank(businessHoursJson)) {
@@ -44,7 +53,7 @@ public class BusinessHoursDisplayResolver {
 		}
 		ZonedDateTime now = ZonedDateTime.now(clock).withZoneSameInstant(SEOUL_ZONE);
 		try {
-			return resolve(objectMapper.readTree(businessHoursJson), now);
+			return resolve(payloadParser.parse(businessHoursJson), now);
 		} catch (RuntimeException ex) {
 			return unknown(now, List.of());
 		} catch (Exception ex) {
@@ -57,7 +66,7 @@ public class BusinessHoursDisplayResolver {
 			return BusinessStatus.UNKNOWN;
 		}
 		try {
-			BusinessHoursDisplayResult result = resolve(objectMapper.readTree(businessHoursJson), at);
+			BusinessHoursDisplayResult result = resolve(payloadParser.parse(businessHoursJson), at);
 			return result == null ? BusinessStatus.UNKNOWN : result.businessStatus();
 		} catch (Exception ex) {
 			return BusinessStatus.UNKNOWN;
