@@ -56,7 +56,7 @@ public class RoomCommandServiceImpl implements RoomCommandService {
 	@Transactional
 	public JoinRoomResult joinByInviteCode(Long userId, String inviteCode, String ipAddress) {
 		if (!roomJoinRateLimiter.allow(userId, ipAddress)) {
-			throw new BusinessException(ErrorCode.E429_TOO_MANY_REQUESTS, "요청이 너무 많습니다. 잠시 후 다시 시도해주세요.");
+			throw new BusinessException(ErrorCode.E429_TOO_MANY_REQUESTS);
 		}
 
 		String normalizedInviteCode = requireInviteCode(inviteCode);
@@ -64,18 +64,18 @@ public class RoomCommandServiceImpl implements RoomCommandService {
 				.orElseThrow(() -> new FieldValidationException("inviteCode", "유효하지 않은 초대코드입니다.", inviteCode));
 
 		if (roomMemberRepository.existsByRoomAndUserId(room, userId)) {
-			throw new BusinessException(ErrorCode.E409_CONFLICT, "이미 참여한 방입니다.");
+			throw new BusinessException(ErrorCode.ROOM_ALREADY_JOINED);
 		}
 
 		long currentMemberCount = roomMemberRepository.countByRoomId(room.getId());
 		if (currentMemberCount >= MAX_ROOM_MEMBERS) {
-			throw new BusinessException(ErrorCode.E409_CONFLICT, "방 인원이 가득 찼습니다. 최대 6명까지 참여할 수 있습니다.");
+			throw new BusinessException(ErrorCode.ROOM_MEMBER_LIMIT_REACHED);
 		}
 
 		try {
 			roomMemberRepository.saveAndFlush(RoomMember.join(room, userId));
 		} catch (DataIntegrityViolationException ex) {
-			throw new BusinessException(ErrorCode.E409_CONFLICT, "이미 참여한 방입니다.");
+			throw new BusinessException(ErrorCode.ROOM_ALREADY_JOINED);
 		}
 
 		return new JoinRoomResult(
@@ -110,7 +110,7 @@ public class RoomCommandServiceImpl implements RoomCommandService {
 		// 동일한 방에 대한 나가기 요청은 방 행 잠금으로 순차 처리한다.
 		Room room = roomAccessService.getRoomForUpdateOrThrow(roomId);
 		RoomMember membership = roomMemberRepository.findByRoomAndUserId(room, userId)
-				.orElseThrow(() -> new BusinessException(ErrorCode.E403_FORBIDDEN, "이미 나갔거나 방 멤버가 아닙니다."));
+				.orElseThrow(() -> new BusinessException(ErrorCode.ROOM_NOT_MEMBER));
 
 		roomMemberRepository.delete(membership);
 

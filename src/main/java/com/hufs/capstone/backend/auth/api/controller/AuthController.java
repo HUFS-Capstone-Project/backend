@@ -85,7 +85,7 @@ public class AuthController implements AuthCommonApi, AuthWebApi, AuthMobileApi 
 			@RequestHeader(name = "X-XSRF-TOKEN", required = false) String csrfToken
 	) {
 		String refreshToken = cookieService.getRefreshToken(servletRequest)
-				.orElseThrow(() -> new BusinessException(ErrorCode.E401_UNAUTHORIZED, "리프레시 토큰 쿠키가 필요합니다."));
+				.orElseThrow(() -> new BusinessException(ErrorCode.REFRESH_TOKEN_COOKIE_REQUIRED));
 		TokenPair rotated = tokenLifecycleService.rotate(
 				refreshToken,
 				authLoginService.createWebClientContext(servletRequest.getHeader("User-Agent"), servletRequest.getRemoteAddr())

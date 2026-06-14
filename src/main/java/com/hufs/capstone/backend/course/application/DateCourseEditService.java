@@ -50,18 +50,18 @@ public class DateCourseEditService {
 		// 2. 코스 존재 확인 (soft delete 제외)
 		DateCourse course = dateCourseRepository.findByDateCourseIdAndRoomIdAndDeletedAtIsNull(
 				dateCourseId, room.getId())
-				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "데이트 코스를 찾을 수 없습니다."));
+				.orElseThrow(() -> new BusinessException(ErrorCode.DATE_COURSE_NOT_FOUND));
 
 		// 3. 저장된 코스만 편집 대상 (미저장 후보는 사용자 가시 대상 아님)
 		if (course.getSavedByUserId() == null) {
-			throw new BusinessException(ErrorCode.E404_NOT_FOUND, "데이트 코스를 찾을 수 없습니다.");
+			throw new BusinessException(ErrorCode.DATE_COURSE_NOT_FOUND);
 		}
 
 		// 4. 권한 검증 — 생성자 또는 저장자만 수정 가능
 		boolean isOwner = userId.equals(course.getCreatedByUserId())
 				|| userId.equals(course.getSavedByUserId());
 		if (!isOwner) {
-			throw new BusinessException(ErrorCode.E403_FORBIDDEN, "데이트 코스를 수정할 권한이 없습니다.");
+			throw new BusinessException(ErrorCode.DATE_COURSE_FORBIDDEN_EDIT);
 		}
 
 		// 5. 코스 이름 정규화/검증
@@ -94,8 +94,7 @@ public class DateCourseEditService {
 		// 7. 중복 코스 검사 (자기 자신 제외)
 		if (duplicatePolicy.existsSavedCourseWithSameRoomPlacesExcluding(
 				room.getId(), course.getId(), orderedPlaces)) {
-			throw new BusinessException(ErrorCode.E409_DUPLICATE_DATE_COURSE,
-					"동일한 데이트 코스가 이미 저장되어 있습니다.");
+			throw new BusinessException(ErrorCode.E409_DUPLICATE_DATE_COURSE);
 		}
 
 		// 8. 변경 적용

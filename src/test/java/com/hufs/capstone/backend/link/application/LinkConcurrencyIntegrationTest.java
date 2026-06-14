@@ -410,7 +410,7 @@ class LinkConcurrencyIntegrationTest {
 				new AnalyzeLinkCommand("https://example.com/post/1", null)
 		))
 				.isInstanceOf(BusinessException.class)
-				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.E403_FORBIDDEN));
+				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.ROOM_ACCESS_FORBIDDEN));
 	}
 
 	@Test
@@ -828,7 +828,7 @@ class LinkConcurrencyIntegrationTest {
 				new SaveRoomPlacesCommand(List.of("123456789"))
 		))
 				.isInstanceOf(BusinessException.class)
-				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.E403_FORBIDDEN));
+				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.LINK_ANALYSIS_REQUEST_FORBIDDEN));
 		assertThatThrownBy(() -> roomPlaceCommandService.saveRoomPlaces(
 				OTHER_USER_ID,
 				ROOM_A_PUBLIC_ID,
@@ -836,7 +836,7 @@ class LinkConcurrencyIntegrationTest {
 				new SaveRoomPlacesCommand(List.of("123456789"))
 		))
 				.isInstanceOf(BusinessException.class)
-				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.E403_FORBIDDEN));
+				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.ROOM_ACCESS_FORBIDDEN));
 	}
 
 	@Test
@@ -997,7 +997,7 @@ class LinkConcurrencyIntegrationTest {
 				request.getId()
 		))
 				.isInstanceOf(BusinessException.class)
-				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.E409_CONFLICT));
+				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.LINK_ANALYSIS_RETRY_NOT_ALLOWED));
 	}
 
 	@Test
@@ -1022,7 +1022,7 @@ class LinkConcurrencyIntegrationTest {
 				request.getId()
 		))
 				.isInstanceOf(BusinessException.class)
-				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.E429_TOO_MANY_REQUESTS));
+				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.LINK_ANALYSIS_INSTAGRAM_COOLDOWN));
 	}
 
 	@Test
@@ -1199,7 +1199,7 @@ class LinkConcurrencyIntegrationTest {
 				analysisRequestIdFor(link, roomA)
 		))
 				.isInstanceOf(BusinessException.class)
-				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.E403_FORBIDDEN));
+				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.ROOM_ACCESS_FORBIDDEN));
 	}
 
 	@Test
@@ -1212,7 +1212,7 @@ class LinkConcurrencyIntegrationTest {
 				analysisRequestIdFor(link, roomA)
 		))
 				.isInstanceOf(BusinessException.class)
-				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.E403_FORBIDDEN));
+				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.LINK_ANALYSIS_REQUEST_FORBIDDEN));
 	}
 
 	@Test

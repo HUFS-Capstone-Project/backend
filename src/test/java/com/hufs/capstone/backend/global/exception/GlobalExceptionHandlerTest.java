@@ -38,7 +38,7 @@ class GlobalExceptionHandlerTest {
 	@Test
 	void businessExceptionReturnsDetailWithoutFieldErrors() {
 		MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/rooms/join");
-		BusinessException exception = new BusinessException(ErrorCode.E409_CONFLICT, "이미 참여한 방입니다.");
+		BusinessException exception = new BusinessException(ErrorCode.ROOM_ALREADY_JOINED);
 
 		ResponseEntity<ProblemDetail> response = handler.handleBusiness(exception, request);
 
@@ -46,7 +46,7 @@ class GlobalExceptionHandlerTest {
 		ProblemDetail body = response.getBody();
 		assertThat(body).isNotNull();
 		assertThat(body.getDetail()).isEqualTo("이미 참여한 방입니다.");
-		assertThat(body.getProperties()).containsEntry("code", "E409_CONFLICT");
+		assertThat(body.getProperties()).containsEntry("code", "ROOM_ALREADY_JOINED");
 		assertThat(body.getProperties()).doesNotContainKey("fieldErrors");
 	}
 }

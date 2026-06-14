@@ -74,7 +74,8 @@ class RoomJoinConcurrencyIntegrationTest {
 		long conflictCount = outcomes.stream()
 				.filter(BusinessException.class::isInstance)
 				.map(BusinessException.class::cast)
-				.filter(ex -> ex.getErrorCode() == ErrorCode.E409_CONFLICT)
+				.filter(ex -> ex.getErrorCode() == ErrorCode.ROOM_ALREADY_JOINED
+						|| ex.getErrorCode() == ErrorCode.ROOM_MEMBER_LIMIT_REACHED)
 				.count();
 
 		Long roomId = roomRepository.findByPublicId(createdRoom.roomId()).orElseThrow().getId();

@@ -45,10 +45,7 @@ public class RoomPlaceManagementService {
 		Room room = roomAccessService.requireMemberRoom(roomId, userId);
 		RoomPlace roomPlace = getRoomPlaceOrThrow(room.getId(), roomPlaceId);
 		if (dateCoursePlaceRepository.existsByRoomPlaceIdInSavedDateCourse(roomPlace.getId())) {
-			throw new BusinessException(
-					ErrorCode.ROOM_PLACE_USED_IN_DATE_COURSE,
-					"저장된 데이트코스에 포함된 장소는 삭제할 수 없습니다."
-			);
+			throw new BusinessException(ErrorCode.ROOM_PLACE_USED_IN_DATE_COURSE);
 		}
 		dateCoursePlaceRepository.deleteByRoomPlaceId(roomPlace.getId());
 		roomPlaceMemoRepository.deleteByRoomPlaceId(roomPlace.getId());
@@ -58,7 +55,7 @@ public class RoomPlaceManagementService {
 
 	private RoomPlace getRoomPlaceOrThrow(Long roomId, Long roomPlaceId) {
 		return roomPlaceRepository.findByIdAndRoomId(roomPlaceId, roomId)
-				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "방 장소를 찾을 수 없습니다."));
+				.orElseThrow(() -> new BusinessException(ErrorCode.ROOM_PLACE_NOT_FOUND));
 	}
 
 	private static String trimToNull(String value) {

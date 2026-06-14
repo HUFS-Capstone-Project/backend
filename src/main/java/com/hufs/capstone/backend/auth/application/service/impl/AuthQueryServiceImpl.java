@@ -20,7 +20,7 @@ public class AuthQueryServiceImpl implements AuthQueryService {
 	@Transactional(readOnly = true)
 	public UserProfileResult getUserProfile(Long userId) {
 		User user = userRepository.findByIdAndDeletedAtIsNull(userId)
-				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "사용자를 찾을 수 없습니다."));
+				.orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 		return UserProfileResult.from(user);
 	}
 
@@ -28,7 +28,7 @@ public class AuthQueryServiceImpl implements AuthQueryService {
 	@Transactional(readOnly = true)
 	public User getUser(Long userId) {
 		return userRepository.findByIdAndDeletedAtIsNull(userId)
-				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "사용자를 찾을 수 없습니다."));
+				.orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 	}
 }
 

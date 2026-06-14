@@ -127,7 +127,7 @@ class DateCourseSaveServiceTest {
 				ROOM_PUBLIC_ID, DATE_COURSE_ID, "코스", List.of(1L), USER_ID))
 				.isInstanceOf(BusinessException.class)
 				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode())
-						.isEqualTo(ErrorCode.E409_CONFLICT));
+						.isEqualTo(ErrorCode.DATE_COURSE_ALREADY_SAVED));
 
 		verify(dateCoursePlaceRepository, never()).deleteByDateCourseId(anyLong());
 		verify(dateCourseRepository, never()).markAsSavedIfAbsent(anyLong(), anyLong(), any(), any());

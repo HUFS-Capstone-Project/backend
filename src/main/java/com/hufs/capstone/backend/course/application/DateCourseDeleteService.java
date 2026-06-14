@@ -25,18 +25,18 @@ public class DateCourseDeleteService {
 		// 2. 코스 존재 확인 (soft delete 제외)
 		DateCourse course = dateCourseRepository.findByDateCourseIdAndRoomIdAndDeletedAtIsNull(
 				dateCourseId, room.getId())
-				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "데이트 코스를 찾을 수 없습니다."));
+				.orElseThrow(() -> new BusinessException(ErrorCode.DATE_COURSE_NOT_FOUND));
 
 		// 3. 저장된 코스만 삭제 대상 (미저장 후보는 사용자 가시 대상 아님)
 		if (course.getSavedByUserId() == null) {
-			throw new BusinessException(ErrorCode.E404_NOT_FOUND, "데이트 코스를 찾을 수 없습니다.");
+			throw new BusinessException(ErrorCode.DATE_COURSE_NOT_FOUND);
 		}
 
 		// 4. 권한 검증 — 생성자 또는 저장자만 삭제 가능
 		boolean isOwner = userId.equals(course.getCreatedByUserId())
 				|| userId.equals(course.getSavedByUserId());
 		if (!isOwner) {
-			throw new BusinessException(ErrorCode.E403_FORBIDDEN, "데이트 코스를 삭제할 권한이 없습니다.");
+			throw new BusinessException(ErrorCode.DATE_COURSE_FORBIDDEN_DELETE);
 		}
 
 		// 5. Soft delete — DateCoursePlace 행은 보존하되 코스가 모든 조회에서 제외됨

@@ -57,7 +57,7 @@ public class DateCourseGenerationService {
 		AvailablePool pool = poolBuilder.build(room.getId(), command.categorySequence(),
 				command.startDateTime(), command.sigunguCode());
 		if (pool.isEmpty()) {
-			throw new BusinessException(ErrorCode.E404_NOT_FOUND, "데이트 코스 생성에 사용할 수 있는 장소가 없습니다.");
+			throw new BusinessException(ErrorCode.DATE_COURSE_NO_PLACES);
 		}
 
 		String batchId = UUID.randomUUID().toString();
@@ -104,7 +104,7 @@ public class DateCourseGenerationService {
 		}
 
 		if (results.isEmpty()) {
-			throw new BusinessException(ErrorCode.E404_NOT_FOUND, "생성할 수 있는 코스가 없습니다.");
+			throw new BusinessException(ErrorCode.DATE_COURSE_GENERATION_EMPTY);
 		}
 
 		return new DateCourseGenerationResult(batchId, results);

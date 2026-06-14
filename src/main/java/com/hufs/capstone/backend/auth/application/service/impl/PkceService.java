@@ -24,7 +24,7 @@ public class PkceService {
 		}
 		String computed = s256(codeVerifier);
 		if (!computed.equals(codeChallenge)) {
-			throw new BusinessException(ErrorCode.E401_INVALID_TOKEN, "PKCE 검증에 실패했습니다.");
+			throw new BusinessException(ErrorCode.PKCE_VERIFICATION_FAILED);
 		}
 	}
 

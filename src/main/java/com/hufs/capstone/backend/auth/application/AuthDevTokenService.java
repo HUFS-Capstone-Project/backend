@@ -28,7 +28,7 @@ public class AuthDevTokenService {
 		UserSelection userSelection = resolveUser(userId);
 		User user = userSelection.user();
 		if (!user.isActive()) {
-			throw new BusinessException(ErrorCode.E403_FORBIDDEN, "비활성화된 사용자 계정입니다.");
+			throw new BusinessException(ErrorCode.USER_ACCOUNT_DISABLED);
 		}
 
 		ClientContext context = authLoginService.createWebClientContext(userAgent, ipAddress);
@@ -43,7 +43,7 @@ public class AuthDevTokenService {
 	private UserSelection resolveUser(Long userId) {
 		if (userId != null) {
 			User found = userRepository.findByIdAndDeletedAtIsNull(userId)
-					.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "사용자를 찾을 수 없습니다."));
+					.orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 			return new UserSelection(found, false);
 		}
 

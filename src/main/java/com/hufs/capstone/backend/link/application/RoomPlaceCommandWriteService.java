@@ -56,7 +56,7 @@ public class RoomPlaceCommandWriteService {
 				linkAnalysisAuthorizationService.requireAnalysisRequestForUpdate(userId, roomId, analysisRequestId);
 		Link link = analysisRequest.getLink();
 		if (link.getStatus() != LinkAnalysisStatus.SUCCEEDED) {
-			throw new BusinessException(ErrorCode.E409_CONFLICT, "링크 분석이 완료되지 않았습니다.");
+			throw new BusinessException(ErrorCode.LINK_ANALYSIS_NOT_COMPLETED);
 		}
 
 		Map<String, PlaceSnapshot> candidatesByKakaoPlaceId =

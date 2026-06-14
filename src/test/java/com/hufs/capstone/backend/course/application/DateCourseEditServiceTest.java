@@ -117,7 +117,7 @@ class DateCourseEditServiceTest {
 				ROOM_PUBLIC_ID, COURSE_UUID, "이름", List.of(1L), USER_ID))
 				.isInstanceOf(BusinessException.class)
 				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode())
-						.isEqualTo(ErrorCode.E403_FORBIDDEN));
+						.isEqualTo(ErrorCode.DATE_COURSE_FORBIDDEN_EDIT));
 	}
 
 	@Test
@@ -181,7 +181,7 @@ class DateCourseEditServiceTest {
 				ROOM_PUBLIC_ID, COURSE_UUID, "이름", List.of(1L), USER_ID))
 				.isInstanceOf(BusinessException.class)
 				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode())
-						.isEqualTo(ErrorCode.E404_NOT_FOUND));
+						.isEqualTo(ErrorCode.DATE_COURSE_NOT_FOUND));
 	}
 
 	@Test
@@ -198,7 +198,7 @@ class DateCourseEditServiceTest {
 				ROOM_PUBLIC_ID, COURSE_UUID, "이름", List.of(1L), USER_ID))
 				.isInstanceOf(BusinessException.class)
 				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode())
-						.isEqualTo(ErrorCode.E404_NOT_FOUND));
+						.isEqualTo(ErrorCode.DATE_COURSE_NOT_FOUND));
 	}
 
 	// ────────────────────────────────────────────

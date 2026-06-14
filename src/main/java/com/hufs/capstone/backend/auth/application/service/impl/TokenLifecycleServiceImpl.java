@@ -67,7 +67,7 @@ public class TokenLifecycleServiceImpl implements TokenLifecycleService {
 		Instant now = Instant.now();
 		String tokenHash = refreshTokenHasher.hash(presentedRefreshToken);
 		RefreshToken current = refreshTokenRepository.findByTokenHashForUpdate(tokenHash)
-				.orElseThrow(() -> new BusinessException(ErrorCode.E401_INVALID_TOKEN, "리프레시 토큰을 찾을 수 없습니다."));
+				.orElseThrow(() -> new BusinessException(ErrorCode.REFRESH_TOKEN_NOT_FOUND));
 
 		if (current.isRevoked() || current.isExpired(now)) {
 			TokenPair replay = refreshRotationReplayStore.findReplay(tokenHash, context);
@@ -77,16 +77,16 @@ public class TokenLifecycleServiceImpl implements TokenLifecycleService {
 			if (current.isRevoked() && current.getRevokeReason() == RevokeReason.ROTATED) {
 				revokeFamily(current.getTokenFamilyId(), now, RevokeReason.REUSE_DETECTED, true);
 				authSecurityEventLogger.logRefreshReuseDetected(current.getUser().getId(), current.getTokenFamilyId(), context);
-				throw new BusinessException(ErrorCode.E409_TOKEN_REUSE_DETECTED, "리프레시 토큰 재사용이 감지되었습니다.");
+				throw new BusinessException(ErrorCode.E409_TOKEN_REUSE_DETECTED);
 			}
-			throw new BusinessException(ErrorCode.E401_INVALID_TOKEN, "리프레시 토큰이 더 이상 활성 상태가 아닙니다.");
+			throw new BusinessException(ErrorCode.REFRESH_TOKEN_INACTIVE);
 		}
 
 		current.markUsed(now);
 		current.revoke(RevokeReason.ROTATED, now);
 		User user = current.getUser();
 		if (!user.isActive()) {
-			throw new BusinessException(ErrorCode.E403_FORBIDDEN, "비활성화된 사용자 계정입니다.");
+			throw new BusinessException(ErrorCode.USER_ACCOUNT_DISABLED);
 		}
 
 		String newRawRefreshToken = refreshTokenGenerator.generate();

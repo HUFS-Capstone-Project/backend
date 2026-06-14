@@ -20,19 +20,19 @@ public class RoomAccessServiceImpl implements RoomAccessService {
 	@Override
 	public Room getRoomOrThrow(String roomPublicId) {
 		return roomRepository.findByPublicId(roomPublicId)
-				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "방을 찾을 수 없습니다."));
+				.orElseThrow(() -> new BusinessException(ErrorCode.ROOM_NOT_FOUND));
 	}
 
 	@Override
 	public Room getRoomForUpdateOrThrow(String roomPublicId) {
 		return roomRepository.findByPublicIdForUpdate(roomPublicId)
-				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "방을 찾을 수 없습니다."));
+				.orElseThrow(() -> new BusinessException(ErrorCode.ROOM_NOT_FOUND));
 	}
 
 	@Override
 	public RoomMember getMembershipOrThrow(Room room, Long userId) {
 		return roomMemberRepository.findByRoomAndUserId(room, userId)
-				.orElseThrow(() -> new BusinessException(ErrorCode.E403_FORBIDDEN, "방 접근 권한이 없습니다."));
+				.orElseThrow(() -> new BusinessException(ErrorCode.ROOM_ACCESS_FORBIDDEN));
 	}
 
 	@Override

@@ -125,11 +125,11 @@ class RoomQueryServiceTest {
 		Room room = room("11111111-1111-1111-1111-111111111111", "Test Room");
 		when(roomAccessService.getRoomOrThrow(room.getPublicId())).thenReturn(room);
 		when(roomAccessService.getMembershipOrThrow(room, USER_ID))
-				.thenThrow(new BusinessException(ErrorCode.E403_FORBIDDEN, "방 접근 권한이 없습니다."));
+				.thenThrow(new BusinessException(ErrorCode.ROOM_ACCESS_FORBIDDEN));
 
 		assertThatThrownBy(() -> roomQueryService.getRoomDetail(USER_ID, room.getPublicId()))
 				.isInstanceOf(BusinessException.class)
-				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.E403_FORBIDDEN));
+				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.ROOM_ACCESS_FORBIDDEN));
 	}
 
 	@Test

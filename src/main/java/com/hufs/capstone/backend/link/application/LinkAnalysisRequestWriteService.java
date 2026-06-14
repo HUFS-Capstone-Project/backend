@@ -74,9 +74,9 @@ public class LinkAnalysisRequestWriteService {
 		Room room = roomAccessService.requireMemberRoom(roomId, userId);
 		LinkAnalysisRequest analysisRequest = linkAnalysisRequestRepository
 				.findWithRoomAndLinkByIdForUpdate(analysisRequestId)
-				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "링크 분석 요청을 찾을 수 없습니다."));
+				.orElseThrow(() -> new BusinessException(ErrorCode.LINK_ANALYSIS_REQUEST_NOT_FOUND));
 		if (!analysisRequest.getRoom().getId().equals(room.getId())) {
-			throw new BusinessException(ErrorCode.E404_NOT_FOUND, "링크 분석 요청을 찾을 수 없습니다.");
+			throw new BusinessException(ErrorCode.LINK_ANALYSIS_REQUEST_NOT_FOUND);
 		}
 
 		Link link = analysisRequest.getLink();
@@ -86,7 +86,7 @@ public class LinkAnalysisRequestWriteService {
 			resetFailedForRetry(link);
 		} else if (link.getStatus() == LinkAnalysisStatus.DISPATCH_FAILED) {
 			if (!recoverDispatchFailedForManualRetry(link)) {
-				throw new BusinessException(ErrorCode.E409_CONFLICT, "재시도 중 링크 분석 요청이 변경되었습니다.");
+				throw new BusinessException(ErrorCode.LINK_ANALYSIS_RETRY_STATE_CHANGED);
 			}
 		}
 
@@ -188,28 +188,28 @@ public class LinkAnalysisRequestWriteService {
 
 	private void validateRetryable(Link link) {
 		if (link.getStatus() == LinkAnalysisStatus.SUCCEEDED || link.getStatus() == LinkAnalysisStatus.PROCESSING) {
-			throw new BusinessException(ErrorCode.E409_CONFLICT, "재시도할 수 없는 링크 분석 요청입니다.");
+			throw new BusinessException(ErrorCode.LINK_ANALYSIS_RETRY_NOT_ALLOWED);
 		}
 		if (link.getStatus() == LinkAnalysisStatus.REQUESTED) {
 			if (isStaleRequestedWithoutJob(link)) {
 				return;
 			}
-			throw new BusinessException(ErrorCode.E409_CONFLICT, "만료되지 않은 링크 분석 요청입니다.");
+			throw new BusinessException(ErrorCode.LINK_ANALYSIS_NOT_EXPIRED);
 		}
 		if (link.getStatus() == LinkAnalysisStatus.DISPATCH_FAILED) {
 			if (link.getProcessingJobId() == null) {
 				return;
 			}
-			throw new BusinessException(ErrorCode.E409_CONFLICT, "재시도할 수 없는 링크 분석 요청입니다.");
+			throw new BusinessException(ErrorCode.LINK_ANALYSIS_RETRY_NOT_ALLOWED);
 		}
 		if (link.getStatus() == LinkAnalysisStatus.FAILED) {
 			rejectInstagramCooldownIfActive(link, link.getNormalizedUrl());
 			if (Boolean.TRUE.equals(link.getRetryable())) {
 				return;
 			}
-			throw new BusinessException(ErrorCode.E409_CONFLICT, "재시도할 수 없는 링크 분석 요청입니다.");
+			throw new BusinessException(ErrorCode.LINK_ANALYSIS_RETRY_NOT_ALLOWED);
 		}
-		throw new BusinessException(ErrorCode.E409_CONFLICT, "재시도할 수 없는 링크 분석 요청입니다.");
+		throw new BusinessException(ErrorCode.LINK_ANALYSIS_RETRY_NOT_ALLOWED);
 	}
 
 	private void resetFailedForRetry(Link link) {
@@ -221,7 +221,7 @@ public class LinkAnalysisRequestWriteService {
 				Instant.now()
 		);
 		if (updated != 1) {
-			throw new BusinessException(ErrorCode.E409_CONFLICT, "재시도 중 링크 분석 요청이 변경되었습니다.");
+			throw new BusinessException(ErrorCode.LINK_ANALYSIS_RETRY_STATE_CHANGED);
 		}
 	}
 
@@ -251,8 +251,7 @@ public class LinkAnalysisRequestWriteService {
 		}
 		if (updatedAt.plusSeconds(cooldownSeconds).isAfter(Instant.now())) {
 			throw new BusinessException(
-					ErrorCode.E429_TOO_MANY_REQUESTS,
-					"Instagram 분석이 쿨다운 중입니다. 잠시 후 다시 시도해주세요."
+					ErrorCode.LINK_ANALYSIS_INSTAGRAM_COOLDOWN
 			);
 		}
 	}

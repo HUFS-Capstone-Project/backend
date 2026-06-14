@@ -43,21 +43,21 @@ public class DateCourseSaveService {
 		String normalizedName = DateCourseNamePolicy.normalizeAndValidate(courseName);
 
 		DateCourse course = dateCourseRepository.findByDateCourseIdAndRoomIdAndDeletedAtIsNull(dateCourseId, room.getId())
-				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "데이트 코스를 찾을 수 없습니다."));
+				.orElseThrow(() -> new BusinessException(ErrorCode.DATE_COURSE_NOT_FOUND));
 
 		if (course.getSavedByUserId() != null) {
-			throw new BusinessException(ErrorCode.E409_CONFLICT, "이미 저장된 데이트 코스입니다.");
+			throw new BusinessException(ErrorCode.DATE_COURSE_ALREADY_SAVED);
 		}
 
 		if (roomPlaceIds == null) {
 			List<DateCoursePlace> places = dateCoursePlaceRepository.findWithRoomPlacesByCourseIdIn(List.of(course.getId()));
 			if (duplicatePolicy.existsSavedCourseWithSamePlacesExcluding(room.getId(), course.getId(), places)) {
-				throw new BusinessException(ErrorCode.E409_DUPLICATE_DATE_COURSE, "동일한 데이트 코스가 이미 저장되어 있습니다.");
+				throw new BusinessException(ErrorCode.E409_DUPLICATE_DATE_COURSE);
 			}
 		} else {
 			List<RoomPlace> orderedPlaces = validateAndLoadRoomPlaces(roomPlaceIds, room.getId());
 			if (duplicatePolicy.existsSavedCourseWithSameRoomPlacesExcluding(room.getId(), course.getId(), orderedPlaces)) {
-				throw new BusinessException(ErrorCode.E409_DUPLICATE_DATE_COURSE, "동일한 데이트 코스가 이미 저장되어 있습니다.");
+				throw new BusinessException(ErrorCode.E409_DUPLICATE_DATE_COURSE);
 			}
 			replaceCoursePlaces(course, orderedPlaces);
 			course.clearSkippedSlots();
@@ -66,7 +66,7 @@ public class DateCourseSaveService {
 		int updated = dateCourseRepository.markAsSavedIfAbsent(
 				course.getId(), userId, Instant.now(), normalizedName);
 		if (updated == 0) {
-			throw new BusinessException(ErrorCode.E409_CONFLICT, "이미 저장된 데이트 코스입니다.");
+			throw new BusinessException(ErrorCode.DATE_COURSE_ALREADY_SAVED);
 		}
 	}
 

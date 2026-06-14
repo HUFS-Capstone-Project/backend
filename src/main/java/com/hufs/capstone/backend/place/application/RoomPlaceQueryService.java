@@ -189,7 +189,7 @@ public class RoomPlaceQueryService {
 	public RoomPlaceResult getRoomPlace(Long userId, String roomId, Long roomPlaceId) {
 		Room room = roomAccessService.requireMemberRoom(roomId, userId);
 		RoomPlace roomPlace = roomPlaceRepository.findByIdAndRoomId(roomPlaceId, room.getId())
-				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "방 장소를 찾을 수 없습니다."));
+				.orElseThrow(() -> new BusinessException(ErrorCode.ROOM_PLACE_NOT_FOUND));
 		return roomPlaceResultMapper.toRoomPlaceResult(roomPlace, userId);
 	}
 

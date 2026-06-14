@@ -126,7 +126,7 @@ class RoomCommandServiceTest {
 
 		assertThatThrownBy(() -> roomCommandService.joinByInviteCode(USER_ID, "INVITE123456", "127.0.0.1"))
 				.isInstanceOf(BusinessException.class)
-				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.E409_CONFLICT));
+				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.ROOM_ALREADY_JOINED));
 	}
 
 	@Test
@@ -139,7 +139,7 @@ class RoomCommandServiceTest {
 
 		assertThatThrownBy(() -> roomCommandService.joinByInviteCode(USER_ID, "INVITE123456", "127.0.0.1"))
 				.isInstanceOf(BusinessException.class)
-				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.E409_CONFLICT));
+				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.ROOM_MEMBER_LIMIT_REACHED));
 	}
 
 	@Test
@@ -185,11 +185,11 @@ class RoomCommandServiceTest {
 		Room room = room("11111111-1111-1111-1111-111111111111");
 		when(roomAccessService.getRoomOrThrow(room.getPublicId())).thenReturn(room);
 		when(roomAccessService.getMembershipOrThrow(room, USER_ID))
-				.thenThrow(new BusinessException(ErrorCode.E403_FORBIDDEN, "방 접근 권한이 없습니다."));
+				.thenThrow(new BusinessException(ErrorCode.ROOM_ACCESS_FORBIDDEN));
 
 		assertThatThrownBy(() -> roomCommandService.renameRoom(USER_ID, room.getPublicId(), "New Name"))
 				.isInstanceOf(BusinessException.class)
-				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.E403_FORBIDDEN));
+				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.ROOM_ACCESS_FORBIDDEN));
 	}
 
 	@Test
@@ -209,11 +209,11 @@ class RoomCommandServiceTest {
 		Room room = room("11111111-1111-1111-1111-111111111111");
 		when(roomAccessService.getRoomOrThrow(room.getPublicId())).thenReturn(room);
 		when(roomAccessService.getMembershipOrThrow(room, USER_ID))
-				.thenThrow(new BusinessException(ErrorCode.E403_FORBIDDEN, "방 접근 권한이 없습니다."));
+				.thenThrow(new BusinessException(ErrorCode.ROOM_ACCESS_FORBIDDEN));
 
 		assertThatThrownBy(() -> roomCommandService.updateRoomPin(USER_ID, room.getPublicId(), true))
 				.isInstanceOf(BusinessException.class)
-				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.E403_FORBIDDEN));
+				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.ROOM_ACCESS_FORBIDDEN));
 	}
 
 	@Test
@@ -253,7 +253,7 @@ class RoomCommandServiceTest {
 
 		assertThatThrownBy(() -> roomCommandService.leaveRoom(USER_ID, room.getPublicId()))
 				.isInstanceOf(BusinessException.class)
-				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.E403_FORBIDDEN));
+				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.ROOM_NOT_MEMBER));
 	}
 
 	private static Room room(String publicId) {

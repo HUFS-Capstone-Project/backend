@@ -28,7 +28,7 @@ public class UserProfileService {
 	public UserProfileResult completeOnboarding(Long userId, CompleteOnboardingCommand command) {
 		User user = getUserOrThrow(userId);
 		if (user.isOnboardingCompleted()) {
-			throw new BusinessException(ErrorCode.E409_CONFLICT, "이미 온보딩이 완료된 사용자입니다.");
+			throw new BusinessException(ErrorCode.ONBOARDING_ALREADY_COMPLETED);
 		}
 
 		user.completeOnboarding(
@@ -50,6 +50,6 @@ public class UserProfileService {
 
 	private User getUserOrThrow(Long userId) {
 		return userRepository.findByIdAndDeletedAtIsNull(userId)
-				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "사용자를 찾을 수 없습니다."));
+				.orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 	}
 }

@@ -111,7 +111,7 @@ public class LinkAnalysisStatusService {
 
 	private LinkAnalysisResult resolveCurrentStatus(Long linkId) {
 		Link snapshot = linkRepository.findById(linkId)
-				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "링크를 찾을 수 없습니다."));
+				.orElseThrow(() -> new BusinessException(ErrorCode.LINK_NOT_FOUND));
 
 		LinkSyncOrchestrator.ProcessingSyncSnapshot syncSnapshot =
 				snapshot.isTerminal() ? null : linkSyncOrchestrator.resolve(snapshot);

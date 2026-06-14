@@ -19,7 +19,7 @@ public class LinkAnalysisAuthorizationService {
 	public LinkAnalysisRequest requireAnalysisRequest(Long userId, String roomId, Long analysisRequestId) {
 		Room room = roomAccessService.requireMemberRoom(roomId, userId);
 		LinkAnalysisRequest analysisRequest = linkAnalysisRequestRepository.findWithRoomAndLinkById(analysisRequestId)
-				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "링크 분석 요청을 찾을 수 없습니다."));
+				.orElseThrow(() -> new BusinessException(ErrorCode.LINK_ANALYSIS_REQUEST_NOT_FOUND));
 		requireSameRoom(room, analysisRequest);
 		return analysisRequest;
 	}
@@ -27,14 +27,14 @@ public class LinkAnalysisAuthorizationService {
 	public LinkAnalysisRequest requireAnalysisRequestForUpdate(Long userId, String roomId, Long analysisRequestId) {
 		Room room = roomAccessService.requireMemberRoom(roomId, userId);
 		LinkAnalysisRequest analysisRequest = linkAnalysisRequestRepository.findWithRoomAndLinkByIdForUpdate(analysisRequestId)
-				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "링크 분석 요청을 찾을 수 없습니다."));
+				.orElseThrow(() -> new BusinessException(ErrorCode.LINK_ANALYSIS_REQUEST_NOT_FOUND));
 		requireSameRoom(room, analysisRequest);
 		return analysisRequest;
 	}
 
 	private static void requireSameRoom(Room room, LinkAnalysisRequest analysisRequest) {
 		if (!room.getId().equals(analysisRequest.getRoom().getId())) {
-			throw new BusinessException(ErrorCode.E403_FORBIDDEN, "해당 방의 링크 분석 요청이 아닙니다.");
+			throw new BusinessException(ErrorCode.LINK_ANALYSIS_REQUEST_FORBIDDEN);
 		}
 	}
 }

@@ -55,7 +55,7 @@ class LinkAnalysisAuthorizationServiceTest {
 
 		assertThatThrownBy(() -> linkAnalysisAuthorizationService.requireAnalysisRequest(100L, ROOM_PUBLIC_ID, 10L))
 				.isInstanceOf(BusinessException.class)
-				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.E403_FORBIDDEN));
+				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.LINK_ANALYSIS_REQUEST_FORBIDDEN));
 	}
 
 	@Test

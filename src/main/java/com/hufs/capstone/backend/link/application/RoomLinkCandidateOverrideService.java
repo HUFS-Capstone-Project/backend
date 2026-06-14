@@ -43,7 +43,7 @@ public class RoomLinkCandidateOverrideService {
 				linkAnalysisAuthorizationService.requireAnalysisRequestForUpdate(userId, roomId, analysisRequestId);
 		Link link = analysisRequest.getLink();
 		LinkCandidate candidate = linkCandidateRepository.findByIdAndLinkId(candidateId, link.getId())
-				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "링크 후보를 찾을 수 없습니다."));
+				.orElseThrow(() -> new BusinessException(ErrorCode.LINK_CANDIDATE_NOT_FOUND));
 		RoomLink roomLink = findOrCreateRoomLink(analysisRequest.getRoom(), link);
 		RoomLinkCandidateOverride override = overrideRepository
 				.findByRoomLinkIdAndLinkCandidateIdForUpdate(roomLink.getId(), candidate.getId())
@@ -66,8 +66,8 @@ public class RoomLinkCandidateOverrideService {
 		} catch (DataIntegrityViolationException ex) {
 			return roomLinkRepository.findByRoomAndLinkId(room, link.getId())
 					.orElseThrow(() -> new BusinessException(
-							ErrorCode.E409_CONFLICT,
-							"Room link creation conflict occurred.",
+							ErrorCode.ROOM_LINK_CREATE_CONFLICT,
+							ErrorCode.ROOM_LINK_CREATE_CONFLICT.getDefaultMessage(),
 							ex
 					));
 		}
@@ -85,8 +85,8 @@ public class RoomLinkCandidateOverrideService {
 			RoomLinkCandidateOverride existing = overrideRepository
 					.findByRoomLinkIdAndLinkCandidateIdForUpdate(roomLink.getId(), candidate.getId())
 					.orElseThrow(() -> new BusinessException(
-							ErrorCode.E409_CONFLICT,
-							"Candidate override conflict occurred.",
+							ErrorCode.LINK_CANDIDATE_OVERRIDE_CONFLICT,
+							ErrorCode.LINK_CANDIDATE_OVERRIDE_CONFLICT.getDefaultMessage(),
 							ex
 					));
 			existing.update(userId, snapshot);

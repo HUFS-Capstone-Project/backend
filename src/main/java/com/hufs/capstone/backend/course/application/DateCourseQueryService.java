@@ -163,7 +163,7 @@ public class DateCourseQueryService {
 		Room room = roomAccessService.requireMemberRoom(roomPublicId, userId);
 
 		DateCourse course = dateCourseRepository.findByDateCourseIdAndRoomIdAndDeletedAtIsNull(dateCourseId, room.getId())
-				.orElseThrow(() -> new BusinessException(ErrorCode.E404_NOT_FOUND, "코스를 찾을 수 없습니다."));
+				.orElseThrow(() -> new BusinessException(ErrorCode.DATE_COURSE_NOT_FOUND, "코스를 찾을 수 없습니다."));
 
 		List<DateCoursePlace> places = dateCoursePlaceRepository.findWithRoomPlacesByCourseIdIn(List.of(course.getId()));
 		User saver = course.getSavedByUserId() != null

@@ -13,7 +13,7 @@ public final class SecurityUtils {
 	public static Long currentUserIdOrThrow() {
 		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 		if (authentication == null || !(authentication.getPrincipal() instanceof AuthUserPrincipal principal)) {
-			throw new BusinessException(ErrorCode.E401_UNAUTHORIZED, "인증된 사용자를 찾을 수 없습니다.");
+			throw new BusinessException(ErrorCode.AUTHENTICATED_USER_NOT_FOUND);
 		}
 		return principal.userId();
 	}

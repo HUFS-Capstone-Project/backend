@@ -79,7 +79,7 @@ public class RoomPlaceCommandService {
 				);
 			}
 		}
-		throw new BusinessException(ErrorCode.E409_CONFLICT, "방 장소 저장 충돌이 발생했습니다.", lastRace);
+		throw new BusinessException(ErrorCode.ROOM_PLACE_SAVE_CONFLICT, "방 장소 저장 충돌이 발생했습니다.", lastRace);
 	}
 
 	@FunctionalInterface

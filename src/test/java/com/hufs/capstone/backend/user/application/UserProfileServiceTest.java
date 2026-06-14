@@ -60,7 +60,7 @@ class UserProfileServiceTest {
 				new CompleteOnboardingCommand("updated", true, true, false)
 		))
 				.isInstanceOf(BusinessException.class)
-				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.E409_CONFLICT));
+				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.ONBOARDING_ALREADY_COMPLETED));
 
 		assertThat(user.getNickname()).isEqualTo("existing");
 		assertThat(user.getOnboardingCompletedAt()).isEqualTo(Instant.parse("2026-04-16T00:00:00Z"));
@@ -75,7 +75,7 @@ class UserProfileServiceTest {
 				new CompleteOnboardingCommand("nickname", true, true, false)
 		))
 				.isInstanceOf(BusinessException.class)
-				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.E404_NOT_FOUND));
+				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.USER_NOT_FOUND));
 		verify(userRepository).findByIdAndDeletedAtIsNull(1L);
 	}
 
@@ -103,7 +103,7 @@ class UserProfileServiceTest {
 				new UpdateNicknameCommand("updated")
 		))
 				.isInstanceOf(BusinessException.class)
-				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.E404_NOT_FOUND));
+				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.USER_NOT_FOUND));
 		verify(userRepository).findByIdAndDeletedAtIsNull(1L);
 	}
 
