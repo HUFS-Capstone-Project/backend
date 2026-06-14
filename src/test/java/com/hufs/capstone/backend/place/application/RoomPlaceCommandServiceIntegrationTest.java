@@ -12,6 +12,7 @@ import com.hufs.capstone.backend.global.pagination.CursorPageResult;
 import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
 import com.hufs.capstone.backend.global.exception.FieldValidationException;
+import com.hufs.capstone.backend.external.processing.dto.BusinessHoursPlaceResponse;
 import com.hufs.capstone.backend.link.domain.LinkSourceType;
 import com.hufs.capstone.backend.link.domain.entity.Link;
 import com.hufs.capstone.backend.link.domain.entity.RoomLink;
@@ -26,8 +27,8 @@ import com.hufs.capstone.backend.place.application.dto.RoomPlaceSaveResult;
 import com.hufs.capstone.backend.place.application.dto.RoomPlaceMapResult;
 import com.hufs.capstone.backend.place.application.dto.MyRoomPlacePageResult;
 import com.hufs.capstone.backend.place.domain.entity.Place;
-import com.hufs.capstone.backend.place.domain.entity.PlaceBusinessHours;
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
+import com.hufs.capstone.backend.place.domain.enums.BusinessHoursRequestStatus;
 import com.hufs.capstone.backend.place.domain.enums.BusinessHoursStatus;
 import com.hufs.capstone.backend.place.domain.enums.RoomPlaceAddedVia;
 import com.hufs.capstone.backend.place.domain.repository.PlaceBusinessHoursRepository;
@@ -44,6 +45,7 @@ import com.hufs.capstone.backend.user.domain.entity.User;
 import com.hufs.capstone.backend.user.domain.repository.UserRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -68,6 +70,9 @@ class RoomPlaceCommandServiceIntegrationTest {
 
 	@Autowired
 	private PlaceTaxonomyQueryService placeTaxonomyQueryService;
+
+	@Autowired
+	private PlaceBusinessHoursCacheService placeBusinessHoursCacheService;
 
 	@Autowired
 	private RoomPlaceStorageService roomPlaceStorageService;
@@ -441,12 +446,66 @@ class RoomPlaceCommandServiceIntegrationTest {
 				new BigDecimal("37.569000000000"),
 				new BigDecimal("126.971000000000"),
 				new BigDecimal("37.570500000000"),
-				new BigDecimal("126.972500000000")
+				new BigDecimal("126.972500000000"),
+				null
 		);
 
 		assertThat(result.items()).extracting("name").containsExactly("Inside Place");
 		assertThat(result.limit()).isEqualTo(500);
 		assertThat(result.truncated()).isFalse();
+	}
+
+	@Test
+	void shouldFilterMapPlacesByCreator() {
+		Long friendUserId = 200L;
+		Long emptyMemberUserId = 300L;
+		roomMemberRepository.saveAndFlush(RoomMember.join(room, friendUserId));
+		roomMemberRepository.saveAndFlush(RoomMember.join(room, emptyMemberUserId));
+		saveExternalForTest(USER_ID, foodSnapshot("123456789", "My Map Place"));
+		saveExternalForTest(friendUserId, cafeSnapshot("222222222", "Friend Map Place"));
+
+		RoomPlaceMapResult myPlaces = roomPlaceQueryService.findMapPlaces(
+				USER_ID,
+				ROOM_PUBLIC_ID,
+				new BigDecimal("37.569000000000"),
+				new BigDecimal("126.971000000000"),
+				new BigDecimal("37.572000000000"),
+				new BigDecimal("126.974000000000"),
+				USER_ID
+		);
+		RoomPlaceMapResult friendPlaces = roomPlaceQueryService.findMapPlaces(
+				USER_ID,
+				ROOM_PUBLIC_ID,
+				new BigDecimal("37.569000000000"),
+				new BigDecimal("126.971000000000"),
+				new BigDecimal("37.572000000000"),
+				new BigDecimal("126.974000000000"),
+				friendUserId
+		);
+		RoomPlaceMapResult emptyMemberPlaces = roomPlaceQueryService.findMapPlaces(
+				USER_ID,
+				ROOM_PUBLIC_ID,
+				new BigDecimal("37.569000000000"),
+				new BigDecimal("126.971000000000"),
+				new BigDecimal("37.572000000000"),
+				new BigDecimal("126.974000000000"),
+				emptyMemberUserId
+		);
+		RoomPlaceMapResult allPlaces = roomPlaceQueryService.findMapPlaces(
+				USER_ID,
+				ROOM_PUBLIC_ID,
+				new BigDecimal("37.569000000000"),
+				new BigDecimal("126.971000000000"),
+				new BigDecimal("37.572000000000"),
+				new BigDecimal("126.974000000000"),
+				null
+		);
+
+		assertThat(myPlaces.items()).extracting("name").containsExactly("My Map Place");
+		assertThat(friendPlaces.items()).extracting("name").containsExactly("Friend Map Place");
+		assertThat(emptyMemberPlaces.items()).isEmpty();
+		assertThat(allPlaces.items()).extracting("name")
+				.containsExactlyInAnyOrder("My Map Place", "Friend Map Place");
 	}
 
 	@Test
@@ -832,28 +891,19 @@ class RoomPlaceCommandServiceIntegrationTest {
 	@Test
 	void shouldFillMyRoomPlaceBusinessHoursStatusFromBulkCache() {
 		saveExternalForTest(foodSnapshot("123456789", "Business Hours Place"));
-		PlaceBusinessHours cache = placeBusinessHoursRepository.findByKakaoPlaceId("123456789")
-				.orElseGet(() -> PlaceBusinessHours.create(
-						"123456789",
-						"https://place.map.kakao.com/123456789",
-						"Business Hours Place"
-				));
-		Instant fetchedAt = Instant.parse("2026-05-14T02:00:00Z");
-		Instant expiresAt = Instant.parse("2026-05-15T02:00:00Z");
-		cache.applyRemotePlace(
-				"https://place.map.kakao.com/123456789",
+		OffsetDateTime fetchedAt = OffsetDateTime.parse("2026-05-14T02:00:00Z");
+		OffsetDateTime expiresAt = OffsetDateTime.parse("2026-05-15T02:00:00Z");
+		placeBusinessHoursCacheService.upsertRemotePlace(new BusinessHoursPlaceResponse(
+				"123456789",
 				"Business Hours Place",
-				null,
-				null,
+				"https://place.map.kakao.com/123456789",
 				BusinessHoursStatus.SUCCEEDED,
+				null,
 				fetchedAt,
 				expiresAt,
-				"test",
-				"job-123",
 				null,
 				null
-		);
-		placeBusinessHoursRepository.saveAndFlush(cache);
+		), "job-123", BusinessHoursRequestStatus.SUCCEEDED);
 
 		MyRoomPlacePageResult result = roomPlaceQueryService.searchMyRoomPlaces(
 				USER_ID,
@@ -869,8 +919,8 @@ class RoomPlaceCommandServiceIntegrationTest {
 
 		assertThat(result.items()).hasSize(1);
 		assertThat(result.items().get(0).place().businessHoursStatus()).isEqualTo("SUCCEEDED");
-		assertThat(result.items().get(0).place().businessHoursFetchedAt()).isEqualTo(fetchedAt);
-		assertThat(result.items().get(0).place().businessHoursExpiresAt()).isEqualTo(expiresAt);
+		assertThat(result.items().get(0).place().businessHoursFetchedAt()).isEqualTo(fetchedAt.toInstant());
+		assertThat(result.items().get(0).place().businessHoursExpiresAt()).isEqualTo(expiresAt.toInstant());
 	}
 
 	private RoomPlaceSaveResult saveExternalForTest(PlaceSnapshot snapshot) {

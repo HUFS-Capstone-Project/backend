@@ -154,6 +154,7 @@ public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository 
 			BigDecimal maxLatitude,
 			BigDecimal minLongitude,
 			BigDecimal maxLongitude,
+			Long createdBy,
 			int limit
 	) {
 		return baseRoomPlaceQuery()
@@ -162,7 +163,8 @@ public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository 
 						PLACE.latitude.isNotNull(),
 						PLACE.longitude.isNotNull(),
 						PLACE.latitude.between(minLatitude, maxLatitude),
-						PLACE.longitude.between(minLongitude, maxLongitude)
+						PLACE.longitude.between(minLongitude, maxLongitude),
+						createdByEq(createdBy)
 				)
 				.orderBy(RoomPlaceSearchOrder.newestFirst())
 				.limit(limit)

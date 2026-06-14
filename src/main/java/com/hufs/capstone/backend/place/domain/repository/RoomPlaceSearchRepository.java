@@ -51,6 +51,7 @@ public interface RoomPlaceSearchRepository {
 			BigDecimal maxLatitude,
 			BigDecimal minLongitude,
 			BigDecimal maxLongitude,
+			Long createdBy,
 			int limit
 	);
 

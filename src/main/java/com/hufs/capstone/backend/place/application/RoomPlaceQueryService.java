@@ -89,9 +89,11 @@ public class RoomPlaceQueryService {
 			BigDecimal swLat,
 			BigDecimal swLng,
 			BigDecimal neLat,
-			BigDecimal neLng
+			BigDecimal neLng,
+			Long createdBy
 	) {
 		Room room = roomAccessService.requireMemberRoom(roomId, userId);
+		validateCreatedByFilter(room, createdBy);
 		Bounds bounds = validateBounds(swLat, swLng, neLat, neLng);
 		List<RoomPlace> fetched = roomPlaceRepository.findMapPlacesInBounds(
 				room.getId(),
@@ -99,6 +101,7 @@ public class RoomPlaceQueryService {
 				bounds.maxLat(),
 				bounds.minLng(),
 				bounds.maxLng(),
+				createdBy,
 				MAP_PLACE_LIMIT + 1
 		);
 		boolean truncated = fetched.size() > MAP_PLACE_LIMIT;

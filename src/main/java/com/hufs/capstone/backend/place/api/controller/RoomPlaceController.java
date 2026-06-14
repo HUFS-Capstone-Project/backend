@@ -63,11 +63,12 @@ public class RoomPlaceController implements RoomPlaceApi {
 			@RequestParam BigDecimal swLng,
 			@RequestParam BigDecimal neLat,
 			@RequestParam BigDecimal neLng,
-			@RequestParam(required = false) Integer zoom
+			@RequestParam(required = false) Integer zoom,
+			@RequestParam(required = false) Long createdBy
 	) {
 		Long userId = SecurityUtils.currentUserIdOrThrow();
 		return CommonResponse.ok(RoomPlaceMapResponse.from(
-				roomPlaceQueryService.findMapPlaces(userId, roomId, swLat, swLng, neLat, neLng)
+				roomPlaceQueryService.findMapPlaces(userId, roomId, swLat, swLng, neLat, neLng, createdBy)
 		));
 	}
 

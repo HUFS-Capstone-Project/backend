@@ -59,7 +59,8 @@ public interface RoomPlaceApi {
 			@RequestParam BigDecimal swLng,
 			@RequestParam BigDecimal neLat,
 			@RequestParam BigDecimal neLng,
-			@RequestParam(required = false) Integer zoom
+			@RequestParam(required = false) Integer zoom,
+			@RequestParam(required = false) Long createdBy
 	);
 
 	@Operation(
