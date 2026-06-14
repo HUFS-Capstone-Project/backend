@@ -10,6 +10,19 @@ import org.springframework.data.repository.query.Param;
 public interface DateCoursePlaceRepository extends JpaRepository<DateCoursePlace, Long> {
 
 	@Query("""
+			SELECT COUNT(dcp) > 0 FROM DateCoursePlace dcp
+			JOIN dcp.dateCourse dc
+			WHERE dcp.roomPlace.id = :roomPlaceId
+			AND dc.savedByUserId IS NOT NULL
+			AND dc.deletedAt IS NULL
+			""")
+	boolean existsByRoomPlaceIdInSavedDateCourse(@Param("roomPlaceId") Long roomPlaceId);
+
+	@Modifying(clearAutomatically = true, flushAutomatically = true)
+	@Query("DELETE FROM DateCoursePlace dcp WHERE dcp.roomPlace.id = :roomPlaceId")
+	int deleteByRoomPlaceId(@Param("roomPlaceId") Long roomPlaceId);
+
+	@Query("""
 			SELECT dcp FROM DateCoursePlace dcp
 			JOIN FETCH dcp.roomPlace rp
 			JOIN FETCH rp.place p

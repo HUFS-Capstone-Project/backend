@@ -3,6 +3,11 @@ package com.hufs.capstone.backend.place.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.hufs.capstone.backend.course.domain.entity.DateCourse;
+import com.hufs.capstone.backend.course.domain.entity.DateCoursePlace;
+import com.hufs.capstone.backend.course.domain.enums.CourseMode;
+import com.hufs.capstone.backend.course.domain.repository.DateCoursePlaceRepository;
+import com.hufs.capstone.backend.course.domain.repository.DateCourseRepository;
 import com.hufs.capstone.backend.global.pagination.CursorPageResult;
 import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
@@ -46,6 +51,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpStatus;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -82,6 +88,12 @@ class RoomPlaceCommandServiceIntegrationTest {
 	private RoomPlaceOriginRepository roomPlaceOriginRepository;
 
 	@Autowired
+	private DateCoursePlaceRepository dateCoursePlaceRepository;
+
+	@Autowired
+	private DateCourseRepository dateCourseRepository;
+
+	@Autowired
 	private RoomPlaceMemoRepository roomPlaceMemoRepository;
 
 	@Autowired
@@ -108,6 +120,8 @@ class RoomPlaceCommandServiceIntegrationTest {
 	@BeforeEach
 	void setUp() {
 		placeBusinessHoursRepository.deleteAll();
+		dateCoursePlaceRepository.deleteAll();
+		dateCourseRepository.deleteAll();
 		roomPlaceMemoRepository.deleteAll();
 		roomPlaceOriginRepository.deleteAll();
 		roomPlaceRepository.deleteAll();
@@ -125,6 +139,8 @@ class RoomPlaceCommandServiceIntegrationTest {
 	@AfterEach
 	void tearDown() {
 		placeBusinessHoursRepository.deleteAll();
+		dateCoursePlaceRepository.deleteAll();
+		dateCourseRepository.deleteAll();
 		roomPlaceMemoRepository.deleteAll();
 		roomPlaceOriginRepository.deleteAll();
 		roomPlaceRepository.deleteAll();
@@ -602,6 +618,55 @@ class RoomPlaceCommandServiceIntegrationTest {
 	}
 
 	@Test
+	void shouldDeleteRoomPlaceWhenNotUsedInDateCourse() {
+		RoomPlaceSaveResult saved = saveExternalForTest(foodSnapshot("123456789", "Deletable Place"));
+		Long roomPlaceId = saved.places().get(0).roomPlaceId();
+		roomPlaceManagementService.updateMemo(USER_ID, ROOM_PUBLIC_ID, roomPlaceId, "delete memo");
+
+		roomPlaceManagementService.deleteRoomPlace(USER_ID, ROOM_PUBLIC_ID, roomPlaceId);
+
+		assertThat(roomPlaceRepository.findById(roomPlaceId)).isEmpty();
+		assertThat(roomPlaceMemoRepository.findByRoomPlaceIdInOrderByUpdatedAtAscIdAsc(List.of(roomPlaceId))).isEmpty();
+		assertThat(roomPlaceOriginRepository.countByRoomPlaceId(roomPlaceId)).isZero();
+	}
+
+	@Test
+	void shouldDeleteRoomPlaceWhenUsedOnlyInUnsavedDateCourse() {
+		RoomPlaceSaveResult saved = saveExternalForTest(foodSnapshot("123456789", "Generated Place"));
+		Long roomPlaceId = saved.places().get(0).roomPlaceId();
+		RoomPlace roomPlace = roomPlaceRepository.findById(roomPlaceId).orElseThrow();
+		DateCoursePlace dateCoursePlace = createDateCoursePlace(roomPlace);
+
+		roomPlaceManagementService.deleteRoomPlace(USER_ID, ROOM_PUBLIC_ID, roomPlaceId);
+
+		assertThat(roomPlaceRepository.findById(roomPlaceId)).isEmpty();
+		assertThat(dateCoursePlaceRepository.findById(dateCoursePlace.getId())).isEmpty();
+	}
+
+	@Test
+	void shouldRejectDeletingRoomPlaceUsedInSavedDateCourseAndKeepRelatedRows() {
+		RoomPlaceSaveResult saved = saveExternalForTest(foodSnapshot("123456789", "Course Place"));
+		Long roomPlaceId = saved.places().get(0).roomPlaceId();
+		roomPlaceManagementService.updateMemo(USER_ID, ROOM_PUBLIC_ID, roomPlaceId, "course memo");
+		RoomPlace roomPlace = roomPlaceRepository.findById(roomPlaceId).orElseThrow();
+		DateCoursePlace dateCoursePlace = createSavedDateCoursePlace(roomPlace);
+
+		assertThatThrownBy(() -> roomPlaceManagementService.deleteRoomPlace(USER_ID, ROOM_PUBLIC_ID, roomPlaceId))
+				.isInstanceOf(BusinessException.class)
+				.satisfies(ex -> {
+					BusinessException businessException = (BusinessException) ex;
+					assertThat(businessException.getErrorCode()).isEqualTo(ErrorCode.ROOM_PLACE_USED_IN_DATE_COURSE);
+					assertThat(businessException.getErrorCode().getHttpStatus()).isEqualTo(HttpStatus.CONFLICT);
+					assertThat(businessException.getMessage()).isEqualTo("저장된 데이트코스에 포함된 장소는 삭제할 수 없습니다.");
+				});
+
+		assertThat(roomPlaceRepository.findById(roomPlaceId)).isPresent();
+		assertThat(roomPlaceMemoRepository.findByRoomPlaceIdInOrderByUpdatedAtAscIdAsc(List.of(roomPlaceId))).hasSize(1);
+		assertThat(roomPlaceOriginRepository.countByRoomPlaceId(roomPlaceId)).isEqualTo(1);
+		assertThat(dateCoursePlaceRepository.findById(dateCoursePlace.getId())).isPresent();
+	}
+
+	@Test
 	void shouldKeepSeparateRoomPlaceMemosPerMemberAndExposeProfiles() {
 		User firstUser = userRepository.saveAndFlush(User.register(
 				"first@example.com",
@@ -838,6 +903,56 @@ class RoomPlaceCommandServiceIntegrationTest {
 		String url = "https://example.com/external-search/" + managedRoom.getPublicId() + "/" + sequence;
 		Link link = linkRepository.saveAndFlush(Link.register(url, url, "external-job-" + sequence));
 		return roomLinkRepository.saveAndFlush(RoomLink.bind(managedRoom, link));
+	}
+
+	private DateCoursePlace createDateCoursePlace(RoomPlace roomPlace) {
+		return createDateCoursePlace(roomPlace, false);
+	}
+
+	private DateCoursePlace createSavedDateCoursePlace(RoomPlace roomPlace) {
+		return createDateCoursePlace(roomPlace, true);
+	}
+
+	private DateCoursePlace createDateCoursePlace(RoomPlace roomPlace, boolean saved) {
+		if (!saved) {
+			DateCourse dateCourse = dateCourseRepository.saveAndFlush(DateCourse.create(
+					"course-" + roomPlace.getId(),
+					room,
+					USER_ID,
+					CourseMode.GENERAL,
+					Instant.parse("2026-06-14T01:00:00Z"),
+					Instant.parse("2026-06-14T03:00:00Z"),
+					"batch-" + roomPlace.getId(),
+					"11110",
+					"[]",
+					"[]"
+			));
+			return dateCoursePlaceRepository.saveAndFlush(DateCoursePlace.create(dateCourse, roomPlace, 0));
+		}
+
+		return transactionTemplate.execute(status -> {
+			RoomPlace managedRoomPlace = roomPlaceRepository.findById(roomPlace.getId()).orElseThrow();
+			DateCourse dateCourse = dateCourseRepository.saveAndFlush(DateCourse.create(
+					"course-" + managedRoomPlace.getId(),
+					room,
+					USER_ID,
+					CourseMode.GENERAL,
+					Instant.parse("2026-06-14T01:00:00Z"),
+					Instant.parse("2026-06-14T03:00:00Z"),
+					"batch-" + managedRoomPlace.getId(),
+					"11110",
+					"[]",
+					"[]"
+			));
+			int updated = dateCourseRepository.markAsSavedIfAbsent(
+					dateCourse.getId(),
+					USER_ID,
+					Instant.parse("2026-06-14T04:00:00Z"),
+					"Saved Course"
+			);
+			assertThat(updated).isEqualTo(1);
+			return dateCoursePlaceRepository.saveAndFlush(DateCoursePlace.create(dateCourse, managedRoomPlace, 0));
+		});
 	}
 
 	private static PlaceSnapshot foodSnapshot(String kakaoPlaceId, String name) {

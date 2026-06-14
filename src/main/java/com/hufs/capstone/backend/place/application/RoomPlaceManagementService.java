@@ -1,5 +1,6 @@
 package com.hufs.capstone.backend.place.application;
 
+import com.hufs.capstone.backend.course.domain.repository.DateCoursePlaceRepository;
 import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
@@ -21,6 +22,7 @@ public class RoomPlaceManagementService {
 	private final RoomPlaceRepository roomPlaceRepository;
 	private final RoomPlaceMemoRepository roomPlaceMemoRepository;
 	private final RoomPlaceOriginRepository roomPlaceOriginRepository;
+	private final DateCoursePlaceRepository dateCoursePlaceRepository;
 
 	@Transactional
 	public void updateMemo(Long userId, String roomId, Long roomPlaceId, String memo) {
@@ -42,6 +44,13 @@ public class RoomPlaceManagementService {
 	public void deleteRoomPlace(Long userId, String roomId, Long roomPlaceId) {
 		Room room = roomAccessService.requireMemberRoom(roomId, userId);
 		RoomPlace roomPlace = getRoomPlaceOrThrow(room.getId(), roomPlaceId);
+		if (dateCoursePlaceRepository.existsByRoomPlaceIdInSavedDateCourse(roomPlace.getId())) {
+			throw new BusinessException(
+					ErrorCode.ROOM_PLACE_USED_IN_DATE_COURSE,
+					"저장된 데이트코스에 포함된 장소는 삭제할 수 없습니다."
+			);
+		}
+		dateCoursePlaceRepository.deleteByRoomPlaceId(roomPlace.getId());
 		roomPlaceMemoRepository.deleteByRoomPlaceId(roomPlace.getId());
 		roomPlaceOriginRepository.deleteByRoomPlaceId(roomPlace.getId());
 		roomPlaceRepository.delete(roomPlace);

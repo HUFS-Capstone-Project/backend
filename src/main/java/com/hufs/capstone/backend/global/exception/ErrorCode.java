@@ -18,6 +18,7 @@ public enum ErrorCode {
 	E409_CONFLICT(HttpStatus.CONFLICT, "요청을 처리할 수 없습니다."),
 	E409_TOKEN_REUSE_DETECTED(HttpStatus.CONFLICT, "리프레시 토큰 재사용이 감지되었습니다."),
 	E409_DUPLICATE_DATE_COURSE(HttpStatus.CONFLICT, "동일한 데이트 코스가 이미 저장되어 있습니다."),
+	ROOM_PLACE_USED_IN_DATE_COURSE(HttpStatus.CONFLICT, "저장된 데이트코스에 포함된 장소는 삭제할 수 없습니다."),
 	E502_EXTERNAL_API(HttpStatus.BAD_GATEWAY, "외부 API 호출에 실패했습니다."),
 	E500_INTERNAL(HttpStatus.INTERNAL_SERVER_ERROR, "서버 내부 오류가 발생했습니다.");
 
