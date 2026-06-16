@@ -41,7 +41,7 @@ public class LinkSyncMappingPolicy {
 			ProcessingJobResponse jobResponse
 	) {
 		return switch (observedStatus) {
-			case FAILED -> failedSnapshot(trimToNull(jobResponse.errorCode()), trimToNull(jobResponse.errorMessage()), null);
+			case FAILED -> failedObservedSnapshot(trimToNull(jobResponse.errorCode()), trimToNull(jobResponse.errorMessage()));
 			case REQUESTED -> new LinkSyncOrchestrator.ProcessingSyncSnapshot(LinkAnalysisStatus.REQUESTED, null, null, null);
 			case PROCESSING -> new LinkSyncOrchestrator.ProcessingSyncSnapshot(LinkAnalysisStatus.PROCESSING, null, null, null);
 			case DISPATCH_FAILED -> new LinkSyncOrchestrator.ProcessingSyncSnapshot(
@@ -104,6 +104,23 @@ public class LinkSyncMappingPolicy {
 
 	private static boolean isFailed(ProcessingJobResultResponse response) {
 		return LinkAnalysisStatus.fromProcessingStatus(response.status()) == LinkAnalysisStatus.FAILED;
+	}
+
+	private static LinkSyncOrchestrator.ProcessingSyncSnapshot failedObservedSnapshot(
+			String errorCode,
+			String errorMessage
+	) {
+		if (ProcessingErrorCodes.INSTAGRAM_RATE_LIMITED.equals(errorCode)) {
+			return new LinkSyncOrchestrator.ProcessingSyncSnapshot(
+					LinkAnalysisStatus.FAILED,
+					null,
+					ProcessingErrorCodes.INSTAGRAM_RATE_LIMITED,
+					INSTAGRAM_RATE_LIMITED_USER_MESSAGE,
+					true,
+					null
+			);
+		}
+		return failedSnapshot(errorCode, errorMessage, null);
 	}
 
 	private static LinkSyncOrchestrator.ProcessingSyncSnapshot failedSnapshot(

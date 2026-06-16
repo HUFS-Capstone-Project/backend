@@ -28,6 +28,12 @@ public class LinkSyncOrchestrator {
 
 		ProcessingJobResponse jobResponse = processingClient.getJob(realJobId);
 		LinkAnalysisStatus observedStatus = LinkAnalysisStatus.fromProcessingStatus(jobResponse.status());
+		if (observedStatus == LinkAnalysisStatus.FAILED) {
+			ProcessingJobResultResponse resultResponse = getJobResultOrNull(realJobId);
+			if (resultResponse != null) {
+				return linkSyncMappingPolicy.fromSucceededResult(realJobId, resultResponse);
+			}
+		}
 		if (observedStatus != LinkAnalysisStatus.SUCCEEDED) {
 			return linkSyncMappingPolicy.fromObservedStatus(observedStatus, jobResponse);
 		}

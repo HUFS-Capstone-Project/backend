@@ -1365,6 +1365,35 @@ class LinkConcurrencyIntegrationTest {
 		verify(processingClient, times(1)).getJobResult("job-rate-limited");
 	}
 
+	@Test
+	void shouldReadResultWhenObservedJobStatusIsInstagramRateLimitedFailure() {
+		Link link = saveProcessingLink("https://instagram.com/p/status-rate-limited", "job-status-rate-limited", roomA);
+		when(processingClient.getJob("job-status-rate-limited"))
+				.thenReturn(new ProcessingJobResponse(
+						"job-status-rate-limited",
+						"FAILED",
+						"https://instagram.com/p/status-rate-limited",
+						ROOM_A_PUBLIC_ID,
+						null,
+						ProcessingErrorCodes.INSTAGRAM_RATE_LIMITED,
+						"Instagram crawl returned HTTP 429."
+				));
+		when(processingClient.getJobResult("job-status-rate-limited"))
+				.thenReturn(instagramRateLimitedResult("job-status-rate-limited"));
+
+		LinkAnalysisResult result = linkAnalysisStatusService.getLinkAnalysisResult(
+				MEMBER_USER_ID,
+				ROOM_A_PUBLIC_ID,
+				analysisRequestIdFor(link, roomA)
+		);
+
+		assertThat(result.status()).isEqualTo(LinkAnalysisStatus.FAILED);
+		assertThat(result.errorCode()).isEqualTo(ProcessingErrorCodes.INSTAGRAM_RATE_LIMITED);
+		assertThat(result.retryable()).isTrue();
+		verify(processingClient, times(1)).getJob("job-status-rate-limited");
+		verify(processingClient, times(1)).getJobResult("job-status-rate-limited");
+	}
+
 	private Room createRoomWithMember(String publicId, String name, String inviteCode, Long userId) {
 		Room room = roomRepository.saveAndFlush(Room.create(publicId, name, inviteCode, userId));
 		roomMemberRepository.saveAndFlush(RoomMember.join(room, userId));
