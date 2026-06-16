@@ -1026,6 +1026,84 @@ class LinkConcurrencyIntegrationTest {
 	}
 
 	@Test
+	void shouldReturnCachedFailureWhenSameUrlIsRequestedDuringInstagramCooldown() {
+		Link link = Link.register(
+				"https://www.instagram.com/p/cooldown-request/",
+				"https://www.instagram.com/p/cooldown-request/",
+				"job-cooldown"
+		);
+		link.markFailed();
+		ReflectionTestUtils.setField(link, "errorCode", ProcessingErrorCodes.INSTAGRAM_RATE_LIMITED);
+		ReflectionTestUtils.setField(link, "retryable", true);
+		ReflectionTestUtils.setField(link, "cooldownSeconds", 120);
+		Link saved = linkRepository.saveAndFlush(link);
+		linkAnalysisRequestRepository.saveAndFlush(
+				LinkAnalysisRequest.create(saved, roomA, MEMBER_USER_ID, null, "https://instagram.com/p/cooldown-request")
+		);
+
+		LinkAnalysisRequestResult result = linkAnalysisRequestService.requestLinkAnalysis(
+				MEMBER_USER_ID,
+				ROOM_A_PUBLIC_ID,
+				new AnalyzeLinkCommand("https://instagram.com/p/cooldown-request", null)
+		);
+
+		assertThat(result.linkId()).isEqualTo(saved.getId());
+		assertThat(result.status()).isEqualTo(LinkAnalysisStatus.FAILED);
+		assertThat(result.errorCode()).isEqualTo(ProcessingErrorCodes.INSTAGRAM_RATE_LIMITED);
+		assertThat(result.retryable()).isTrue();
+		assertThat(result.cooldownSeconds()).isEqualTo(120);
+		verify(processingClient, never()).createJob(
+				"https://instagram.com/p/cooldown-request",
+				ROOM_A_PUBLIC_ID,
+				null
+		);
+	}
+
+	@Test
+	void shouldAutoRetryExpiredInstagramCooldownWhenSameUrlIsRequestedAgain() throws Exception {
+		when(processingClient.createJob(
+				"https://instagram.com/p/expired-cooldown",
+				ROOM_A_PUBLIC_ID,
+				null
+		)).thenReturn(new CreateProcessingJobResponse("job-expired-cooldown"));
+		Link link = Link.register(
+				"https://www.instagram.com/p/expired-cooldown/",
+				"https://www.instagram.com/p/expired-cooldown/",
+				"job-failed"
+		);
+		link.markFailed();
+		ReflectionTestUtils.setField(link, "errorCode", ProcessingErrorCodes.INSTAGRAM_RATE_LIMITED);
+		ReflectionTestUtils.setField(link, "retryable", true);
+		ReflectionTestUtils.setField(link, "cooldownSeconds", 0);
+		Link saved = linkRepository.saveAndFlush(link);
+		linkAnalysisRequestRepository.saveAndFlush(
+				LinkAnalysisRequest.create(saved, roomA, MEMBER_USER_ID, null, "https://instagram.com/p/expired-cooldown")
+		);
+
+		LinkAnalysisRequestResult retried = linkAnalysisRequestService.requestLinkAnalysis(
+				MEMBER_USER_ID,
+				ROOM_A_PUBLIC_ID,
+				new AnalyzeLinkCommand("https://instagram.com/p/expired-cooldown", null)
+		);
+		Link afterRetry = awaitValue(
+				() -> linkRepository.findById(saved.getId()).orElseThrow(),
+				value -> value.getDispatchStatus() == ProcessingDispatchStatus.DISPATCHED
+		);
+
+		assertThat(retried.linkId()).isEqualTo(saved.getId());
+		assertThat(retried.createdRequest()).isFalse();
+		assertThat(afterRetry.getStatus()).isEqualTo(LinkAnalysisStatus.REQUESTED);
+		assertThat(afterRetry.getProcessingJobId()).isEqualTo("job-expired-cooldown");
+		assertThat(afterRetry.getErrorCode()).isNull();
+		assertThat(afterRetry.getCooldownSeconds()).isNull();
+		verify(processingClient, times(1)).createJob(
+				"https://instagram.com/p/expired-cooldown",
+				ROOM_A_PUBLIC_ID,
+				null
+		);
+	}
+
+	@Test
 	void shouldReturnDispatchFailedWhenDispatchRetriesExhausted() throws Exception {
 		when(processingClient.createJob("https://example.com/post/10", ROOM_A_PUBLIC_ID, null))
 				.thenThrow(new RuntimeException("processing server down"));

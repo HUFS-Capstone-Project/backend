@@ -68,7 +68,7 @@ public class LinkSyncMappingPolicy {
 					ProcessingErrorCodes.INSTAGRAM_RATE_LIMITED,
 					INSTAGRAM_RATE_LIMITED_USER_MESSAGE,
 					Boolean.TRUE.equals(resultResponse.retryable()),
-					null
+					resultResponse.cooldownSeconds()
 			);
 		}
 		if (isFailed(resultResponse)) {

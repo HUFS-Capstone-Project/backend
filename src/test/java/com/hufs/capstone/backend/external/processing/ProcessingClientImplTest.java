@@ -160,7 +160,8 @@ class ProcessingClientImplTest {
 				  ],
 				  "error_code":null,
 				  "error_message":null,
-				  "retryable":false
+				  "retryable":false,
+				  "cooldown_seconds":0
 				}
 				""", ProcessingJobResultResponse.class);
 
@@ -177,6 +178,7 @@ class ProcessingClientImplTest {
 		assertThat(result.resolvedPlaces().get(0).latitude()).isEqualByComparingTo("37.5959759766929");
 		assertThat(result.resolvedPlaces().get(0).categoryGroupCode()).isEqualTo("CE7");
 		assertThat(result.retryable()).isFalse();
+		assertThat(result.cooldownSeconds()).isZero();
 	}
 
 	@Test

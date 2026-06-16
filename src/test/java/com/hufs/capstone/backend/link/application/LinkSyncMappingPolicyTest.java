@@ -74,6 +74,32 @@ class LinkSyncMappingPolicyTest {
 		assertThat(snapshot.retryable()).isFalse();
 	}
 
+	@Test
+	void shouldPreserveInstagramRateLimitCooldownFromResult() {
+		LinkSyncOrchestrator.ProcessingSyncSnapshot snapshot = policy.fromSucceededResult(
+				"job-1",
+				new ProcessingJobResultResponse(
+						"job-1",
+						"FAILED",
+						"https://www.instagram.com/reel/abc/",
+						"https://www.instagram.com/reel/abc/",
+						"https://www.instagram.com/reel/abc/",
+						null,
+						null,
+						List.of(),
+						ProcessingErrorCodes.INSTAGRAM_RATE_LIMITED,
+						"Instagram crawl returned HTTP 429.",
+						true,
+						1800
+				)
+		);
+
+		assertThat(snapshot.status()).isEqualTo(LinkAnalysisStatus.FAILED);
+		assertThat(snapshot.errorCode()).isEqualTo(ProcessingErrorCodes.INSTAGRAM_RATE_LIMITED);
+		assertThat(snapshot.retryable()).isTrue();
+		assertThat(snapshot.cooldownSeconds()).isEqualTo(1800);
+	}
+
 	private static ProcessingJobResultResponse result(String sourceType) {
 		return new ProcessingJobResultResponse(
 				"job-1",

@@ -28,8 +28,39 @@ public record ProcessingJobResultResponse(
 		@JsonProperty("error_message")
 		String errorMessage,
 		@JsonProperty("retryable")
-		Boolean retryable
+		Boolean retryable,
+		@JsonProperty("cooldown_seconds")
+		Integer cooldownSeconds
 ) {
+
+	public ProcessingJobResultResponse(
+			String jobId,
+			String status,
+			String originalUrl,
+			String canonicalUrl,
+			String crawlUrl,
+			ContentResponse content,
+			LinkStatsResponse linkStats,
+			List<ResolvedPlaceResponse> resolvedPlaces,
+			String errorCode,
+			String errorMessage,
+			Boolean retryable
+	) {
+		this(
+				jobId,
+				status,
+				originalUrl,
+				canonicalUrl,
+				crawlUrl,
+				content,
+				linkStats,
+				resolvedPlaces,
+				errorCode,
+				errorMessage,
+				retryable,
+				null
+		);
+	}
 
 	public ProcessingJobResultResponse(
 			String jobId,
@@ -54,6 +85,7 @@ public record ProcessingJobResultResponse(
 				resolvedPlaces,
 				errorCode,
 				errorMessage,
+				null,
 				null
 		);
 	}

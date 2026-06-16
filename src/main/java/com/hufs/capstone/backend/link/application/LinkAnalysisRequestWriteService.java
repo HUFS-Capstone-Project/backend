@@ -42,7 +42,10 @@ public class LinkAnalysisRequestWriteService {
 	) {
 		Room room = roomAccessService.requireMemberRoom(roomId, userId);
 		AnalysisTarget target = findOrCreateLink(normalizedUrl);
-		rejectInstagramCooldownIfActive(target.link(), normalizedUrl.normalizedUrl());
+		boolean recoveredInstagramRateLimit = recoverExpiredInstagramRateLimitForSameUrl(
+				target.link(),
+				normalizedUrl.normalizedUrl()
+		);
 		AnalysisRequestTarget requestTarget = findOrCreateAnalysisRequest(
 				target.link(),
 				room,
@@ -54,7 +57,7 @@ public class LinkAnalysisRequestWriteService {
 		boolean staleRequestedWithoutJob = isStaleRequestedWithoutJob(target.link());
 
 		publishProcessingRequestedEventIfNeeded(
-				target.createdNewLink() || recoveredDispatchFailed || staleRequestedWithoutJob,
+				target.createdNewLink() || recoveredInstagramRateLimit || recoveredDispatchFailed || staleRequestedWithoutJob,
 				target.link(),
 				requestTarget.analysisRequest().getOriginalUrl(),
 				normalizedUrl.normalizedUrl(),
@@ -186,6 +189,18 @@ public class LinkAnalysisRequestWriteService {
 		return false;
 	}
 
+	private boolean recoverExpiredInstagramRateLimitForSameUrl(Link link, String canonicalUrl) {
+		if (!isRecoverableInstagramRateLimit(link, canonicalUrl)) {
+			return false;
+		}
+		if (isInstagramCooldownActive(link)) {
+			return false;
+		}
+		resetFailedForRetry(link);
+		log.info("Recovered expired Instagram rate-limited link for redispatch. linkId={}", link.getId());
+		return true;
+	}
+
 	private void validateRetryable(Link link) {
 		if (link.getStatus() == LinkAnalysisStatus.SUCCEEDED || link.getStatus() == LinkAnalysisStatus.PROCESSING) {
 			throw new BusinessException(ErrorCode.LINK_ANALYSIS_RETRY_NOT_ALLOWED);
@@ -238,22 +253,30 @@ public class LinkAnalysisRequestWriteService {
 	}
 
 	private void rejectInstagramCooldownIfActive(Link link, String canonicalUrl) {
-		if (!LinkUrlNormalizer.isInstagramCanonicalUrl(canonicalUrl)) {
+		if (!isRecoverableInstagramRateLimit(link, canonicalUrl)) {
 			return;
 		}
-		if (!ProcessingErrorCodes.INSTAGRAM_RATE_LIMITED.equals(link.getErrorCode())) {
-			return;
-		}
-		Integer cooldownSeconds = link.getCooldownSeconds();
-		Instant updatedAt = link.getUpdatedAt();
-		if (cooldownSeconds == null || updatedAt == null) {
-			return;
-		}
-		if (updatedAt.plusSeconds(cooldownSeconds).isAfter(Instant.now())) {
+		if (isInstagramCooldownActive(link)) {
 			throw new BusinessException(
 					ErrorCode.LINK_ANALYSIS_INSTAGRAM_COOLDOWN
 			);
 		}
+	}
+
+	private boolean isRecoverableInstagramRateLimit(Link link, String canonicalUrl) {
+		return LinkUrlNormalizer.isInstagramCanonicalUrl(canonicalUrl)
+				&& link.getStatus() == LinkAnalysisStatus.FAILED
+				&& ProcessingErrorCodes.INSTAGRAM_RATE_LIMITED.equals(link.getErrorCode())
+				&& Boolean.TRUE.equals(link.getRetryable());
+	}
+
+	private boolean isInstagramCooldownActive(Link link) {
+		Integer cooldownSeconds = link.getCooldownSeconds();
+		Instant updatedAt = link.getUpdatedAt();
+		if (cooldownSeconds == null || updatedAt == null) {
+			return false;
+		}
+		return updatedAt.plusSeconds(cooldownSeconds).isAfter(Instant.now());
 	}
 
 	private record AnalysisTarget(Link link, boolean createdNewLink) {
