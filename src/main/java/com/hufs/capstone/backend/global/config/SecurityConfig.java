@@ -111,12 +111,13 @@ public class SecurityConfig {
 								"/swagger-ui.html",
 								"/swagger-ui/**",
 								"/v3/api-docs/**",
-								"/api/v1/auth/dev/**"
+								"/api/v1/auth/dev/**",
+								"/actuator/**"
 						).permitAll();
 					}
 					auth.requestMatchers(
 							"/api/v1/health",
-							"/actuator/**",
+							"/actuator/health",
 							"/oauth2/**",
 							"/login/oauth2/**",
 							"/api/v1/auth/web/exchange-ticket",

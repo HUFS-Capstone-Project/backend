@@ -56,9 +56,9 @@ class RoomQueryServiceTest {
 		RoomMember member = RoomMember.join(room, USER_ID);
 		member.updatePinned(true);
 		when(roomMemberRepository.findMyRooms(USER_ID, null)).thenReturn(List.of(member));
-		when(roomMemberRepository.countByRoomId(room.getId())).thenReturn(3L);
-		when(roomLinkCountPort.countLinksInRoom(room.getId())).thenReturn(2L);
-		when(roomPlaceCountPort.countPlacesInRoom(room.getId())).thenReturn(7L);
+		when(roomMemberRepository.countByRoomIds(List.of(room.getId()))).thenReturn(List.of(roomCount(room.getId(), 3L)));
+		when(roomLinkCountPort.countLinksByRoomIds(List.of(room.getId()))).thenReturn(java.util.Map.of(room.getId(), 2L));
+		when(roomPlaceCountPort.countPlacesByRoomIds(List.of(room.getId()))).thenReturn(java.util.Map.of(room.getId(), 7L));
 
 		List<RoomSummaryResult> result = roomQueryService.getMyRooms(USER_ID);
 
@@ -79,6 +79,9 @@ class RoomQueryServiceTest {
 		Room room = room("11111111-1111-1111-1111-111111111111", "Dinner Room");
 		RoomMember member = RoomMember.join(room, USER_ID);
 		when(roomMemberRepository.findMyRooms(USER_ID, "dinner")).thenReturn(List.of(member));
+		when(roomMemberRepository.countByRoomIds(List.of(room.getId()))).thenReturn(List.of(roomCount(room.getId(), 1L)));
+		when(roomLinkCountPort.countLinksByRoomIds(List.of(room.getId()))).thenReturn(java.util.Map.of());
+		when(roomPlaceCountPort.countPlacesByRoomIds(List.of(room.getId()))).thenReturn(java.util.Map.of());
 
 		List<RoomSummaryResult> result = roomQueryService.getMyRooms(USER_ID, "  dinner  ");
 
@@ -91,6 +94,9 @@ class RoomQueryServiceTest {
 		Room room = room("11111111-1111-1111-1111-111111111111", "Test Room");
 		RoomMember member = RoomMember.join(room, USER_ID);
 		when(roomMemberRepository.findMyRooms(USER_ID, null)).thenReturn(List.of(member));
+		when(roomMemberRepository.countByRoomIds(List.of(room.getId()))).thenReturn(List.of(roomCount(room.getId(), 1L)));
+		when(roomLinkCountPort.countLinksByRoomIds(List.of(room.getId()))).thenReturn(java.util.Map.of());
+		when(roomPlaceCountPort.countPlacesByRoomIds(List.of(room.getId()))).thenReturn(java.util.Map.of());
 
 		List<RoomSummaryResult> result = roomQueryService.getMyRooms(USER_ID, "   ");
 
@@ -163,5 +169,19 @@ class RoomQueryServiceTest {
 		ReflectionTestUtils.setField(room, "id", 1L);
 		ReflectionTestUtils.setField(room, "createdAt", Instant.parse("2026-04-16T00:00:00Z"));
 		return room;
+	}
+
+	private static RoomMemberRepository.RoomCountProjection roomCount(Long roomId, long count) {
+		return new RoomMemberRepository.RoomCountProjection() {
+			@Override
+			public Long getRoomId() {
+				return roomId;
+			}
+
+			@Override
+			public long getCount() {
+				return count;
+			}
+		};
 	}
 }

@@ -13,12 +13,14 @@ import java.util.EnumSet;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
+@ConditionalOnProperty(prefix = "app.business-hours.polling", name = "enabled", havingValue = "true")
 @RequiredArgsConstructor
 public class BusinessHoursPollingScheduler {
 
@@ -32,9 +34,6 @@ public class BusinessHoursPollingScheduler {
 
 	@Scheduled(fixedDelayString = "${app.business-hours.polling.scheduler-delay-ms:30000}")
 	public void pollBusinessHoursJobs() {
-		if (!businessHoursProperties.polling().enabled()) {
-			return;
-		}
 		Instant now = Instant.now();
 		Instant dueBefore = now.minus(businessHoursProperties.polling().interval());
 		List<PlaceBusinessHours> pollableRows = placeBusinessHoursRepository.findPollable(
@@ -43,12 +42,14 @@ public class BusinessHoursPollingScheduler {
 				PageRequest.of(0, businessHoursProperties.polling().batchSize())
 		);
 		for (PlaceBusinessHours row : pollableRows) {
-			pollOne(row, now);
+			pollOne(row, now, dueBefore);
 		}
 	}
 
-	private void pollOne(PlaceBusinessHours row, Instant now) {
-		placeBusinessHoursCacheService.markPolled(row.getId(), now);
+	private void pollOne(PlaceBusinessHours row, Instant now, Instant dueBefore) {
+		if (!placeBusinessHoursCacheService.claimPolling(row.getId(), POLLABLE_STATUSES, dueBefore, now)) {
+			return;
+		}
 		try {
 			BusinessHoursJobLookupResponse response = processingBusinessHoursClient.getJob(row.getBusinessHoursJobId());
 			if (response == null || response.job() == null || response.job().status() == null

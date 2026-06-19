@@ -12,11 +12,13 @@ import com.hufs.capstone.backend.user.domain.entity.User;
 import com.hufs.capstone.backend.user.domain.repository.UserRepository;
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 @Service
 @Profile("!prod")
+@ConditionalOnProperty(prefix = "app.auth.dev-token", name = "enabled", havingValue = "true")
 @RequiredArgsConstructor
 public class AuthDevTokenService {
 

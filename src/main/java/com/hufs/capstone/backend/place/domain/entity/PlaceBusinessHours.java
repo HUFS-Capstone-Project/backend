@@ -141,10 +141,6 @@ public class PlaceBusinessHours extends AuditableEntity {
 		this.lastError = trimToNull(lastError);
 	}
 
-	public void markPolled(Instant polledAt) {
-		this.lastPolledAt = polledAt;
-	}
-
 	private static String chooseText(String current, String next) {
 		String normalized = trimToNull(next);
 		return normalized == null ? current : normalized;

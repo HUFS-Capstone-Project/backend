@@ -1,6 +1,8 @@
 spring:
   application:
     name: udidura-backend
+  config:
+    import: optional:classpath:application-local.yml
 
   mvc:
     problemdetails:
@@ -28,10 +30,10 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health
   endpoint:
     health:
-      show-details: when_authorized
+      show-details: never
 
 springdoc:
   swagger-ui:
@@ -55,16 +57,9 @@ app:
       window: 1m
   business-hours:
     polling:
-      enabled: true
       interval: 3s
       batch-size: 50
       scheduler-delay-ms: 3000
-  security:
-    csrf:
-      cookie:
-        same-site: Lax
-        secure: false
-        path: /
   cors:
     allowed-methods:
       - GET

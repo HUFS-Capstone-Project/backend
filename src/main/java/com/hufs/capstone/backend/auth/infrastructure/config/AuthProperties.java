@@ -3,6 +3,7 @@ package com.hufs.capstone.backend.auth.infrastructure.config;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.Valid;
 import java.time.Duration;
 import java.util.List;
 import lombok.Getter;
@@ -16,11 +17,17 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties(prefix = "app.auth")
 public class AuthProperties {
 
+	@Valid
 	private Jwt jwt = new Jwt();
+	@Valid
 	private Refresh refresh = new Refresh();
+	@Valid
 	private Cookie cookie = new Cookie();
+	@Valid
 	private Redirect redirect = new Redirect();
+	@Valid
 	private OneTimeCode oneTimeCode = new OneTimeCode();
+	@Valid
 	private Redis redis = new Redis();
 
 	@Getter
@@ -31,7 +38,7 @@ public class AuthProperties {
 		@NotBlank
 		private String audience = "udidura-api";
 		@NotBlank
-		private String secretBase64 = "VGhpc0lzQVN0cm9uZ0RlbW9TZWNyZXRLZXlGb3JVZGlkdXJhQmFja2VuZA==";
+		private String secretBase64;
 		private Duration accessTokenTtl = Duration.ofMinutes(10);
 	}
 
@@ -40,7 +47,7 @@ public class AuthProperties {
 	public static class Refresh {
 		private Duration ttl = Duration.ofDays(30);
 		@NotBlank
-		private String hashSecret = "udidura-refresh-hash-secret";
+		private String hashSecret;
 		@Min(16)
 		private int tokenBytes = 32;
 		private Duration rotationReplayWindow = Duration.ofSeconds(15);

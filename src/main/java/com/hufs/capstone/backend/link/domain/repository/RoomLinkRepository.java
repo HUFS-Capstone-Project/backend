@@ -2,6 +2,8 @@ package com.hufs.capstone.backend.link.domain.repository;
 
 import com.hufs.capstone.backend.link.domain.entity.RoomLink;
 import com.hufs.capstone.backend.room.domain.entity.Room;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -19,6 +21,14 @@ public interface RoomLinkRepository extends JpaRepository<RoomLink, Long> {
 
 	long countByRoomId(Long roomId);
 
+	@Query("""
+			select rl.room.id as roomId, count(rl) as count
+			from RoomLink rl
+			where rl.room.id in :roomIds
+			group by rl.room.id
+			""")
+	List<RoomCountProjection> countByRoomIds(@Param("roomIds") Collection<Long> roomIds);
+
 	long deleteByRoomId(Long roomId);
 
 	@Query("""
@@ -29,4 +39,11 @@ public interface RoomLinkRepository extends JpaRepository<RoomLink, Long> {
 			  and rm.room = rl.room
 			""")
 	boolean existsAccessibleLinkForUser(@Param("linkId") Long linkId, @Param("userId") Long userId);
+
+	interface RoomCountProjection {
+
+		Long getRoomId();
+
+		long getCount();
+	}
 }

@@ -39,8 +39,20 @@ public interface PlaceBusinessHoursRepository extends JpaRepository<PlaceBusines
 	@Modifying(flushAutomatically = true, clearAutomatically = true)
 	@Query("""
 			update PlaceBusinessHours pbh
-			set pbh.lastPolledAt = :lastPolledAt
+			set pbh.lastPolledAt = :claimedAt
 			where pbh.id = :id
+			  and pbh.businessHoursStatus in :statuses
+			  and pbh.businessHoursJobId is not null
+			  and pbh.businessHoursJobId <> ''
+			  and (
+			      (pbh.lastPolledAt is null and pbh.updatedAt <= :dueBefore)
+			      or pbh.lastPolledAt <= :dueBefore
+			  )
 			""")
-	int updateLastPolledAt(@Param("id") Long id, @Param("lastPolledAt") Instant lastPolledAt);
+	int claimPollable(
+			@Param("id") Long id,
+			@Param("statuses") Collection<BusinessHoursStatus> statuses,
+			@Param("dueBefore") Instant dueBefore,
+			@Param("claimedAt") Instant claimedAt
+	);
 }

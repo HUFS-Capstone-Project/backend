@@ -97,8 +97,8 @@ class PlaceCandidateQueryServiceTest {
 
 	@Test
 	void shouldReturnExternalCandidatePageMetadata() {
-		ExternalPlaceCandidateSearchQuery query = ExternalPlaceCandidateSearchQuery.of("移댄럹", null, null, 2, 10);
-		PlaceSnapshot candidate = snapshot("456", "??移댄럹");
+		ExternalPlaceCandidateSearchQuery query = ExternalPlaceCandidateSearchQuery.of("카페", null, null, 2, 10);
+		PlaceSnapshot candidate = snapshot("456", "새 카페");
 		when(roomAccessService.requireMemberRoom("room-public-id", 100L)).thenReturn(room);
 		when(kakaoLocalClient.searchByKeywordPage(query)).thenReturn(new ExternalPlaceCandidateSearchResult(
 				List.of(candidate),
@@ -115,7 +115,7 @@ class PlaceCandidateQueryServiceTest {
 				eq(List.of("456"))
 		)).thenReturn(List.of());
 		when(placeTaxonomyReadService.resolveCategory(any(), any()))
-				.thenReturn(new ResolvedPlaceCategory("CAFE", "移댄럹"));
+				.thenReturn(new ResolvedPlaceCategory("CAFE", "카페"));
 
 		PlaceCandidatePageResult result = service.searchExternalCandidatePage(100L, "room-public-id", query);
 

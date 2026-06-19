@@ -5,10 +5,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hufs.capstone.backend.external.processing.dto.BusinessHoursPlaceResponse;
 import com.hufs.capstone.backend.place.domain.entity.PlaceBusinessHours;
 import com.hufs.capstone.backend.place.domain.enums.BusinessHoursRequestStatus;
+import com.hufs.capstone.backend.place.domain.enums.BusinessHoursStatus;
 import com.hufs.capstone.backend.place.domain.repository.PlaceBusinessHoursRepository;
 import jakarta.persistence.OptimisticLockException;
 import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.util.Collection;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -66,10 +68,16 @@ public class PlaceBusinessHoursCacheService {
 		), event.placeUrl(), event.placeName()));
 	}
 
-	public void markPolled(Long cacheId, Instant polledAt) {
+	public boolean claimPolling(
+			Long cacheId,
+			Collection<BusinessHoursStatus> statuses,
+			Instant dueBefore,
+			Instant claimedAt
+	) {
 		TransactionTemplate transactionTemplate = requiresNewTransactionTemplate();
-		transactionTemplate.executeWithoutResult(status ->
-				placeBusinessHoursRepository.updateLastPolledAt(cacheId, polledAt));
+		Integer updated = transactionTemplate.execute(status ->
+				placeBusinessHoursRepository.claimPollable(cacheId, statuses, dueBefore, claimedAt));
+		return updated != null && updated == 1;
 	}
 
 	private void upsertRemotePlaceOnce(

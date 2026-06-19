@@ -37,8 +37,16 @@ public class RoomQueryService {
 	@Transactional(readOnly = true)
 	public List<RoomSummaryResult> getMyRooms(Long userId, String keyword) {
 		String normalizedKeyword = StringUtils.hasText(keyword) ? keyword.trim() : null;
-		return roomMemberRepository.findMyRooms(userId, normalizedKeyword).stream()
-				.map(this::toRoomSummary)
+		List<RoomMember> memberships = roomMemberRepository.findMyRooms(userId, normalizedKeyword);
+		List<Long> roomIds = memberships.stream()
+				.map(RoomMember::getRoom)
+				.map(Room::getId)
+				.toList();
+		Map<Long, Long> memberCounts = countMembersByRoomIds(roomIds);
+		Map<Long, Long> linkCounts = roomLinkCountPort.countLinksByRoomIds(roomIds);
+		Map<Long, Long> placeCounts = roomPlaceCountPort.countPlacesByRoomIds(roomIds);
+		return memberships.stream()
+				.map(membership -> toRoomSummary(membership, memberCounts, linkCounts, placeCounts))
 				.toList();
 	}
 
@@ -90,11 +98,16 @@ public class RoomQueryService {
 				.toList();
 	}
 
-	private RoomSummaryResult toRoomSummary(RoomMember membership) {
+	private RoomSummaryResult toRoomSummary(
+			RoomMember membership,
+			Map<Long, Long> memberCounts,
+			Map<Long, Long> linkCounts,
+			Map<Long, Long> placeCounts
+	) {
 		Room room = membership.getRoom();
-		long memberCount = roomMemberRepository.countByRoomId(room.getId());
-		long linkCount = roomLinkCountPort.countLinksInRoom(room.getId());
-		long placeCount = roomPlaceCountPort.countPlacesInRoom(room.getId());
+		long memberCount = memberCounts.getOrDefault(room.getId(), 0L);
+		long linkCount = linkCounts.getOrDefault(room.getId(), 0L);
+		long placeCount = placeCounts.getOrDefault(room.getId(), 0L);
 		return new RoomSummaryResult(
 				room.getPublicId(),
 				room.getName(),
@@ -106,5 +119,16 @@ public class RoomQueryService {
 				linkCount,
 				placeCount
 		);
+	}
+
+	private Map<Long, Long> countMembersByRoomIds(List<Long> roomIds) {
+		if (roomIds.isEmpty()) {
+			return Map.of();
+		}
+		return roomMemberRepository.countByRoomIds(roomIds).stream()
+				.collect(Collectors.toMap(
+						RoomMemberRepository.RoomCountProjection::getRoomId,
+						RoomMemberRepository.RoomCountProjection::getCount
+				));
 	}
 }

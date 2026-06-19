@@ -45,6 +45,14 @@ public interface RoomPlaceRepository extends JpaRepository<RoomPlace, Long>, Roo
 	long countByRoomId(Long roomId);
 
 	@Query("""
+			select rp.room.id as roomId, count(rp) as count
+			from RoomPlace rp
+			where rp.room.id in :roomIds
+			group by rp.room.id
+			""")
+	List<RoomCountProjection> countByRoomIds(@Param("roomIds") Collection<Long> roomIds);
+
+	@Query("""
 			select distinct rp.sidoCode as code, rp.sidoName as name
 			from RoomPlace rp
 			where rp.room.id = :roomId
@@ -108,5 +116,12 @@ public interface RoomPlaceRepository extends JpaRepository<RoomPlace, Long>, Roo
 		String getCode();
 
 		String getName();
+	}
+
+	interface RoomCountProjection {
+
+		Long getRoomId();
+
+		long getCount();
 	}
 }

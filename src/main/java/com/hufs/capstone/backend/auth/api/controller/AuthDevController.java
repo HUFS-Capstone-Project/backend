@@ -9,12 +9,14 @@ import com.hufs.capstone.backend.global.response.CommonResponse;
 import com.hufs.capstone.backend.user.api.response.UserProfileResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Profile;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @Profile("!prod")
+@ConditionalOnProperty(prefix = "app.auth.dev-token", name = "enabled", havingValue = "true")
 @RequiredArgsConstructor
 public class AuthDevController implements AuthDevApi {
 
