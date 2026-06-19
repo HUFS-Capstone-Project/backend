@@ -17,7 +17,6 @@ import com.hufs.capstone.backend.room.application.RoomQueryService;
 import com.hufs.capstone.backend.room.application.dto.CreateRoomResult;
 import com.hufs.capstone.backend.room.application.dto.JoinRoomResult;
 import com.hufs.capstone.backend.room.application.dto.RoomDetailResult;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.List;
@@ -36,7 +35,6 @@ public class RoomController implements RoomApi {
 
 	private final RoomCommandService roomCommandService;
 	private final RoomQueryService roomQueryService;
-	private final HttpServletRequest servletRequest;
 
 	@Override
 	public ResponseEntity<CommonResponse<CreateRoomResponse>> createRoom(
@@ -85,8 +83,7 @@ public class RoomController implements RoomApi {
 			@RequestHeader(name = "X-XSRF-TOKEN", required = false) String csrfToken
 	) {
 		Long userId = SecurityUtils.currentUserIdOrThrow();
-		String ipAddress = extractClientIp(servletRequest);
-		JoinRoomResult result = roomCommandService.joinByInviteCode(userId, request.inviteCode(), ipAddress);
+		JoinRoomResult result = roomCommandService.joinByInviteCode(userId, request.inviteCode());
 		URI location = ServletUriComponentsBuilder.fromCurrentContextPath()
 				.path("/api/v1/rooms/{roomId}")
 				.buildAndExpand(result.roomId())
@@ -126,12 +123,5 @@ public class RoomController implements RoomApi {
 		return CommonResponse.okMessage("방에서 나갔습니다.");
 	}
 
-	private static String extractClientIp(HttpServletRequest request) {
-		String forwardedFor = request.getHeader("X-Forwarded-For");
-		if (forwardedFor != null && !forwardedFor.isBlank()) {
-			return forwardedFor.split(",")[0].trim();
-		}
-		return request.getRemoteAddr();
-	}
 }
 

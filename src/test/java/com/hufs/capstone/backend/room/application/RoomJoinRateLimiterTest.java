@@ -37,7 +37,7 @@ class RoomJoinRateLimiterTest {
 	void allowShouldReturnTrueWhenAttemptCountWithinLimit() {
 		doReturn(3L).when(redisTemplate).execute(any(), anyList(), anyString());
 
-		boolean allowed = rateLimiter.allow(100L, "127.0.0.1");
+		boolean allowed = rateLimiter.allow(100L);
 
 		assertThat(allowed).isTrue();
 	}
@@ -46,7 +46,7 @@ class RoomJoinRateLimiterTest {
 	void allowShouldReturnFalseWhenAttemptCountExceedsLimit() {
 		doReturn(6L).when(redisTemplate).execute(any(), anyList(), anyString());
 
-		boolean allowed = rateLimiter.allow(100L, "127.0.0.1");
+		boolean allowed = rateLimiter.allow(100L);
 
 		assertThat(allowed).isFalse();
 	}
@@ -57,7 +57,7 @@ class RoomJoinRateLimiterTest {
 				.when(redisTemplate)
 				.execute(any(), anyList(), anyString());
 
-		boolean allowed = rateLimiter.allow(100L, "127.0.0.1");
+		boolean allowed = rateLimiter.allow(100L);
 
 		assertThat(allowed).isTrue();
 	}

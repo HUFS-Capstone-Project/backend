@@ -1,9 +1,6 @@
 spring:
   application:
     name: udidura-backend
-  config:
-    import: optional:classpath:application-local.yml
-
   mvc:
     problemdetails:
       enabled: true

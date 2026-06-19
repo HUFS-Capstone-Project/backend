@@ -54,8 +54,8 @@ public class RoomCommandServiceImpl implements RoomCommandService {
 
 	@Override
 	@Transactional
-	public JoinRoomResult joinByInviteCode(Long userId, String inviteCode, String ipAddress) {
-		if (!roomJoinRateLimiter.allow(userId, ipAddress)) {
+	public JoinRoomResult joinByInviteCode(Long userId, String inviteCode) {
+		if (!roomJoinRateLimiter.allow(userId)) {
 			throw new BusinessException(ErrorCode.E429_TOO_MANY_REQUESTS);
 		}
 

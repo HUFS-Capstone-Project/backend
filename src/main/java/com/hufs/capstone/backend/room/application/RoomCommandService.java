@@ -7,7 +7,7 @@ public interface RoomCommandService {
 
 	CreateRoomResult createRoom(Long userId, String roomName);
 
-	JoinRoomResult joinByInviteCode(Long userId, String inviteCode, String ipAddress);
+	JoinRoomResult joinByInviteCode(Long userId, String inviteCode);
 
 	void renameRoom(Long userId, String roomId, String roomName);
 

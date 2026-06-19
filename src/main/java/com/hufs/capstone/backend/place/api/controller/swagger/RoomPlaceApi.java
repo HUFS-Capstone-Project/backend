@@ -27,7 +27,8 @@ public interface RoomPlaceApi {
 	@Operation(
 			tags = {"Room place"},
 			summary = "방 저장 장소 검색 API",
-			description = "방에 저장된 장소를 필터 조건에 맞게 최신 등록순으로 페이지 조회합니다."
+			description = "방에 저장된 장소를 필터 조건에 맞게 최신 등록순으로 페이지 조회합니다. "
+					+ "응답의 roomPlaceTotalCount는 현재 필터 결과 수가 아니라 방에 저장된 전체 장소 수입니다."
 	)
 	@ApiResponse(responseCode = "200", description = "OK")
 	@GetMapping

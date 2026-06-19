@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -82,13 +81,13 @@ class RoomCommandServiceTest {
 	@Test
 	void joinByInviteCodeShouldCreateMembership() {
 		Room room = room("11111111-1111-1111-1111-111111111111");
-		when(roomJoinRateLimiter.allow(USER_ID, "127.0.0.1")).thenReturn(true);
+		when(roomJoinRateLimiter.allow(USER_ID)).thenReturn(true);
 		when(roomRepository.findByInviteCodeForUpdate("INVITE123456")).thenReturn(Optional.of(room));
 		when(roomMemberRepository.existsByRoomAndUserId(room, USER_ID)).thenReturn(false);
 		when(roomMemberRepository.countByRoomId(room.getId())).thenReturn(1L);
 		when(roomMemberRepository.saveAndFlush(any(RoomMember.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-		JoinRoomResult result = roomCommandService.joinByInviteCode(USER_ID, "INVITE123456", "127.0.0.1");
+		JoinRoomResult result = roomCommandService.joinByInviteCode(USER_ID, "INVITE123456");
 
 		assertThat(result.roomId()).isEqualTo(room.getPublicId());
 		assertThat(result.pinned()).isFalse();
@@ -96,19 +95,19 @@ class RoomCommandServiceTest {
 
 	@Test
 	void joinByInviteCodeShouldRejectWhenRateLimitExceeded() {
-		when(roomJoinRateLimiter.allow(anyLong(), anyString())).thenReturn(false);
+		when(roomJoinRateLimiter.allow(anyLong())).thenReturn(false);
 
-		assertThatThrownBy(() -> roomCommandService.joinByInviteCode(USER_ID, "INVITE123456", "127.0.0.1"))
+		assertThatThrownBy(() -> roomCommandService.joinByInviteCode(USER_ID, "INVITE123456"))
 				.isInstanceOf(BusinessException.class)
 				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.E429_TOO_MANY_REQUESTS));
 	}
 
 	@Test
 	void joinByInviteCodeShouldRejectWhenInviteCodeInvalid() {
-		when(roomJoinRateLimiter.allow(anyLong(), anyString())).thenReturn(true);
+		when(roomJoinRateLimiter.allow(anyLong())).thenReturn(true);
 		when(roomRepository.findByInviteCodeForUpdate("INVITE123456")).thenReturn(Optional.empty());
 
-		assertThatThrownBy(() -> roomCommandService.joinByInviteCode(USER_ID, "INVITE123456", "127.0.0.1"))
+		assertThatThrownBy(() -> roomCommandService.joinByInviteCode(USER_ID, "INVITE123456"))
 				.isInstanceOf(FieldValidationException.class)
 				.satisfies(ex -> assertThat(((FieldValidationException) ex).getFieldErrors())
 						.anySatisfy(error -> {
@@ -120,11 +119,11 @@ class RoomCommandServiceTest {
 	@Test
 	void joinByInviteCodeShouldRejectDuplicateMembership() {
 		Room room = room("11111111-1111-1111-1111-111111111111");
-		when(roomJoinRateLimiter.allow(anyLong(), anyString())).thenReturn(true);
+		when(roomJoinRateLimiter.allow(anyLong())).thenReturn(true);
 		when(roomRepository.findByInviteCodeForUpdate("INVITE123456")).thenReturn(Optional.of(room));
 		when(roomMemberRepository.existsByRoomAndUserId(room, USER_ID)).thenReturn(true);
 
-		assertThatThrownBy(() -> roomCommandService.joinByInviteCode(USER_ID, "INVITE123456", "127.0.0.1"))
+		assertThatThrownBy(() -> roomCommandService.joinByInviteCode(USER_ID, "INVITE123456"))
 				.isInstanceOf(BusinessException.class)
 				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.ROOM_ALREADY_JOINED));
 	}
@@ -132,12 +131,12 @@ class RoomCommandServiceTest {
 	@Test
 	void joinByInviteCodeShouldRejectWhenRoomIsFull() {
 		Room room = room("11111111-1111-1111-1111-111111111111");
-		when(roomJoinRateLimiter.allow(anyLong(), anyString())).thenReturn(true);
+		when(roomJoinRateLimiter.allow(anyLong())).thenReturn(true);
 		when(roomRepository.findByInviteCodeForUpdate("INVITE123456")).thenReturn(Optional.of(room));
 		when(roomMemberRepository.existsByRoomAndUserId(room, USER_ID)).thenReturn(false);
 		when(roomMemberRepository.countByRoomId(room.getId())).thenReturn(6L);
 
-		assertThatThrownBy(() -> roomCommandService.joinByInviteCode(USER_ID, "INVITE123456", "127.0.0.1"))
+		assertThatThrownBy(() -> roomCommandService.joinByInviteCode(USER_ID, "INVITE123456"))
 				.isInstanceOf(BusinessException.class)
 				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.ROOM_MEMBER_LIMIT_REACHED));
 	}

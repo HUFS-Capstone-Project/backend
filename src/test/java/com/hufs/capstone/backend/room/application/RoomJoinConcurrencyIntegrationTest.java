@@ -2,7 +2,6 @@ package com.hufs.capstone.backend.room.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 import com.hufs.capstone.backend.global.exception.BusinessException;
@@ -51,7 +50,7 @@ class RoomJoinConcurrencyIntegrationTest {
 	void setUp() {
 		roomMemberRepository.deleteAll();
 		roomRepository.deleteAll();
-		when(roomJoinRateLimiter.allow(anyLong(), anyString())).thenReturn(true);
+		when(roomJoinRateLimiter.allow(anyLong())).thenReturn(true);
 		createdRoom = roomCommandService.createRoom(INITIAL_MEMBER_USER_ID, "동시성 테스트 방");
 	}
 
@@ -100,7 +99,7 @@ class RoomJoinConcurrencyIntegrationTest {
 						throw new IllegalStateException("start latch timeout");
 					}
 					try {
-						roomCommandService.joinByInviteCode(userId, inviteCode, "127.0.0.1");
+						roomCommandService.joinByInviteCode(userId, inviteCode);
 						return Boolean.TRUE;
 					} catch (BusinessException ex) {
 						return ex;

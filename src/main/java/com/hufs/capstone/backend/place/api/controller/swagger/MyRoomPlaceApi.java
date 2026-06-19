@@ -17,7 +17,8 @@ public interface MyRoomPlaceApi {
 	@Operation(
 			tags = {"My room place"},
 			summary = "내 저장 장소 검색 API",
-			description = "현재 사용자가 접근 가능한 방에 저장한 장소를 최신 등록순으로 페이지 조회합니다."
+			description = "현재 사용자가 접근 가능한 방에 저장한 장소를 최신 등록순으로 페이지 조회합니다. "
+					+ "응답의 mySavedPlaceTotalCount는 현재 필터 결과 수가 아니라 접근 가능한 방에 내가 저장한 전체 장소 수입니다."
 	)
 	@ApiResponse(responseCode = "200", description = "OK")
 	@GetMapping

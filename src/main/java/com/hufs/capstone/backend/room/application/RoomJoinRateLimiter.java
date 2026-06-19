@@ -9,13 +9,12 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
 
 @Slf4j
 @Component
 public class RoomJoinRateLimiter {
 
-	private static final String KEY_PREFIX = "room:join:rate:";
+	private static final String KEY_PREFIX = "room-join:";
 	private static final RedisScript<Long> INCREMENT_WITH_TTL_SCRIPT = new DefaultRedisScript<>(
 			"""
 					local current = redis.call('INCR', KEYS[1])
@@ -37,8 +36,8 @@ public class RoomJoinRateLimiter {
 		this.window = roomProperties.getJoinRateLimit().getWindow();
 	}
 
-	public boolean allow(Long userId, String ipAddress) {
-		String key = KEY_PREFIX + userId + ":" + sanitizeIp(ipAddress);
+	public boolean allow(Long userId) {
+		String key = KEY_PREFIX + userId;
 		try {
 			Long attempts = redisTemplate.execute(
 					INCREMENT_WITH_TTL_SCRIPT,
@@ -50,16 +49,9 @@ public class RoomJoinRateLimiter {
 			}
 			return attempts <= maxAttempts;
 		} catch (DataAccessException ex) {
-			log.warn("방 참여 속도 제한 예외로 차단 대신 허용 처리합니다. userId={}, ip={}", userId, ipAddress, ex);
+			log.warn("방 참여 속도 제한 예외로 차단 대신 허용 처리합니다. userId={}", userId, ex);
 			return true;
 		}
-	}
-
-	private static String sanitizeIp(String ipAddress) {
-		if (!StringUtils.hasText(ipAddress)) {
-			return "unknown";
-		}
-		return ipAddress.trim().replace(':', '_');
 	}
 }
 

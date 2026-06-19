@@ -7,7 +7,7 @@ import java.util.List;
 public record RoomPlaceCursorPageResponse(
 		List<RoomPlaceResponse> items,
 		int limit,
-		long totalCount,
+		long roomPlaceTotalCount,
 		String nextCursor,
 		boolean hasNext
 ) {
