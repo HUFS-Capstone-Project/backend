@@ -1,5 +1,7 @@
 package com.hufs.capstone.backend.link.application;
 
+import com.hufs.capstone.backend.global.exception.BusinessException;
+import com.hufs.capstone.backend.global.exception.ErrorCode;
 import com.hufs.capstone.backend.global.exception.FieldValidationException;
 import com.hufs.capstone.backend.link.application.dto.AnalyzeLinkCommand;
 import com.hufs.capstone.backend.link.application.dto.LinkAnalysisRequestResult;
@@ -86,7 +88,11 @@ public class LinkAnalysisRequestService {
 				);
 			}
 		}
-		throw lastRace == null ? new IllegalStateException("Duplicate race retry exhausted.") : lastRace;
+		throw new BusinessException(
+				ErrorCode.LINK_ANALYSIS_REQUEST_CREATE_CONFLICT,
+				ErrorCode.LINK_ANALYSIS_REQUEST_CREATE_CONFLICT.getDefaultMessage(),
+				lastRace
+		);
 	}
 
 	private LinkAnalysisRequestResult refreshLatest(LinkAnalysisRequestResult requested) {

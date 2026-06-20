@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hufs.capstone.backend.external.processing.dto.ProcessingJobResultResponse.ResolvedPlaceResponse;
+import com.hufs.capstone.backend.global.exception.BusinessException;
+import com.hufs.capstone.backend.global.exception.ErrorCode;
 import com.hufs.capstone.backend.link.domain.vo.PlaceCandidateSnapshot;
 import java.util.List;
 import org.springframework.stereotype.Component;
@@ -33,7 +35,7 @@ public class LinkPlaceCandidateSnapshotMapper {
 		try {
 			return objectMapper.writeValueAsString(candidates == null ? List.of() : candidates);
 		} catch (JsonProcessingException ex) {
-			throw new IllegalArgumentException("Cannot serialize extracted place candidates.", ex);
+			throw corruptedSnapshot(ex);
 		}
 	}
 
@@ -44,7 +46,7 @@ public class LinkPlaceCandidateSnapshotMapper {
 		try {
 			return objectMapper.readValue(candidatesJson, SNAPSHOT_LIST_TYPE);
 		} catch (JsonProcessingException ex) {
-			throw new IllegalArgumentException("Cannot deserialize extracted place candidates.", ex);
+			throw corruptedSnapshot(ex);
 		}
 	}
 
@@ -74,5 +76,13 @@ public class LinkPlaceCandidateSnapshotMapper {
 		}
 		String trimmed = value.trim();
 		return trimmed.isEmpty() ? null : trimmed;
+	}
+
+	private static BusinessException corruptedSnapshot(JsonProcessingException ex) {
+		return new BusinessException(
+				ErrorCode.LINK_CANDIDATE_SNAPSHOT_CORRUPTED,
+				ErrorCode.LINK_CANDIDATE_SNAPSHOT_CORRUPTED.getDefaultMessage(),
+				ex
+		);
 	}
 }

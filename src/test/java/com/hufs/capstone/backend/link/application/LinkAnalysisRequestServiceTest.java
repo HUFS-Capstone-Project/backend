@@ -8,6 +8,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.hufs.capstone.backend.global.exception.BusinessException;
+import com.hufs.capstone.backend.global.exception.ErrorCode;
 import com.hufs.capstone.backend.global.exception.FieldValidationException;
 import com.hufs.capstone.backend.link.application.dto.AnalyzeLinkCommand;
 import com.hufs.capstone.backend.link.application.dto.LinkAnalysisRequestResult;
@@ -131,7 +133,9 @@ class LinkAnalysisRequestServiceTest {
 				ROOM_PUBLIC_ID,
 				new AnalyzeLinkCommand("https://example.com/x", null)
 		))
-				.isInstanceOf(LinkAnalysisRequestWriteService.LinkAnalysisRequestDuplicateRaceException.class);
+				.isInstanceOf(BusinessException.class)
+				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode())
+						.isEqualTo(ErrorCode.LINK_ANALYSIS_REQUEST_CREATE_CONFLICT));
 		verify(linkAnalysisRequestWriteService, times(3))
 				.requestWithinWriteTransaction(any(), eq(ROOM_PUBLIC_ID), eq(USER_ID), eq(null));
 	}

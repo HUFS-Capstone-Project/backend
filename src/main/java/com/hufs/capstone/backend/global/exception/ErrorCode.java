@@ -10,6 +10,7 @@ public enum ErrorCode {
 	E400_CONSTRAINT(HttpStatus.BAD_REQUEST, "입력값을 확인해 주세요."),
 	E400_ILLEGAL_ARGUMENT(HttpStatus.BAD_REQUEST, "잘못된 요청값입니다."),
 	MOBILE_LOGIN_PKCE_REQUIRED(HttpStatus.BAD_REQUEST, "모바일 로그인에는 PKCE(S256)가 필요합니다."),
+	OAUTH_PROVIDER_UNSUPPORTED(HttpStatus.BAD_REQUEST, "지원하지 않는 OAuth 제공자입니다."),
 
 	E401_UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "인증이 필요합니다."),
 	AUTHENTICATED_USER_NOT_FOUND(HttpStatus.UNAUTHORIZED, "인증된 사용자를 찾을 수 없습니다."),
@@ -55,11 +56,13 @@ public enum ErrorCode {
 	ROOM_PLACE_USED_IN_DATE_COURSE(HttpStatus.CONFLICT, "저장된 데이트코스에 포함된 장소는 삭제할 수 없습니다."),
 	ROOM_PLACE_SAVE_CONFLICT(HttpStatus.CONFLICT, "방 장소 저장 충돌이 발생했습니다."),
 	ROOM_LINK_CREATE_CONFLICT(HttpStatus.CONFLICT, "방 링크 생성 충돌이 발생했습니다."),
+	LINK_ANALYSIS_REQUEST_CREATE_CONFLICT(HttpStatus.CONFLICT, "링크 분석 요청 생성 충돌이 발생했습니다."),
 	LINK_CANDIDATE_OVERRIDE_CONFLICT(HttpStatus.CONFLICT, "링크 후보 수정 충돌이 발생했습니다."),
 
 	E429_TOO_MANY_REQUESTS(HttpStatus.TOO_MANY_REQUESTS, "요청이 너무 많습니다. 잠시 후 다시 시도해주세요."),
 	LINK_ANALYSIS_INSTAGRAM_COOLDOWN(HttpStatus.TOO_MANY_REQUESTS, "Instagram 분석이 쿨다운 중입니다. 잠시 후 다시 시도해주세요."),
 
+	LINK_CANDIDATE_SNAPSHOT_CORRUPTED(HttpStatus.INTERNAL_SERVER_ERROR, "저장된 링크 후보 데이터 형식이 올바르지 않습니다."),
 	E502_EXTERNAL_API(HttpStatus.BAD_GATEWAY, "외부 API 호출에 실패했습니다."),
 	E500_INTERNAL(HttpStatus.INTERNAL_SERVER_ERROR, "서버 내부 오류가 발생했습니다.");
 

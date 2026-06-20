@@ -2,6 +2,7 @@ package com.hufs.capstone.backend.place.application;
 
 import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
+import com.hufs.capstone.backend.global.exception.FieldValidationException;
 import com.hufs.capstone.backend.link.domain.entity.RoomLink;
 import com.hufs.capstone.backend.place.application.dto.ResolvedPlaceTaxonomy;
 import com.hufs.capstone.backend.place.application.dto.RoomPlaceSaveResult.SavedRoomPlaceResult;
@@ -156,20 +157,23 @@ public class RoomPlaceStorageService {
 	}
 
 	private static void validateSnapshot(PlaceSnapshot snapshot) {
-		if (snapshot == null || snapshot.source() == null) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "장소 스냅샷은 필수입니다.");
+		if (snapshot == null) {
+			throw new FieldValidationException("snapshot", "장소 스냅샷은 필수입니다.");
 		}
-		if (snapshot.externalPlaceId() == null || snapshot.externalPlaceId().isBlank()) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "externalPlaceId는 필수입니다.");
+		if (snapshot.source() == null) {
+			throw new FieldValidationException("snapshot.source", "장소 출처는 필수입니다.");
 		}
 		if (!snapshot.hasKakaoPlaceId()) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "kakaoPlaceId는 필수입니다.");
+			throw new FieldValidationException("snapshot.kakaoPlaceId", "kakaoPlaceId는 필수입니다.");
+		}
+		if (snapshot.externalPlaceId() == null || snapshot.externalPlaceId().isBlank()) {
+			throw new FieldValidationException("snapshot.externalPlaceId", "externalPlaceId는 필수입니다.");
 		}
 	}
 
 	private static void validateOriginRoomLink(RoomLink originRoomLink) {
 		if (originRoomLink == null || originRoomLink.getLink() == null) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "방 장소는 링크를 통해 저장해야 합니다.");
+			throw new BusinessException(ErrorCode.E500_INTERNAL, "방 장소 저장에 필요한 RoomLink가 없습니다.");
 		}
 	}
 

@@ -204,8 +204,9 @@ class RoomPlaceCommandServiceIntegrationTest {
 	@Test
 	void shouldRejectSavingSnapshotWithoutKakaoPlaceId() {
 		assertThatThrownBy(() -> saveExternalForTest(noTaxonomySnapshot(null, "No Kakao ID")))
-				.isInstanceOf(BusinessException.class)
-				.satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.E400_ILLEGAL_ARGUMENT));
+				.isInstanceOf(FieldValidationException.class)
+				.satisfies(ex -> assertThat(((FieldValidationException) ex).getFieldErrors())
+						.anySatisfy(error -> assertThat(error.field()).isEqualTo("snapshot.kakaoPlaceId")));
 	}
 
 	@Test

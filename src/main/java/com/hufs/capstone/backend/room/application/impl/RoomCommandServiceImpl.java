@@ -7,9 +7,9 @@ import com.hufs.capstone.backend.room.application.RoomAccessService;
 import com.hufs.capstone.backend.room.application.RoomCommandService;
 import com.hufs.capstone.backend.room.application.RoomInviteCodeGenerator;
 import com.hufs.capstone.backend.room.application.RoomJoinRateLimiter;
+import com.hufs.capstone.backend.room.application.RoomOwnedDataCleanupService;
 import com.hufs.capstone.backend.room.application.dto.CreateRoomResult;
 import com.hufs.capstone.backend.room.application.dto.JoinRoomResult;
-import com.hufs.capstone.backend.room.application.event.RoomDeletedEvent;
 import com.hufs.capstone.backend.room.domain.RoomNamePolicy;
 import com.hufs.capstone.backend.room.domain.entity.Room;
 import com.hufs.capstone.backend.room.domain.entity.RoomMember;
@@ -17,7 +17,6 @@ import com.hufs.capstone.backend.room.domain.repository.RoomMemberRepository;
 import com.hufs.capstone.backend.room.domain.repository.RoomRepository;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,7 +33,7 @@ public class RoomCommandServiceImpl implements RoomCommandService {
 	private final RoomInviteCodeGenerator inviteCodeGenerator;
 	private final RoomJoinRateLimiter roomJoinRateLimiter;
 	private final RoomAccessService roomAccessService;
-	private final ApplicationEventPublisher eventPublisher;
+	private final RoomOwnedDataCleanupService roomOwnedDataCleanupService;
 
 	@Override
 	@Transactional
@@ -116,8 +115,9 @@ public class RoomCommandServiceImpl implements RoomCommandService {
 
 		long remainingMemberCount = roomMemberRepository.countByRoomId(room.getId());
 		if (remainingMemberCount == 0) {
-			eventPublisher.publishEvent(new RoomDeletedEvent(room.getId(), room.getPublicId()));
-			roomRepository.delete(room);
+			Long roomDbId = room.getId();
+			roomOwnedDataCleanupService.deleteAllByRoomId(roomDbId);
+			roomRepository.deleteById(roomDbId);
 		}
 	}
 

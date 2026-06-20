@@ -2,6 +2,9 @@ package com.hufs.capstone.backend.room.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.hufs.capstone.backend.course.domain.entity.DateCourse;
+import com.hufs.capstone.backend.course.domain.enums.CourseMode;
+import com.hufs.capstone.backend.course.domain.repository.DateCourseRepository;
 import com.hufs.capstone.backend.link.domain.entity.Link;
 import com.hufs.capstone.backend.link.domain.entity.RoomLink;
 import com.hufs.capstone.backend.link.domain.repository.LinkProcessingHistoryRepository;
@@ -12,6 +15,7 @@ import com.hufs.capstone.backend.room.domain.entity.Room;
 import com.hufs.capstone.backend.room.domain.entity.RoomMember;
 import com.hufs.capstone.backend.room.domain.repository.RoomMemberRepository;
 import com.hufs.capstone.backend.room.domain.repository.RoomRepository;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -57,6 +61,9 @@ class RoomLeaveConcurrencyIntegrationTest {
 	@Autowired
 	private RoomPlaceOriginRepository roomPlaceOriginRepository;
 
+	@Autowired
+	private DateCourseRepository dateCourseRepository;
+
 	private Long roomDbId;
 
 	@BeforeEach
@@ -71,6 +78,18 @@ class RoomLeaveConcurrencyIntegrationTest {
 		Link link2 = linkRepository.saveAndFlush(Link.register("https://example.com/2", "https://example.com/2", "job-2"));
 		roomLinkRepository.saveAndFlush(RoomLink.bind(room, link1));
 		roomLinkRepository.saveAndFlush(RoomLink.bind(room, link2));
+		dateCourseRepository.saveAndFlush(DateCourse.create(
+				"course-leave-1",
+				room,
+				USER_A,
+				CourseMode.GENERAL,
+				Instant.parse("2026-06-14T01:00:00Z"),
+				Instant.parse("2026-06-14T03:00:00Z"),
+				"batch-leave-1",
+				"11110",
+				"[]",
+				"[]"
+		));
 	}
 
 	@AfterEach
@@ -85,6 +104,7 @@ class RoomLeaveConcurrencyIntegrationTest {
 		assertThat(roomRepository.findByPublicId(ROOM_PUBLIC_ID)).isPresent();
 		assertThat(roomMemberRepository.countByRoomId(roomDbId)).isEqualTo(1L);
 		assertThat(roomLinkRepository.countByRoomId(roomDbId)).isEqualTo(2L);
+		assertThat(dateCourseRepository.count()).isEqualTo(1L);
 		assertThat(linkRepository.count()).isEqualTo(2L);
 	}
 
@@ -102,6 +122,7 @@ class RoomLeaveConcurrencyIntegrationTest {
 		assertThat(roomRepository.findByPublicId(ROOM_PUBLIC_ID)).isEmpty();
 		assertThat(roomMemberRepository.countByRoomId(roomDbId)).isEqualTo(0L);
 		assertThat(roomLinkRepository.countByRoomId(roomDbId)).isEqualTo(0L);
+		assertThat(dateCourseRepository.count()).isZero();
 		assertThat(linkRepository.count()).isEqualTo(2L);
 	}
 
@@ -142,6 +163,7 @@ class RoomLeaveConcurrencyIntegrationTest {
 		roomPlaceOriginRepository.deleteAll();
 		roomLinkRepository.deleteAll();
 		linkProcessingHistoryRepository.deleteAll();
+		dateCourseRepository.deleteAll();
 		roomMemberRepository.deleteAll();
 		roomRepository.deleteAll();
 		linkRepository.deleteAll();

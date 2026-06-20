@@ -128,7 +128,11 @@ public class GlobalExceptionHandler {
 
 	@ExceptionHandler(BusinessException.class)
 	public ResponseEntity<ProblemDetail> handleBusiness(BusinessException ex, HttpServletRequest request) {
-		log.info("BusinessException [{}]: {}", ex.getErrorCode(), ex.getMessage());
+		if (ex.getErrorCode().getHttpStatus().is5xxServerError()) {
+			log.error("BusinessException [{}]: {}", ex.getErrorCode(), ex.getMessage(), ex);
+		} else {
+			log.info("BusinessException [{}]: {}", ex.getErrorCode(), ex.getMessage());
+		}
 		ProblemDetail body = ProblemDetailFactory.create(ex.getErrorCode(), ex.getMessage(), null, requestUri(request));
 		return ResponseEntity.status(body.getStatus()).body(body);
 	}

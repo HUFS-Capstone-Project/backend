@@ -2,6 +2,7 @@ package com.hufs.capstone.backend.auth.application.service.impl;
 
 import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
+import com.hufs.capstone.backend.global.exception.FieldValidationException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -14,13 +15,13 @@ public class PkceService {
 
 	public void verify(String codeChallenge, String method, String codeVerifier) {
 		if (!StringUtils.hasText(codeChallenge)) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "코드 챌린지는 필수입니다.");
+			throw new FieldValidationException("codeChallenge", "코드 챌린지는 필수입니다.");
 		}
 		if (!StringUtils.hasText(codeVerifier)) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "코드 검증값(verifier)은 필수입니다.");
+			throw new FieldValidationException("codeVerifier", "코드 검증값(verifier)은 필수입니다.");
 		}
 		if (!"S256".equalsIgnoreCase(method)) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "코드 챌린지 방식은 S256만 지원합니다.");
+			throw new FieldValidationException("codeChallengeMethod", "코드 챌린지 방식은 S256만 지원합니다.", method);
 		}
 		String computed = s256(codeVerifier);
 		if (!computed.equals(codeChallenge)) {

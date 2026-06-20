@@ -6,6 +6,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -29,7 +30,9 @@ public interface RoomLinkRepository extends JpaRepository<RoomLink, Long> {
 			""")
 	List<RoomCountProjection> countByRoomIds(@Param("roomIds") Collection<Long> roomIds);
 
-	long deleteByRoomId(Long roomId);
+	@Modifying(flushAutomatically = true, clearAutomatically = true)
+	@Query("delete from RoomLink rl where rl.room.id = :roomId")
+	int deleteByRoomId(@Param("roomId") Long roomId);
 
 	@Query("""
 			select (count(rl) > 0)

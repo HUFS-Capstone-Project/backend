@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -14,7 +15,6 @@ import com.hufs.capstone.backend.global.exception.FieldValidationException;
 import com.hufs.capstone.backend.room.api.response.CreateRoomResponse;
 import com.hufs.capstone.backend.room.application.dto.CreateRoomResult;
 import com.hufs.capstone.backend.room.application.dto.JoinRoomResult;
-import com.hufs.capstone.backend.room.application.event.RoomDeletedEvent;
 import com.hufs.capstone.backend.room.application.impl.RoomCommandServiceImpl;
 import com.hufs.capstone.backend.room.domain.entity.Room;
 import com.hufs.capstone.backend.room.domain.entity.RoomMember;
@@ -25,9 +25,9 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -51,7 +51,7 @@ class RoomCommandServiceTest {
 	private RoomAccessService roomAccessService;
 
 	@Mock
-	private ApplicationEventPublisher eventPublisher;
+	private RoomOwnedDataCleanupService roomOwnedDataCleanupService;
 
 	@InjectMocks
 	private RoomCommandServiceImpl roomCommandService;
@@ -226,12 +226,12 @@ class RoomCommandServiceTest {
 		roomCommandService.leaveRoom(USER_ID, room.getPublicId());
 
 		verify(roomMemberRepository).delete(member);
-		verify(roomRepository, never()).delete(room);
-		verify(eventPublisher, never()).publishEvent(any(RoomDeletedEvent.class));
+		verify(roomOwnedDataCleanupService, never()).deleteAllByRoomId(anyLong());
+		verify(roomRepository, never()).deleteById(anyLong());
 	}
 
 	@Test
-	void leaveRoomShouldPublishRoomDeletedEventWhenLastMemberLeaves() {
+	void leaveRoomShouldCleanupAndDeleteRoomWhenLastMemberLeaves() {
 		Room room = room("11111111-1111-1111-1111-111111111111");
 		RoomMember member = RoomMember.join(room, USER_ID);
 		when(roomAccessService.getRoomForUpdateOrThrow(room.getPublicId())).thenReturn(room);
@@ -240,8 +240,9 @@ class RoomCommandServiceTest {
 
 		roomCommandService.leaveRoom(USER_ID, room.getPublicId());
 
-		verify(eventPublisher).publishEvent(new RoomDeletedEvent(room.getId(), room.getPublicId()));
-		verify(roomRepository).delete(room);
+		InOrder inOrder = inOrder(roomOwnedDataCleanupService, roomRepository);
+		inOrder.verify(roomOwnedDataCleanupService).deleteAllByRoomId(room.getId());
+		inOrder.verify(roomRepository).deleteById(room.getId());
 	}
 
 	@Test

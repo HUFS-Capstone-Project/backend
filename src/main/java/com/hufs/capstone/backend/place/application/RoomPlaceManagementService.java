@@ -11,6 +11,7 @@ import com.hufs.capstone.backend.place.domain.repository.RoomPlaceOriginReposito
 import com.hufs.capstone.backend.room.application.RoomAccessService;
 import com.hufs.capstone.backend.room.domain.entity.Room;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,18 +44,28 @@ public class RoomPlaceManagementService {
 	@Transactional
 	public void deleteRoomPlace(Long userId, String roomId, Long roomPlaceId) {
 		Room room = roomAccessService.requireMemberRoom(roomId, userId);
-		RoomPlace roomPlace = getRoomPlaceOrThrow(room.getId(), roomPlaceId);
+		RoomPlace roomPlace = getRoomPlaceForUpdateOrThrow(room.getId(), roomPlaceId);
 		if (dateCoursePlaceRepository.existsByRoomPlaceIdInSavedDateCourse(roomPlace.getId())) {
 			throw new BusinessException(ErrorCode.ROOM_PLACE_USED_IN_DATE_COURSE);
 		}
-		dateCoursePlaceRepository.deleteByRoomPlaceId(roomPlace.getId());
-		roomPlaceMemoRepository.deleteByRoomPlaceId(roomPlace.getId());
-		roomPlaceOriginRepository.deleteByRoomPlaceId(roomPlace.getId());
-		roomPlaceRepository.delete(roomPlace);
+		try {
+			dateCoursePlaceRepository.deleteByRoomPlaceId(roomPlace.getId());
+			roomPlaceMemoRepository.deleteByRoomPlaceId(roomPlace.getId());
+			roomPlaceOriginRepository.deleteByRoomPlaceId(roomPlace.getId());
+			roomPlaceRepository.delete(roomPlace);
+			roomPlaceRepository.flush();
+		} catch (DataIntegrityViolationException ex) {
+			throw new BusinessException(ErrorCode.ROOM_PLACE_USED_IN_DATE_COURSE);
+		}
 	}
 
 	private RoomPlace getRoomPlaceOrThrow(Long roomId, Long roomPlaceId) {
 		return roomPlaceRepository.findByIdAndRoomId(roomPlaceId, roomId)
+				.orElseThrow(() -> new BusinessException(ErrorCode.ROOM_PLACE_NOT_FOUND));
+	}
+
+	private RoomPlace getRoomPlaceForUpdateOrThrow(Long roomId, Long roomPlaceId) {
+		return roomPlaceRepository.findByIdAndRoomIdForUpdate(roomPlaceId, roomId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.ROOM_PLACE_NOT_FOUND));
 	}
 

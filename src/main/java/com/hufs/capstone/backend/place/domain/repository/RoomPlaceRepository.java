@@ -1,10 +1,12 @@
 package com.hufs.capstone.backend.place.domain.repository;
 
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
+import jakarta.persistence.LockModeType;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -32,6 +34,15 @@ public interface RoomPlaceRepository extends JpaRepository<RoomPlace, Long>, Roo
 			  and rp.room.id = :roomId
 			""")
 	Optional<RoomPlace> findByIdAndRoomId(@Param("id") Long id, @Param("roomId") Long roomId);
+
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	@Query("""
+			select rp
+			from RoomPlace rp
+			where rp.id = :id
+			  and rp.room.id = :roomId
+			""")
+	Optional<RoomPlace> findByIdAndRoomIdForUpdate(@Param("id") Long id, @Param("roomId") Long roomId);
 
 	@Query("""
 			select count(rp)
@@ -100,7 +111,24 @@ public interface RoomPlaceRepository extends JpaRepository<RoomPlace, Long>, Roo
 			""")
 	List<RoomPlace> findAllByIdInAndRoomId(@Param("ids") Collection<Long> ids, @Param("roomId") Long roomId);
 
-	long deleteByRoomId(Long roomId);
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	@Query("""
+			select rp from RoomPlace rp
+			join fetch rp.place p
+			join fetch p.serviceCategory
+			join fetch p.serviceTag
+			where rp.id in :ids and rp.room.id = :roomId
+			order by rp.id asc
+			""")
+	List<RoomPlace> findAllByIdInAndRoomIdForUpdate(@Param("ids") Collection<Long> ids, @Param("roomId") Long roomId);
+
+	@Modifying(flushAutomatically = true, clearAutomatically = true)
+	@Transactional
+	@Query("""
+			delete from RoomPlace rp
+			where rp.room.id = :roomId
+			""")
+	int deleteByRoomId(@Param("roomId") Long roomId);
 
 	@Modifying(flushAutomatically = true, clearAutomatically = true)
 	@Transactional

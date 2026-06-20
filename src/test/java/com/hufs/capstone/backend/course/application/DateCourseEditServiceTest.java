@@ -36,6 +36,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.dao.DataIntegrityViolationException;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -82,11 +83,11 @@ class DateCourseEditServiceTest {
 		when(roomAccessService.requireMemberRoom(ROOM_PUBLIC_ID, USER_ID)).thenReturn(room);
 		when(dateCourseRepository.findByDateCourseIdAndRoomIdAndDeletedAtIsNull(COURSE_UUID, ROOM_ID))
 				.thenReturn(Optional.of(course));
-		when(roomPlaceRepository.findAllByIdInAndRoomId(List.of(1L, 2L), ROOM_ID))
+		when(roomPlaceRepository.findAllByIdInAndRoomIdForUpdate(List.of(1L, 2L), ROOM_ID))
 				.thenReturn(List.of(rp1, rp2));
 		when(duplicatePolicy.existsSavedCourseWithSameRoomPlacesExcluding(anyLong(), anyLong(), any()))
 				.thenReturn(false);
-		when(dateCoursePlaceRepository.saveAll(any())).thenReturn(savedDcps);
+		when(dateCoursePlaceRepository.saveAllAndFlush(any())).thenReturn(savedDcps);
 		when(userRepository.findByIdAndDeletedAtIsNull(USER_ID)).thenReturn(Optional.empty());
 
 		DateCourseResult result = editService.update(
@@ -97,7 +98,7 @@ class DateCourseEditServiceTest {
 		verify(course).rename("새 코스 이름");
 		verify(course).clearSkippedSlots();
 		verify(dateCoursePlaceRepository).deleteByDateCourseId(COURSE_DB_ID);
-		verify(dateCoursePlaceRepository).saveAll(any());
+		verify(dateCoursePlaceRepository).saveAllAndFlush(any());
 	}
 
 	// ────────────────────────────────────────────
@@ -131,10 +132,10 @@ class DateCourseEditServiceTest {
 		when(roomAccessService.requireMemberRoom(ROOM_PUBLIC_ID, USER_ID)).thenReturn(room);
 		when(dateCourseRepository.findByDateCourseIdAndRoomIdAndDeletedAtIsNull(COURSE_UUID, ROOM_ID))
 				.thenReturn(Optional.of(course));
-		when(roomPlaceRepository.findAllByIdInAndRoomId(List.of(1L), ROOM_ID)).thenReturn(List.of(rp1));
+		when(roomPlaceRepository.findAllByIdInAndRoomIdForUpdate(List.of(1L), ROOM_ID)).thenReturn(List.of(rp1));
 		when(duplicatePolicy.existsSavedCourseWithSameRoomPlacesExcluding(anyLong(), anyLong(), any()))
 				.thenReturn(false);
-		when(dateCoursePlaceRepository.saveAll(any())).thenReturn(savedDcps);
+		when(dateCoursePlaceRepository.saveAllAndFlush(any())).thenReturn(savedDcps);
 		when(userRepository.findByIdAndDeletedAtIsNull(999L)).thenReturn(Optional.empty());
 
 		DateCourseResult result = editService.update(
@@ -154,10 +155,10 @@ class DateCourseEditServiceTest {
 		when(roomAccessService.requireMemberRoom(ROOM_PUBLIC_ID, USER_ID)).thenReturn(room);
 		when(dateCourseRepository.findByDateCourseIdAndRoomIdAndDeletedAtIsNull(COURSE_UUID, ROOM_ID))
 				.thenReturn(Optional.of(course));
-		when(roomPlaceRepository.findAllByIdInAndRoomId(List.of(1L), ROOM_ID)).thenReturn(List.of(rp1));
+		when(roomPlaceRepository.findAllByIdInAndRoomIdForUpdate(List.of(1L), ROOM_ID)).thenReturn(List.of(rp1));
 		when(duplicatePolicy.existsSavedCourseWithSameRoomPlacesExcluding(anyLong(), anyLong(), any()))
 				.thenReturn(false);
-		when(dateCoursePlaceRepository.saveAll(any())).thenReturn(savedDcps);
+		when(dateCoursePlaceRepository.saveAllAndFlush(any())).thenReturn(savedDcps);
 		when(userRepository.findByIdAndDeletedAtIsNull(USER_ID)).thenReturn(Optional.empty());
 
 		DateCourseResult result = editService.update(
@@ -215,11 +216,32 @@ class DateCourseEditServiceTest {
 		when(roomAccessService.requireMemberRoom(ROOM_PUBLIC_ID, USER_ID)).thenReturn(room);
 		when(dateCourseRepository.findByDateCourseIdAndRoomIdAndDeletedAtIsNull(COURSE_UUID, ROOM_ID))
 				.thenReturn(Optional.of(course));
-		when(roomPlaceRepository.findAllByIdInAndRoomId(List.of(1L, 999L), ROOM_ID))
+		when(roomPlaceRepository.findAllByIdInAndRoomIdForUpdate(List.of(1L, 999L), ROOM_ID))
 				.thenReturn(List.of(validRp));
 
 		assertThatThrownBy(() -> editService.update(
 				ROOM_PUBLIC_ID, COURSE_UUID, "이름", List.of(1L, 999L), USER_ID))
+				.isInstanceOf(FieldValidationException.class);
+	}
+
+	@Test
+	void updateThrows400WhenRoomPlaceIsDeletedConcurrently() {
+		Room room = mockRoom();
+		DateCourse course = mockSavedCourse(USER_ID, USER_ID);
+		RoomPlace rp1 = mockRoomPlace(1L);
+
+		when(roomAccessService.requireMemberRoom(ROOM_PUBLIC_ID, USER_ID)).thenReturn(room);
+		when(dateCourseRepository.findByDateCourseIdAndRoomIdAndDeletedAtIsNull(COURSE_UUID, ROOM_ID))
+				.thenReturn(Optional.of(course));
+		when(roomPlaceRepository.findAllByIdInAndRoomIdForUpdate(List.of(1L), ROOM_ID))
+				.thenReturn(List.of(rp1));
+		when(duplicatePolicy.existsSavedCourseWithSameRoomPlacesExcluding(anyLong(), anyLong(), any()))
+				.thenReturn(false);
+		when(dateCoursePlaceRepository.saveAllAndFlush(any()))
+				.thenThrow(new DataIntegrityViolationException("fk"));
+
+		assertThatThrownBy(() -> editService.update(
+				ROOM_PUBLIC_ID, COURSE_UUID, "이름", List.of(1L), USER_ID))
 				.isInstanceOf(FieldValidationException.class);
 	}
 
@@ -237,7 +259,7 @@ class DateCourseEditServiceTest {
 				.isInstanceOf(FieldValidationException.class);
 
 		// 중복 검증 먼저 → RoomPlace 조회 불필요
-		verify(roomPlaceRepository, never()).findAllByIdInAndRoomId(any(), anyLong());
+		verify(roomPlaceRepository, never()).findAllByIdInAndRoomIdForUpdate(any(), anyLong());
 	}
 
 	// ────────────────────────────────────────────
@@ -253,7 +275,7 @@ class DateCourseEditServiceTest {
 		when(roomAccessService.requireMemberRoom(ROOM_PUBLIC_ID, USER_ID)).thenReturn(room);
 		when(dateCourseRepository.findByDateCourseIdAndRoomIdAndDeletedAtIsNull(COURSE_UUID, ROOM_ID))
 				.thenReturn(Optional.of(course));
-		when(roomPlaceRepository.findAllByIdInAndRoomId(List.of(1L), ROOM_ID)).thenReturn(List.of(rp1));
+		when(roomPlaceRepository.findAllByIdInAndRoomIdForUpdate(List.of(1L), ROOM_ID)).thenReturn(List.of(rp1));
 		when(duplicatePolicy.existsSavedCourseWithSameRoomPlacesExcluding(anyLong(), anyLong(), any()))
 				.thenReturn(true);
 

@@ -88,7 +88,7 @@ public class RoomPlaceCommandWriteService {
 			SaveManualRoomPlaceCommand command
 	) {
 		if (command == null || command.snapshot() == null) {
-			throw new BusinessException(ErrorCode.E400_ILLEGAL_ARGUMENT, "장소 스냅샷은 필수입니다.");
+			throw new FieldValidationException("snapshot", "장소 스냅샷은 필수입니다.");
 		}
 		LinkAnalysisRequest analysisRequest =
 				linkAnalysisAuthorizationService.requireAnalysisRequestForUpdate(userId, roomId, analysisRequestId);

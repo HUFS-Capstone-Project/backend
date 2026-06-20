@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -79,9 +80,15 @@ public class DateCourseEditService {
 		}
 
 		// 방에 속한 장소인지 배치 검증 — 결과 수와 요청 수가 다르면 방에 없는 장소 포함
-		List<RoomPlace> foundRoomPlaces = roomPlaceRepository.findAllByIdInAndRoomId(roomPlaceIds, room.getId());
+		List<Long> lockOrderedRoomPlaceIds = roomPlaceIds.stream()
+				.sorted()
+				.toList();
+		List<RoomPlace> foundRoomPlaces = roomPlaceRepository.findAllByIdInAndRoomIdForUpdate(
+				lockOrderedRoomPlaceIds,
+				room.getId()
+		);
 		if (foundRoomPlaces.size() != roomPlaceIds.size()) {
-			throw new FieldValidationException("roomPlaceIds", "이 방에 저장된 장소만 추가할 수 있습니다.");
+			throw invalidRoomPlaceIds();
 		}
 
 		// 요청 순서대로 정렬
@@ -108,11 +115,20 @@ public class DateCourseEditService {
 		for (int i = 0; i < orderedPlaces.size(); i++) {
 			newPlaces.add(DateCoursePlace.create(course, orderedPlaces.get(i), i));
 		}
-		List<DateCoursePlace> savedPlaces = dateCoursePlaceRepository.saveAll(newPlaces);
+		List<DateCoursePlace> savedPlaces;
+		try {
+			savedPlaces = dateCoursePlaceRepository.saveAllAndFlush(newPlaces);
+		} catch (DataIntegrityViolationException ex) {
+			throw invalidRoomPlaceIds();
+		}
 
 		// 9. 결과 반환
 		User saver = userRepository.findByIdAndDeletedAtIsNull(course.getSavedByUserId()).orElse(null);
 		return toCourseResult(course, savedPlaces, saver);
+	}
+
+	private static FieldValidationException invalidRoomPlaceIds() {
+		return new FieldValidationException("roomPlaceIds", "이 방에 저장된 장소만 추가할 수 있습니다.");
 	}
 
 	private DateCourseResult toCourseResult(DateCourse course, List<DateCoursePlace> places, User saver) {

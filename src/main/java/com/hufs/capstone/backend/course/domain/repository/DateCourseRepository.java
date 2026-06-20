@@ -20,6 +20,7 @@ public interface DateCourseRepository extends JpaRepository<DateCourse, Long> {
 			    dc.savedAt = :savedAt,
 			    dc.courseName = :courseName
 			WHERE dc.id = :id AND dc.savedByUserId IS NULL
+			AND dc.deletedAt IS NULL
 			""")
 	int markAsSavedIfAbsent(
 			@Param("id") Long id,
@@ -29,6 +30,12 @@ public interface DateCourseRepository extends JpaRepository<DateCourse, Long> {
 	);
 
 	Optional<DateCourse> findByDateCourseIdAndRoomIdAndDeletedAtIsNull(String dateCourseId, Long roomId);
+
+	boolean existsByIdAndDeletedAtIsNull(Long id);
+
+	@Modifying(clearAutomatically = true, flushAutomatically = true)
+	@Query("DELETE FROM DateCourse dc WHERE dc.room.id = :roomId")
+	int deleteByRoomId(@Param("roomId") Long roomId);
 
 	@Query(value = """
 			SELECT dc FROM DateCourse dc

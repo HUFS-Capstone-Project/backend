@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,24 +49,36 @@ public class DateCourseSaveService {
 		if (course.getSavedByUserId() != null) {
 			throw new BusinessException(ErrorCode.DATE_COURSE_ALREADY_SAVED);
 		}
+		Long courseDbId = course.getId();
 
 		if (roomPlaceIds == null) {
-			List<DateCoursePlace> places = dateCoursePlaceRepository.findWithRoomPlacesByCourseIdIn(List.of(course.getId()));
-			if (duplicatePolicy.existsSavedCourseWithSamePlacesExcluding(room.getId(), course.getId(), places)) {
+			List<DateCoursePlace> places = dateCoursePlaceRepository.findWithRoomPlacesByCourseIdForUpdate(courseDbId);
+			if (places.isEmpty()) {
+				throw new BusinessException(ErrorCode.DATE_COURSE_NO_PLACES);
+			}
+			List<Long> originalRoomPlaceIds = places.stream()
+					.map(DateCoursePlace::getRoomPlace)
+					.map(RoomPlace::getId)
+					.toList();
+			validateAndLoadRoomPlaces(originalRoomPlaceIds, room.getId());
+			if (duplicatePolicy.existsSavedCourseWithSamePlacesExcluding(room.getId(), courseDbId, places)) {
 				throw new BusinessException(ErrorCode.E409_DUPLICATE_DATE_COURSE);
 			}
 		} else {
 			List<RoomPlace> orderedPlaces = validateAndLoadRoomPlaces(roomPlaceIds, room.getId());
-			if (duplicatePolicy.existsSavedCourseWithSameRoomPlacesExcluding(room.getId(), course.getId(), orderedPlaces)) {
+			if (duplicatePolicy.existsSavedCourseWithSameRoomPlacesExcluding(room.getId(), courseDbId, orderedPlaces)) {
 				throw new BusinessException(ErrorCode.E409_DUPLICATE_DATE_COURSE);
 			}
-			replaceCoursePlaces(course, orderedPlaces);
 			course.clearSkippedSlots();
+			replaceCoursePlaces(course, orderedPlaces);
 		}
 
 		int updated = dateCourseRepository.markAsSavedIfAbsent(
-				course.getId(), userId, Instant.now(), normalizedName);
+				courseDbId, userId, Instant.now(), normalizedName);
 		if (updated == 0) {
+			if (!dateCourseRepository.existsByIdAndDeletedAtIsNull(courseDbId)) {
+				throw new BusinessException(ErrorCode.DATE_COURSE_NOT_FOUND);
+			}
 			throw new BusinessException(ErrorCode.DATE_COURSE_ALREADY_SAVED);
 		}
 	}
@@ -80,9 +93,15 @@ public class DateCourseSaveService {
 			throw new FieldValidationException("roomPlaceIds", "중복된 장소 ID가 포함되어 있습니다.");
 		}
 
-		List<RoomPlace> foundRoomPlaces = roomPlaceRepository.findAllByIdInAndRoomId(roomPlaceIds, roomId);
+		List<Long> lockOrderedRoomPlaceIds = roomPlaceIds.stream()
+				.sorted()
+				.toList();
+		List<RoomPlace> foundRoomPlaces = roomPlaceRepository.findAllByIdInAndRoomIdForUpdate(
+				lockOrderedRoomPlaceIds,
+				roomId
+		);
 		if (foundRoomPlaces.size() != roomPlaceIds.size()) {
-			throw new FieldValidationException("roomPlaceIds", "이 방에 저장된 장소만 추가할 수 있습니다.");
+			throw invalidRoomPlaceIds();
 		}
 
 		Map<Long, RoomPlace> roomPlaceById = foundRoomPlaces.stream()
@@ -99,6 +118,14 @@ public class DateCourseSaveService {
 		for (int i = 0; i < orderedPlaces.size(); i++) {
 			newPlaces.add(DateCoursePlace.create(course, orderedPlaces.get(i), i));
 		}
-		dateCoursePlaceRepository.saveAll(newPlaces);
+		try {
+			dateCoursePlaceRepository.saveAllAndFlush(newPlaces);
+		} catch (DataIntegrityViolationException ex) {
+			throw invalidRoomPlaceIds();
+		}
+	}
+
+	private static FieldValidationException invalidRoomPlaceIds() {
+		return new FieldValidationException("roomPlaceIds", "이 방에 저장된 장소만 추가할 수 있습니다.");
 	}
 }
