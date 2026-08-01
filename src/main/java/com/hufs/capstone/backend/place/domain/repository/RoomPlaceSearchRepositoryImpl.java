@@ -309,7 +309,6 @@ public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository 
 	private JPAQuery<RoomPlace> baseRoomPlaceQuery() {
 		return queryFactory
 				.selectFrom(ROOM_PLACE)
-				.distinct()
 				.join(ROOM_PLACE.place, PLACE).fetchJoin()
 				.join(PLACE.serviceCategory, CATEGORY).fetchJoin()
 				.join(PLACE.serviceTag, TAG).fetchJoin()
@@ -320,7 +319,6 @@ public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository 
 	private JPAQuery<RoomPlace> baseMyRoomPlaceQuery() {
 		return queryFactory
 				.selectFrom(ROOM_PLACE)
-				.distinct()
 				.join(ROOM_PLACE.room, ROOM).fetchJoin()
 				.join(ROOM_PLACE.place, PLACE).fetchJoin()
 				.join(PLACE.serviceCategory, CATEGORY).fetchJoin()
