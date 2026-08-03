@@ -2,7 +2,6 @@ package com.hufs.capstone.backend.course.application;
 
 import com.hufs.capstone.backend.course.application.dto.AvailableCandidate;
 import com.hufs.capstone.backend.course.application.dto.CategorySlotCommand;
-import com.hufs.capstone.backend.place.domain.entity.Place;
 import java.util.List;
 
 class AvailablePool {
@@ -28,12 +27,9 @@ class AvailablePool {
 	}
 
 	private static boolean matches(AvailableCandidate candidate, CategorySlotCommand slot) {
-		Place place = candidate.roomPlace().getPlace();
-		String categoryCode = place.getServiceCategory().getCode();
-		String tagCode = place.getServiceTag().getCode();
-		if (!categoryCode.equals(slot.categoryCode())) {
+		if (!candidate.categoryCode().equals(slot.categoryCode())) {
 			return false;
 		}
-		return slot.isWildcard() || tagCode.equals(slot.tagCode());
+		return slot.isWildcard() || candidate.tagCode().equals(slot.tagCode());
 	}
 }

@@ -5,7 +5,7 @@ import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
 import java.math.BigDecimal;
 import java.time.Instant;
 
-public record AvailableCandidate(
+public record DateCourseCandidate(
 		RoomPlace roomPlace,
 		String categoryCode,
 		String tagCode,
@@ -17,18 +17,4 @@ public record AvailableCandidate(
 		boolean hasOriginLink,
 		String businessHoursJson
 ) {
-	public static AvailableCandidate from(DateCourseCandidate candidate) {
-		return new AvailableCandidate(
-				candidate.roomPlace(),
-				candidate.categoryCode(),
-				candidate.tagCode(),
-				candidate.latitude(),
-				candidate.longitude(),
-				candidate.createdAt(),
-				candidate.linkSourceType(),
-				candidate.likeCount(),
-				candidate.hasOriginLink(),
-				candidate.businessHoursJson()
-		);
-	}
 }

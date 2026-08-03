@@ -183,7 +183,11 @@ class CourseSelectorTest {
 		when(roomPlace.getPlace()).thenReturn(place);
 		when(roomPlace.getCreatedAt()).thenReturn(createdAt);
 		when(roomPlace.getOriginRoomLink()).thenReturn(mock(com.hufs.capstone.backend.link.domain.entity.RoomLink.class));
-		return new AvailableCandidate(roomPlace, null);
+		return new AvailableCandidate(
+				roomPlace, catCode, tagCode,
+				BigDecimal.valueOf(lat), BigDecimal.valueOf(lng),
+				createdAt, null, null, true, null
+		);
 	}
 
 	private static AvailableCandidate candidateNoLink(Long id, String catCode, String tagCode) {
@@ -201,6 +205,9 @@ class CourseSelectorTest {
 		when(roomPlace.getPlace()).thenReturn(place);
 		when(roomPlace.getCreatedAt()).thenReturn(Instant.now());
 		when(roomPlace.getOriginRoomLink()).thenReturn(null);
-		return new AvailableCandidate(roomPlace, null);
+		return new AvailableCandidate(
+				roomPlace, catCode, tagCode, null, null,
+				Instant.now(), null, null, false, null
+		);
 	}
 }

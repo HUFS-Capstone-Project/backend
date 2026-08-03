@@ -138,6 +138,10 @@ class CourseDiversityMetricsTest {
 		when(roomPlace.getPlace()).thenReturn(place);
 		when(roomPlace.getCreatedAt()).thenReturn(Instant.now());
 		when(roomPlace.getOriginRoomLink()).thenReturn(mock(com.hufs.capstone.backend.link.domain.entity.RoomLink.class));
-		return new AvailableCandidate(roomPlace, null);
+		return new AvailableCandidate(
+				roomPlace, catCode, tagCode,
+				BigDecimal.valueOf(lat), BigDecimal.valueOf(lng),
+				Instant.now(), null, null, true, null
+		);
 	}
 }

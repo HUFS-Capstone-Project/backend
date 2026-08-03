@@ -1,6 +1,7 @@
 package com.hufs.capstone.backend.course.domain.repository;
 
 import com.hufs.capstone.backend.course.application.dto.CategorySlotCommand;
+import com.hufs.capstone.backend.course.application.dto.DateCourseCandidate;
 import com.hufs.capstone.backend.link.domain.entity.QLink;
 import com.hufs.capstone.backend.link.domain.entity.QRoomLink;
 import com.hufs.capstone.backend.place.domain.entity.QPlace;
@@ -8,8 +9,8 @@ import com.hufs.capstone.backend.place.domain.entity.QPlaceBusinessHours;
 import com.hufs.capstone.backend.place.domain.entity.QPlaceCategory;
 import com.hufs.capstone.backend.place.domain.entity.QPlaceTag;
 import com.hufs.capstone.backend.place.domain.entity.QRoomPlace;
-import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
 import com.hufs.capstone.backend.place.domain.enums.BusinessHoursStatus;
+import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
@@ -35,19 +36,36 @@ public class DateCourseCandidateRepositoryImpl implements DateCourseCandidateRep
 	}
 
 	@Override
-	public List<RoomPlace> findCandidates(Long roomId, List<CategorySlotCommand> slots, Instant now, String sigunguCode) {
+	public List<DateCourseCandidate> findCandidates(
+			Long roomId,
+			List<CategorySlotCommand> slots,
+			Instant now,
+			String sigunguCode
+	) {
 		BooleanExpression categoryFilter = buildCategoryFilter(slots);
 		if (categoryFilter == null) {
 			return List.of();
 		}
-		return queryFactory
-				.selectFrom(ROOM_PLACE)
-				.distinct()
-				.join(ROOM_PLACE.place, PLACE).fetchJoin()
-				.join(PLACE.serviceCategory, CATEGORY).fetchJoin()
-				.join(PLACE.serviceTag, TAG).fetchJoin()
-				.leftJoin(ROOM_PLACE.originRoomLink, ORIGIN_ROOM_LINK).fetchJoin()
-				.leftJoin(ORIGIN_ROOM_LINK.link, ORIGIN_LINK).fetchJoin()
+		BooleanExpression hasOriginLink = ROOM_PLACE.originRoomLink.isNotNull();
+		List<Tuple> rows = queryFactory
+				.select(
+						ROOM_PLACE,
+						CATEGORY.code,
+						TAG.code,
+						PLACE.latitude,
+						PLACE.longitude,
+						ROOM_PLACE.createdAt,
+						ORIGIN_LINK.linkSourceType,
+						ORIGIN_LINK.likeCount,
+						hasOriginLink,
+						PBH.businessHoursJson
+				)
+				.from(ROOM_PLACE)
+				.join(ROOM_PLACE.place, PLACE)
+				.join(PLACE.serviceCategory, CATEGORY)
+				.join(PLACE.serviceTag, TAG)
+				.leftJoin(ROOM_PLACE.originRoomLink, ORIGIN_ROOM_LINK)
+				.leftJoin(ORIGIN_ROOM_LINK.link, ORIGIN_LINK)
 				.join(PBH).on(
 						PBH.kakaoPlaceId.eq(PLACE.kakaoPlaceId),
 						PBH.businessHoursStatus.eq(BusinessHoursStatus.SUCCEEDED),
@@ -60,6 +78,21 @@ public class DateCourseCandidateRepositoryImpl implements DateCourseCandidateRep
 				)
 				.orderBy(ROOM_PLACE.createdAt.desc(), ROOM_PLACE.id.desc())
 				.fetch();
+
+		return rows.stream()
+				.map(row -> new DateCourseCandidate(
+						row.get(ROOM_PLACE),
+						row.get(CATEGORY.code),
+						row.get(TAG.code),
+						row.get(PLACE.latitude),
+						row.get(PLACE.longitude),
+						row.get(ROOM_PLACE.createdAt),
+						row.get(ORIGIN_LINK.linkSourceType),
+						row.get(ORIGIN_LINK.likeCount),
+						Boolean.TRUE.equals(row.get(hasOriginLink)),
+						row.get(PBH.businessHoursJson)
+				))
+				.toList();
 	}
 
 	private static BooleanExpression buildCategoryFilter(List<CategorySlotCommand> slots) {

@@ -118,7 +118,11 @@ class CourseScorerTest {
 		when(roomPlace.getPlace()).thenReturn(place);
 		when(roomPlace.getCreatedAt()).thenReturn(Instant.now());
 		when(roomPlace.getOriginRoomLink()).thenReturn(null);
-		return new AvailableCandidate(roomPlace, null);
+		return new AvailableCandidate(
+				roomPlace, null, null,
+				BigDecimal.valueOf(lat), BigDecimal.valueOf(lng),
+				Instant.now(), null, null, false, null
+		);
 	}
 
 	private static AvailableCandidate candidateWithCreatedAt(Instant createdAt) {
@@ -129,7 +133,10 @@ class CourseScorerTest {
 		when(roomPlace.getPlace()).thenReturn(place);
 		when(roomPlace.getCreatedAt()).thenReturn(createdAt);
 		when(roomPlace.getOriginRoomLink()).thenReturn(null);
-		return new AvailableCandidate(roomPlace, null);
+		return new AvailableCandidate(
+				roomPlace, null, null, null, null,
+				createdAt, null, null, false, null
+		);
 	}
 
 	private static AvailableCandidate candidateNoLink() {
@@ -140,7 +147,10 @@ class CourseScorerTest {
 		when(roomPlace.getPlace()).thenReturn(place);
 		when(roomPlace.getCreatedAt()).thenReturn(Instant.now());
 		when(roomPlace.getOriginRoomLink()).thenReturn(null);
-		return new AvailableCandidate(roomPlace, null);
+		return new AvailableCandidate(
+				roomPlace, null, null, null, null,
+				Instant.now(), null, null, false, null
+		);
 	}
 
 	private static AvailableCandidate candidateWithLikeCount(long likeCount, LinkSourceType sourceType) {
@@ -156,7 +166,10 @@ class CourseScorerTest {
 		when(roomPlace.getPlace()).thenReturn(place);
 		when(roomPlace.getCreatedAt()).thenReturn(Instant.now());
 		when(roomPlace.getOriginRoomLink()).thenReturn(roomLink);
-		return new AvailableCandidate(roomPlace, null);
+		return new AvailableCandidate(
+				roomPlace, null, null, null, null,
+				Instant.now(), sourceType, likeCount, true, null
+		);
 	}
 
 	private static NormalizationContext noCtx() {
