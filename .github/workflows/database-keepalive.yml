@@ -1,0 +1,98 @@
+name: Database Keep Alive
+
+on:
+  schedule:
+    # Every Monday at 03:17 KST (Sunday at 18:17 UTC).
+    - cron: "17 18 * * 0"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  keep-alive:
+    name: Ping Redis and PostgreSQL
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Ping Upstash Redis
+        shell: bash
+        env:
+          UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+          UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+        run: |
+          set -Eeuo pipefail
+
+          if [[ -z "${UPSTASH_REDIS_REST_URL:-}" ]]; then
+            echo "::error::Upstash Redis failed: UPSTASH_REDIS_REST_URL secret is empty."
+            exit 1
+          fi
+
+          if [[ -z "${UPSTASH_REDIS_REST_TOKEN:-}" ]]; then
+            echo "::error::Upstash Redis failed: UPSTASH_REDIS_REST_TOKEN secret is empty."
+            exit 1
+          fi
+
+          redis_url="${UPSTASH_REDIS_REST_URL%/}"
+
+          if ! response="$(
+            curl \
+              --fail-with-body \
+              --silent \
+              --show-error \
+              --connect-timeout 15 \
+              --max-time 30 \
+              --header "Authorization: Bearer ${UPSTASH_REDIS_REST_TOKEN}" \
+              "${redis_url}/ping"
+          )"; then
+            echo "::error::Upstash Redis failed: REST PING request was unsuccessful."
+            exit 1
+          fi
+
+          if [[ "${response}" != *'"PONG"'* ]]; then
+            echo "::error::Upstash Redis failed: REST response did not contain PONG."
+            exit 1
+          fi
+
+          echo "Upstash Redis PING succeeded."
+
+      - name: Query Aiven PostgreSQL
+        if: ${{ always() }}
+        shell: bash
+        env:
+          AIVEN_POSTGRES_URI: ${{ secrets.AIVEN_POSTGRES_URI }}
+          PGCONNECT_TIMEOUT: "15"
+        run: |
+          set -Eeuo pipefail
+
+          if [[ -z "${AIVEN_POSTGRES_URI:-}" ]]; then
+            echo "::error::Aiven PostgreSQL failed: AIVEN_POSTGRES_URI secret is empty."
+            exit 1
+          fi
+
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq postgresql-client
+          fi
+
+          if ! query_result="$(
+            psql \
+              --no-psqlrc \
+              --quiet \
+              --tuples-only \
+              --no-align \
+              --set=ON_ERROR_STOP=1 \
+              --command='SELECT 1;' \
+              "${AIVEN_POSTGRES_URI}" \
+              2>/dev/null
+          )"; then
+            echo "::error::Aiven PostgreSQL failed: connection or SELECT 1 execution was unsuccessful."
+            exit 1
+          fi
+
+          if [[ "${query_result}" != "1" ]]; then
+            echo "::error::Aiven PostgreSQL failed: SELECT 1 returned an unexpected result."
+            exit 1
+          fi
+
+          echo "Aiven PostgreSQL SELECT 1 succeeded."
