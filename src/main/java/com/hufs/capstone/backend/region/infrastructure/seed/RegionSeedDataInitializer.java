@@ -4,45 +4,135 @@ import com.hufs.capstone.backend.region.domain.entity.RegionSido;
 import com.hufs.capstone.backend.region.domain.entity.RegionSigungu;
 import com.hufs.capstone.backend.region.domain.repository.RegionSidoRepository;
 import com.hufs.capstone.backend.region.domain.repository.RegionSigunguRepository;
+import com.hufs.capstone.backend.region.infrastructure.config.RegionSeedAsyncConfig;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import lombok.RequiredArgsConstructor;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.context.event.ContextClosedEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
+@Slf4j
 @Component
-@RequiredArgsConstructor
 public class RegionSeedDataInitializer implements ApplicationRunner {
 
 	private static final String SEED_PATH = "reference/regions.tsv";
+	private static final int TRANSACTION_BATCH_SIZE = 25;
 	// Source basis: MOIS standard code system 법정동코드목록조회, using active sido/sigungu legal-dong codes.
 	private static final String TYPE_SIDO = "SIDO";
 	private static final String TYPE_SIGUNGU = "SIGUNGU";
 
 	private final RegionSidoRepository regionSidoRepository;
 	private final RegionSigunguRepository regionSigunguRepository;
+	private final TransactionTemplate transactionTemplate;
+	private final ThreadPoolTaskExecutor seedTaskExecutor;
+	private final boolean async;
+	private final AtomicBoolean shutdownRequested = new AtomicBoolean();
+
+	private volatile Future<?> seedTask;
+
+	public RegionSeedDataInitializer(
+			RegionSidoRepository regionSidoRepository,
+			RegionSigunguRepository regionSigunguRepository,
+			TransactionTemplate transactionTemplate,
+			@Qualifier(RegionSeedAsyncConfig.REGION_SEED_TASK_EXECUTOR)
+			ThreadPoolTaskExecutor seedTaskExecutor,
+			@Value("${app.region.seed.async:false}") boolean async
+	) {
+		this.regionSidoRepository = regionSidoRepository;
+		this.regionSigunguRepository = regionSigunguRepository;
+		this.transactionTemplate = transactionTemplate;
+		this.seedTaskExecutor = seedTaskExecutor;
+		this.async = async;
+	}
 
 	@Override
-	@Transactional
 	public void run(ApplicationArguments args) throws IOException {
+		if (async) {
+			seedTask = seedTaskExecutor.submit(this::seedAsync);
+			return;
+		}
+		seed();
+	}
+
+	@EventListener(ContextClosedEvent.class)
+	public void stopOnShutdown() {
+		shutdownRequested.set(true);
+		Future<?> currentTask = seedTask;
+		if (currentTask != null) {
+			currentTask.cancel(true);
+		}
+	}
+
+	private void seedAsync() {
+		try {
+			if (seed()) {
+				log.info("Region seed initialization completed.");
+			}
+		} catch (IOException | RuntimeException exception) {
+			if (shouldStop()) {
+				log.info("Region seed initialization stopped because application shutdown started.");
+				return;
+			}
+			log.error("Region seed initialization failed.", exception);
+		}
+	}
+
+	private boolean seed() throws IOException {
 		List<SeedRow> rows = readRows();
-		for (SeedRow row : rows) {
-			if (TYPE_SIDO.equals(row.type())) {
-				upsertSido(row);
+		List<SeedRow> sidoRows = rows.stream()
+				.filter(row -> TYPE_SIDO.equals(row.type()))
+				.toList();
+		if (!seedRows(sidoRows, this::upsertSido)) {
+			return false;
+		}
+
+		List<SeedRow> sigunguRows = rows.stream()
+				.filter(row -> TYPE_SIGUNGU.equals(row.type()))
+				.toList();
+		return seedRows(sigunguRows, this::upsertSigungu);
+	}
+
+	private boolean seedRows(List<SeedRow> rows, Consumer<SeedRow> upsert) {
+		for (int start = 0; start < rows.size(); start += TRANSACTION_BATCH_SIZE) {
+			if (shouldStop()) {
+				return false;
+			}
+			int end = Math.min(start + TRANSACTION_BATCH_SIZE, rows.size());
+			List<SeedRow> batch = rows.subList(start, end);
+			boolean committed = Boolean.TRUE.equals(transactionTemplate.execute(status -> {
+				for (SeedRow row : batch) {
+					if (shouldStop()) {
+						status.setRollbackOnly();
+						return false;
+					}
+					upsert.accept(row);
+				}
+				return true;
+			}));
+			if (!committed) {
+				return false;
 			}
 		}
-		for (SeedRow row : rows) {
-			if (TYPE_SIGUNGU.equals(row.type())) {
-				upsertSigungu(row);
-			}
-		}
+		return true;
+	}
+
+	private boolean shouldStop() {
+		return shutdownRequested.get() || Thread.currentThread().isInterrupted();
 	}
 
 	private List<SeedRow> readRows() throws IOException {

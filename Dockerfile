@@ -28,7 +28,6 @@ COPY --from=builder --chown=spring:spring /workspace/app.jar /app/app.jar
 USER spring:spring
 
 EXPOSE 8080
-ENV SERVER_PORT=8080 \
-    SPRING_PROFILES_ACTIVE=prod
+ENV SPRING_PROFILES_ACTIVE=prod
 
 ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75.0", "-jar", "/app/app.jar"]

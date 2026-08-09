@@ -118,6 +118,8 @@ public class SecurityConfig {
 					auth.requestMatchers(
 							"/api/v1/health",
 							"/actuator/health",
+							"/actuator/health/liveness",
+							"/actuator/health/readiness",
 							"/oauth2/**",
 							"/login/oauth2/**",
 							"/api/v1/auth/web/exchange-ticket",
