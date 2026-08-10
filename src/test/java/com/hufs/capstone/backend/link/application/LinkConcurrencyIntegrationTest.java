@@ -210,6 +210,48 @@ class LinkConcurrencyIntegrationTest {
 	}
 
 	@Test
+	void shouldReturnAnalysisRequestWhileProcessingJobDispatchIsStillBlocked() throws Exception {
+		String originalUrl = "https://example.com/post/async-response";
+		CountDownLatch dispatchStarted = new CountDownLatch(1);
+		CountDownLatch releaseDispatch = new CountDownLatch(1);
+		when(processingClient.createJob(originalUrl, ROOM_A_PUBLIC_ID, null))
+				.thenAnswer(invocation -> {
+					dispatchStarted.countDown();
+					if (!releaseDispatch.await(3, TimeUnit.SECONDS)) {
+						throw new IllegalStateException("test dispatch release timed out");
+					}
+					return new CreateProcessingJobResponse("job-async-response");
+				});
+
+		ExecutorService requestExecutor = Executors.newSingleThreadExecutor();
+		try {
+			Future<LinkAnalysisRequestResult> requestFuture = requestExecutor.submit(() ->
+					linkAnalysisRequestService.requestLinkAnalysis(
+							MEMBER_USER_ID,
+							ROOM_A_PUBLIC_ID,
+							new AnalyzeLinkCommand(originalUrl, null)
+					));
+
+			assertThat(dispatchStarted.await(2, TimeUnit.SECONDS)).isTrue();
+			LinkAnalysisRequestResult result = requestFuture.get(1, TimeUnit.SECONDS);
+
+			assertThat(result.analysisRequestId()).isNotNull();
+			assertThat(result.status()).isEqualTo(LinkAnalysisStatus.REQUESTED);
+			assertThat(result.processingJobId()).isNull();
+
+			releaseDispatch.countDown();
+			awaitValue(
+					() -> linkRepository.findById(result.linkId()).orElseThrow(),
+					link -> link.getDispatchStatus() == ProcessingDispatchStatus.DISPATCHED
+			);
+		} finally {
+			releaseDispatch.countDown();
+			requestExecutor.shutdownNow();
+			requestExecutor.awaitTermination(1, TimeUnit.SECONDS);
+		}
+	}
+
+	@Test
 	void shouldReuseExistingAnalysisRequestInSameRoom() throws Exception {
 		when(processingClient.createJob("https://example.com/post/1", ROOM_A_PUBLIC_ID, null))
 				.thenReturn(new CreateProcessingJobResponse("job-1"));
