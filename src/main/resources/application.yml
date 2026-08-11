@@ -53,10 +53,15 @@ app:
       max-attempts: 5
       window: 1m
   business-hours:
+    requests-enabled: true
     polling:
       interval: 3s
       batch-size: 50
       scheduler-delay-ms: 3000
+    detail-refresh:
+      dispatch-timeout: 2m
+      job-timeout: 15m
+      failure-cooldown: 1h
   cors:
     allowed-methods:
       - GET

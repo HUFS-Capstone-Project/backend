@@ -9,8 +9,12 @@ import com.hufs.capstone.backend.place.domain.enums.BusinessStatus;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
+@Timeout(5)
 class BusinessHoursDisplayResolverTest {
 
 	private final ObjectMapper objectMapper = new ObjectMapper();
@@ -24,6 +28,7 @@ class BusinessHoursDisplayResolverTest {
 		assertThat(result.statusDisplayText()).isEqualTo("영업 전 · 11:30 영업 시작");
 		assertThat(result.todayDisplayText()).isEqualTo("오늘 11:30 - 21:00");
 		assertThat(result.nextOpenAt()).hasToString("2026-05-12T11:30+09:00");
+		assertThat(result.nextStatusChangeAt()).hasToString("2026-05-12T11:30+09:00");
 	}
 
 	@Test
@@ -34,6 +39,7 @@ class BusinessHoursDisplayResolverTest {
 		assertThat(result.businessStatus()).isEqualTo(BusinessStatus.OPEN);
 		assertThat(result.statusDisplayText()).isEqualTo("영업 중 · 21:00 영업 종료");
 		assertThat(result.nextCloseAt()).hasToString("2026-05-12T21:00+09:00");
+		assertThat(result.nextStatusChangeAt()).hasToString("2026-05-12T20:30+09:00");
 	}
 
 	@Test
@@ -86,16 +92,56 @@ class BusinessHoursDisplayResolverTest {
 	}
 
 	@Test
-	void shouldResolveBreakTimeAndSubTexts() {
-		BusinessHoursDisplayResult result = resolverAt("2026-05-12T06:30:00Z").resolve("""
-				{"daily_hours":[{"day":"화","open":"11:30","close":"21:00","break_time":"15:00 - 17:00",
-				"last_order":"20:30"}]}
-				""", BusinessHoursStatus.SUCCEEDED);
+	void shouldResolveActualObjectContractForBreakTimeAndLastOrder() throws IOException {
+		BusinessHoursDisplayResult result = resolverAt("2026-05-12T06:30:00Z").resolve(
+				fixture("fixtures/business-hours/kakao-place-success.json"),
+				BusinessHoursStatus.SUCCEEDED
+		);
 
 		assertThat(result.businessStatus()).isEqualTo(BusinessStatus.BREAK_TIME);
 		assertThat(result.statusDisplayText()).isEqualTo("브레이크타임 · 17:00 영업 시작");
 		assertThat(result.weeklyHours().get(0).subTexts())
-				.containsExactly("브레이크타임 15:00 - 17:00", "라스트오더 20:30");
+				.containsExactly("브레이크타임 15:00 - 17:00", "라스트오더 20:20");
+		assertThat(result.weeklyHours().get(0).date()).isEqualTo("5/12");
+	}
+
+	@Test
+	void shouldTreatMidnightToEndOfDayAsOpen24Hours() {
+		BusinessHoursDisplayResult result = resolverAt("2026-05-12T04:00:00Z").resolve("""
+				{"daily_hours":[
+				  {"day":"화","raw":"00:00 ~ 24:00","date":"5/12","open":"00:00","close":"24:00"}
+				]}
+				""", BusinessHoursStatus.SUCCEEDED);
+
+		assertThat(result.businessStatus()).isEqualTo(BusinessStatus.OPEN_24_HOURS);
+		assertThat(result.statusDisplayText()).isEqualTo("24시간 영업");
+		assertThat(result.todayDisplayText()).isEqualTo("오늘 24시간 영업");
+		assertThat(result.nextStatusChangeAt()).hasToString("2026-05-13T00:00+09:00");
+	}
+
+	@Test
+	void shouldPreferExactDateOverRecurringWeekday() {
+		BusinessHoursDisplayResult result = resolverAt("2026-05-12T04:00:00Z").resolve("""
+				{"daily_hours":[
+				  {"day":"화","raw":"정기휴무","date":"2026-05-12"},
+				  {"day":"화","open":"11:30","close":"21:00"}
+				]}
+				""", BusinessHoursStatus.SUCCEEDED);
+
+		assertThat(result.businessStatus()).isEqualTo(BusinessStatus.DAY_OFF);
+		assertThat(result.today().date()).isEqualTo(java.time.LocalDate.parse("2026-05-12"));
+	}
+
+	@Test
+	void shouldNotReuseDatedHolidayOnSameWeekdayOfAnotherWeek() {
+		BusinessHoursDisplayResult result = resolverAt("2026-05-19T04:00:00Z").resolve("""
+				{"daily_hours":[
+				  {"day":"화","raw":"임시휴무","date":"5/12"},
+				  {"day":"화","open":"11:30","close":"21:00"}
+				]}
+				""", BusinessHoursStatus.SUCCEEDED);
+
+		assertThat(result.businessStatus()).isEqualTo(BusinessStatus.OPEN);
 	}
 
 	@Test
@@ -126,10 +172,12 @@ class BusinessHoursDisplayResolverTest {
 	}
 
 	@Test
-	void shouldReturnNullWhenCacheIsMissingOrNotSucceeded() {
+	void shouldHidePayloadUnlessRefreshSucceeded() {
 		assertThat(resolverAt("2026-05-12T04:00:00Z").resolve(null, BusinessHoursStatus.SUCCEEDED)).isNull();
 		assertThat(resolverAt("2026-05-12T04:00:00Z").resolve(weekly("11:30", "21:00"),
 				BusinessHoursStatus.FETCHING)).isNull();
+		assertThat(resolverAt("2026-05-12T04:00:00Z").resolve(weekly("11:30", "21:00"),
+				BusinessHoursStatus.FAILED)).isNull();
 	}
 
 	@Test
@@ -142,6 +190,15 @@ class BusinessHoursDisplayResolverTest {
 
 	private BusinessHoursDisplayResolver resolverAt(String instant) {
 		return new BusinessHoursDisplayResolver(objectMapper, Clock.fixed(Instant.parse(instant), ZoneOffset.UTC));
+	}
+
+	private static String fixture(String path) throws IOException {
+		try (var input = BusinessHoursDisplayResolverTest.class.getClassLoader().getResourceAsStream(path)) {
+			if (input == null) {
+				throw new IOException("Fixture not found: " + path);
+			}
+			return new String(input.readAllBytes(), StandardCharsets.UTF_8);
+		}
 	}
 
 	private static String weekly(String open, String close) {

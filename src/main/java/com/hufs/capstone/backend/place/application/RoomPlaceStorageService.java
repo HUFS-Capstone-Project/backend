@@ -19,7 +19,9 @@ import com.hufs.capstone.backend.place.domain.vo.PlaceSnapshot;
 import com.hufs.capstone.backend.region.application.RegionAddressResolver;
 import com.hufs.capstone.backend.region.application.dto.ResolvedRegion;
 import com.hufs.capstone.backend.room.domain.entity.Room;
-import java.time.Instant;
+import java.time.Clock;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +32,7 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class RoomPlaceStorageService {
+	private static final ZoneId SEOUL_ZONE = ZoneId.of("Asia/Seoul");
 
 	private final PlaceRepository placeRepository;
 	private final RoomPlaceRepository roomPlaceRepository;
@@ -39,6 +42,7 @@ public class RoomPlaceStorageService {
 	private final PlaceBusinessHoursRepository placeBusinessHoursRepository;
 	private final PlaceBusinessHoursRefreshPolicy placeBusinessHoursRefreshPolicy;
 	private final ApplicationEventPublisher eventPublisher;
+	private final Clock clock;
 
 	public List<SavedRoomPlaceResult> saveAll(
 			Room room,
@@ -88,7 +92,7 @@ public class RoomPlaceStorageService {
 	private void publishBusinessHoursRequestIfNeeded(RoomPlace roomPlace, boolean created) {
 		PlaceBusinessHours cache = placeBusinessHoursRepository.findByKakaoPlaceId(roomPlace.getKakaoPlaceId())
 				.orElse(null);
-		if (!placeBusinessHoursRefreshPolicy.shouldRequest(cache, Instant.now())) {
+		if (!placeBusinessHoursRefreshPolicy.shouldRequestInitially(cache)) {
 			return;
 		}
 		Place place = roomPlace.getPlace();
@@ -98,22 +102,10 @@ public class RoomPlaceStorageService {
 				place.getKakaoPlaceId(),
 				place.getPlaceUrl(),
 				place.getName(),
+				LocalDate.now(clock.withZone(SEOUL_ZONE)),
 				created,
-				refreshReason(created, cache)
+				"initial_save"
 		));
-	}
-
-	private static String refreshReason(boolean created, PlaceBusinessHours cache) {
-		if (created) {
-			return "created";
-		}
-		if (cache == null) {
-			return "missing_cache";
-		}
-		if (cache.getBusinessHoursExpiresAt() == null) {
-			return "null_expires_at";
-		}
-		return "expired";
 	}
 
 	private void attachOriginIfNeeded(

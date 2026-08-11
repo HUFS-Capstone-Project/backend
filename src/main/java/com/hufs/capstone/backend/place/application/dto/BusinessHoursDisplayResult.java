@@ -11,6 +11,7 @@ public record BusinessHoursDisplayResult(
 		String todayDisplayText,
 		OffsetDateTime nextOpenAt,
 		OffsetDateTime nextCloseAt,
+		OffsetDateTime nextStatusChangeAt,
 		TodayBusinessHoursResult today,
 		List<WeeklyBusinessHoursResult> weeklyHours
 ) {

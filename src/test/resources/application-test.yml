@@ -27,6 +27,7 @@ logging:
 
 app:
   business-hours:
+    requests-enabled: false
     polling:
       enabled: false
   auth:

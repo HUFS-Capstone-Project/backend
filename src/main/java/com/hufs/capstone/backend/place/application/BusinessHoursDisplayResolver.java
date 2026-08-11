@@ -1,6 +1,5 @@
 package com.hufs.capstone.backend.place.application;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hufs.capstone.backend.place.application.dto.BusinessHoursDisplayResult;
 import com.hufs.capstone.backend.place.application.dto.BusinessHoursDisplayResult.TodayBusinessHoursResult;
@@ -18,10 +17,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -30,7 +26,6 @@ public class BusinessHoursDisplayResolver {
 
 	private static final ZoneId SEOUL_ZONE = ZoneId.of("Asia/Seoul");
 	private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
-	private static final Pattern TIME_PATTERN = Pattern.compile("(\\d{1,2})[:시](\\d{2})?");
 	private static final Duration CLOSING_SOON_THRESHOLD = Duration.ofMinutes(30);
 	private static final List<String> DAYS = List.of("월", "화", "수", "목", "금", "토", "일");
 
@@ -53,7 +48,7 @@ public class BusinessHoursDisplayResolver {
 		}
 		ZonedDateTime now = ZonedDateTime.now(clock).withZoneSameInstant(SEOUL_ZONE);
 		try {
-			return resolve(payloadParser.parse(businessHoursJson), now);
+			return resolve(payloadParser.parse(businessHoursJson, now.toLocalDate()), now);
 		} catch (RuntimeException ex) {
 			return unknown(now, List.of());
 		} catch (Exception ex) {
@@ -66,20 +61,24 @@ public class BusinessHoursDisplayResolver {
 			return BusinessStatus.UNKNOWN;
 		}
 		try {
-			BusinessHoursDisplayResult result = resolve(payloadParser.parse(businessHoursJson), at);
+			ZonedDateTime seoulTime = at.withZoneSameInstant(SEOUL_ZONE);
+			BusinessHoursDisplayResult result = resolve(
+					payloadParser.parse(businessHoursJson, seoulTime.toLocalDate()),
+					seoulTime
+			);
 			return result == null ? BusinessStatus.UNKNOWN : result.businessStatus();
 		} catch (Exception ex) {
 			return BusinessStatus.UNKNOWN;
 		}
 	}
 
-	BusinessHoursDisplayResult resolve(JsonNode businessHours, ZonedDateTime now) {
-		if (businessHours == null || businessHours.isNull()) {
+	BusinessHoursDisplayResult resolve(BusinessHoursSchedule schedule, ZonedDateTime now) {
+		if (schedule == null) {
 			return null;
 		}
-		List<DailyHours> dailyHours = readDailyHours(businessHours);
+		List<DailyHours> dailyHours = readDailyHours(schedule);
 		List<WeeklyBusinessHoursResult> weeklyHours = weeklyHours(dailyHours, now);
-		DailyHours today = findByDay(dailyHours, dayName(now.getDayOfWeek())).orElse(null);
+		DailyHours today = findByDate(dailyHours, now.toLocalDate()).orElse(null);
 		if (today == null) {
 			return unknown(now, weeklyHours);
 		}
@@ -193,8 +192,7 @@ public class BusinessHoursDisplayResolver {
 	}
 
 	private Optional<DailyHours> previousDayOvernight(List<DailyHours> dailyHours, ZonedDateTime now) {
-		String previousDay = dayName(now.minusDays(1).getDayOfWeek());
-		return findByDay(dailyHours, previousDay)
+		return findByDate(dailyHours, now.toLocalDate().minusDays(1))
 				.filter(DailyHours::hasOpenClose)
 				.filter(DailyHours::isOvernight);
 	}
@@ -202,8 +200,7 @@ public class BusinessHoursDisplayResolver {
 	private Optional<ZonedDateTime> findNextOpenAt(List<DailyHours> dailyHours, ZonedDateTime now, int startOffsetDays) {
 		for (int offset = startOffsetDays; offset <= 7; offset++) {
 			LocalDate date = now.toLocalDate().plusDays(offset);
-			String day = dayName(date.getDayOfWeek());
-			Optional<DailyHours> candidate = findByDay(dailyHours, day);
+			Optional<DailyHours> candidate = findByDate(dailyHours, date);
 			if (candidate.isPresent() && candidate.get().hasOpenClose()
 					&& !candidate.get().isDayOff() && !candidate.get().isOpen24Hours()) {
 				return Optional.of(date.atTime(candidate.get().open()).atZone(SEOUL_ZONE));
@@ -215,33 +212,27 @@ public class BusinessHoursDisplayResolver {
 		return Optional.empty();
 	}
 
-	private List<DailyHours> readDailyHours(JsonNode businessHours) {
-		JsonNode dailyHoursNode = businessHours.path("daily_hours");
-		if (!dailyHoursNode.isArray()) {
-			return List.of();
-		}
-		List<DailyHours> result = new ArrayList<>();
-		for (JsonNode row : dailyHoursNode) {
-			String day = normalizeDay(text(row, "day"));
-			if (day == null) {
-				continue;
-			}
-			String raw = text(row, "raw");
-			LocalTime open = parseTime(firstText(row, "open", "open_time", "start", "start_time"));
-			String closeRaw = firstText(row, "close", "close_time", "end", "end_time");
-			LocalTime close = parseTime(closeRaw);
-			TimeRange breakTime = parseRange(firstText(row, "break_time", "breakTime"));
-			String lastOrder = firstText(row, "last_order", "lastOrder");
-			result.add(new DailyHours(day, raw, open, close, isMidnightEndOfDay(closeRaw), breakTime,
-					parseTime(lastOrder), lastOrder));
-		}
-		return result;
+	private List<DailyHours> readDailyHours(BusinessHoursSchedule schedule) {
+		return schedule.dailyHours().stream()
+				.map(row -> new DailyHours(
+						row.day(),
+						row.date(),
+						row.raw(),
+						row.open(),
+						row.close(),
+						row.closesAtEndOfDay(),
+						toTimeRange(row.breakTime()),
+						row.lastOrder(),
+						row.lastOrderRaw()
+				))
+				.toList();
 	}
 
 	private List<WeeklyBusinessHoursResult> weeklyHours(List<DailyHours> dailyHours, ZonedDateTime now) {
+		DailyHours today = findByDate(dailyHours, now.toLocalDate()).orElse(null);
 		return dailyHours.stream()
 				.map(row -> {
-					boolean isToday = row.day().equals(dayName(now.getDayOfWeek()));
+					boolean isToday = row.equals(today);
 					List<String> subTexts = new ArrayList<>();
 					if (row.breakTime() != null) {
 						subTexts.add("브레이크타임 " + row.breakTime().displayText());
@@ -251,7 +242,7 @@ public class BusinessHoursDisplayResolver {
 					}
 					return new WeeklyBusinessHoursResult(
 							row.day(),
-							isToday ? now.format(DateTimeFormatter.ofPattern("M/d")) : null,
+							row.date() == null ? null : row.date().format(DateTimeFormatter.ofPattern("M/d")),
 							isToday,
 							row.displayText(),
 							subTexts
@@ -276,6 +267,7 @@ public class BusinessHoursDisplayResolver {
 				todayDisplayText,
 				toOffset(nextOpenAt),
 				toOffset(nextCloseAt),
+				toOffset(nextStatusChangeAt(businessStatus, nextOpenAt, nextCloseAt, today, now)),
 				new TodayBusinessHoursResult(now.toLocalDate(), today.day(), today.displayText()),
 				weeklyHours
 		);
@@ -288,9 +280,44 @@ public class BusinessHoursDisplayResolver {
 				"영업시간 정보 없음",
 				null,
 				null,
+				toOffset(now.toLocalDate().plusDays(1).atStartOfDay(SEOUL_ZONE)),
 				new TodayBusinessHoursResult(now.toLocalDate(), dayName(now.getDayOfWeek()), "영업시간 정보 없음"),
 				weeklyHours
 		);
+	}
+
+	private static ZonedDateTime nextStatusChangeAt(
+			BusinessStatus status,
+			ZonedDateTime nextOpenAt,
+			ZonedDateTime nextCloseAt,
+			DailyHours today,
+			ZonedDateTime now
+	) {
+		List<ZonedDateTime> candidates = new ArrayList<>();
+		candidates.add(now.toLocalDate().plusDays(1).atStartOfDay(SEOUL_ZONE));
+		if (status == BusinessStatus.BEFORE_OPEN
+				|| status == BusinessStatus.BREAK_TIME
+				|| status == BusinessStatus.CLOSED
+				|| status == BusinessStatus.DAY_OFF) {
+			candidates.add(nextOpenAt);
+		}
+		if (status == BusinessStatus.OPEN || status == BusinessStatus.CLOSING_SOON) {
+			candidates.add(nextCloseAt);
+		}
+		if (status == BusinessStatus.OPEN && nextCloseAt != null) {
+			candidates.add(nextCloseAt.minus(CLOSING_SOON_THRESHOLD));
+			if (today.breakTime() != null) {
+				ZonedDateTime breakStartsAt = atToday(now, today.breakTime().openAt().toLocalTime());
+				if (breakStartsAt.isBefore(nextCloseAt)) {
+					candidates.add(breakStartsAt);
+				}
+			}
+		}
+		return candidates.stream()
+				.filter(java.util.Objects::nonNull)
+				.filter(candidate -> candidate.isAfter(now))
+				.min(Comparator.naturalOrder())
+				.orElse(null);
 	}
 
 	private static String nextOpenSuffix(ZonedDateTime nextOpenAt, ZonedDateTime now) {
@@ -340,100 +367,28 @@ public class BusinessHoursDisplayResolver {
 		return now.toLocalDate().atTime(time).atZone(SEOUL_ZONE);
 	}
 
-	private static Optional<DailyHours> findByDay(List<DailyHours> dailyHours, String day) {
-		return dailyHours.stream()
-				.filter(row -> row.day().equals(day))
+	private static Optional<DailyHours> findByDate(List<DailyHours> dailyHours, LocalDate date) {
+		String day = dayName(date.getDayOfWeek());
+		Optional<DailyHours> exactDate = dailyHours.stream()
+				.filter(row -> date.equals(row.date()))
 				.findFirst();
-	}
-
-	private static String normalizeDay(String value) {
-		if (isBlank(value)) {
-			return null;
-		}
-		String normalized = value.trim().replace("요일", "");
-		if (DAYS.contains(normalized)) {
-			return normalized;
-		}
-		return switch (normalized.toUpperCase(Locale.ROOT)) {
-			case "MON", "MONDAY" -> "월";
-			case "TUE", "TUESDAY" -> "화";
-			case "WED", "WEDNESDAY" -> "수";
-			case "THU", "THURSDAY" -> "목";
-			case "FRI", "FRIDAY" -> "금";
-			case "SAT", "SATURDAY" -> "토";
-			case "SUN", "SUNDAY" -> "일";
-			default -> null;
-		};
+		return exactDate.or(() -> dailyHours.stream()
+				.filter(row -> row.date() == null)
+				.filter(row -> row.day().equals(day))
+				.findFirst());
 	}
 
 	private static String dayName(DayOfWeek dayOfWeek) {
 		return DAYS.get(dayOfWeek.getValue() - 1);
 	}
 
-	private static TimeRange parseRange(String value) {
-		if (isBlank(value)) {
+	private static TimeRange toTimeRange(BusinessHoursTimeRange range) {
+		if (range == null || range.open() == null || range.close() == null) {
 			return null;
 		}
-		Matcher matcher = TIME_PATTERN.matcher(value);
-		List<LocalTime> times = new ArrayList<>();
-		while (matcher.find()) {
-			times.add(parseTime(matcher.group()));
-		}
-		if (times.size() < 2) {
-			return null;
-		}
-		LocalDate today = LocalDate.now(SEOUL_ZONE);
-		ZonedDateTime openAt = today.atTime(times.get(0)).atZone(SEOUL_ZONE);
-		return new TimeRange(openAt, closeAt(openAt, times.get(1)), false);
-	}
-
-	private static LocalTime parseTime(String value) {
-		if (isBlank(value)) {
-			return null;
-		}
-		Matcher matcher = TIME_PATTERN.matcher(value.trim());
-		if (!matcher.find()) {
-			return null;
-		}
-		int hour = Integer.parseInt(matcher.group(1));
-		String minuteGroup = matcher.group(2);
-		int minute = minuteGroup == null ? 0 : Integer.parseInt(minuteGroup);
-		if (hour == 24 && minute == 0) {
-			return LocalTime.MIDNIGHT;
-		}
-		if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
-			return null;
-		}
-		return LocalTime.of(hour, minute);
-	}
-
-	private static boolean isMidnightEndOfDay(String value) {
-		if (isBlank(value)) {
-			return false;
-		}
-		Matcher matcher = TIME_PATTERN.matcher(value.trim());
-		if (!matcher.find()) {
-			return false;
-		}
-		int hour = Integer.parseInt(matcher.group(1));
-		String minuteGroup = matcher.group(2);
-		int minute = minuteGroup == null ? 0 : Integer.parseInt(minuteGroup);
-		return hour == 24 && minute == 0;
-	}
-
-	private static String text(JsonNode node, String fieldName) {
-		JsonNode value = node.path(fieldName);
-		return value.isTextual() ? value.asText() : null;
-	}
-
-	private static String firstText(JsonNode node, String... fieldNames) {
-		for (String fieldName : fieldNames) {
-			String value = text(node, fieldName);
-			if (!isBlank(value)) {
-				return value;
-			}
-		}
-		return null;
+		LocalDate anchorDate = LocalDate.of(2000, 1, 1);
+		ZonedDateTime openAt = anchorDate.atTime(range.open()).atZone(SEOUL_ZONE);
+		return new TimeRange(openAt, closeAt(openAt, range.close()), false);
 	}
 
 	private static String formatTime(LocalTime time) {
@@ -458,6 +413,7 @@ public class BusinessHoursDisplayResolver {
 
 	private record DailyHours(
 			String day,
+			LocalDate date,
 			String raw,
 			LocalTime open,
 			LocalTime close,
@@ -482,7 +438,11 @@ public class BusinessHoursDisplayResolver {
 
 		boolean isOpen24Hours() {
 			String normalized = normalizeRaw();
-			return normalized.contains("24시간");
+			return normalized.contains("24시간")
+					|| (hasOpenClose()
+					&& open.equals(LocalTime.MIDNIGHT)
+					&& close.equals(LocalTime.MIDNIGHT)
+					&& closesAtEndOfDay);
 		}
 
 		String displayText() {

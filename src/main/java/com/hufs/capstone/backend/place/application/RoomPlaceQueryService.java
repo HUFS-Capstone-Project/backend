@@ -41,6 +41,7 @@ public class RoomPlaceQueryService {
 	private final RegionQueryService regionQueryService;
 	private final RoomPlaceResultMapper roomPlaceResultMapper;
 	private final RoomPlaceCursorPageAssembler cursorPageAssembler;
+	private final BusinessHoursDetailRefreshService businessHoursDetailRefreshService;
 
 	@Transactional(readOnly = true)
 	public CursorPageResult<RoomPlaceResult> searchRoomPlaces(
@@ -193,6 +194,7 @@ public class RoomPlaceQueryService {
 		Room room = roomAccessService.requireMemberRoom(roomId, userId);
 		RoomPlace roomPlace = roomPlaceRepository.findByIdAndRoomId(roomPlaceId, room.getId())
 				.orElseThrow(() -> new BusinessException(ErrorCode.ROOM_PLACE_NOT_FOUND));
+		businessHoursDetailRefreshService.requestIfNeeded(roomPlace);
 		return roomPlaceResultMapper.toRoomPlaceResult(roomPlace, userId);
 	}
 

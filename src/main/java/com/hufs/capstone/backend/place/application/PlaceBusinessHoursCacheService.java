@@ -8,6 +8,7 @@ import com.hufs.capstone.backend.place.domain.enums.BusinessHoursRequestStatus;
 import com.hufs.capstone.backend.place.domain.enums.BusinessHoursStatus;
 import com.hufs.capstone.backend.place.domain.repository.PlaceBusinessHoursRepository;
 import jakarta.persistence.OptimisticLockException;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.Collection;
@@ -30,6 +31,8 @@ public class PlaceBusinessHoursCacheService {
 	private final PlaceBusinessHoursRepository placeBusinessHoursRepository;
 	private final PlatformTransactionManager transactionManager;
 	private final ObjectMapper objectMapper;
+	private final BusinessHoursProperties businessHoursProperties;
+	private final Clock clock;
 
 	public void upsertRemotePlace(BusinessHoursPlaceResponse place, BusinessHoursRequestStatus requestStatus) {
 		upsertRemotePlace(place, null, requestStatus);
@@ -44,14 +47,22 @@ public class PlaceBusinessHoursCacheService {
 			return;
 		}
 		String businessHoursJson = serializeBusinessHours(place);
-		retryUpsert(() -> upsertRemotePlaceOnce(place, businessHoursJson, businessHoursJobId, requestStatus));
+		Instant expiresAt = remoteOrInProgressExpiry(place);
+		retryUpsert(() -> upsertRemotePlaceOnce(
+				place,
+				businessHoursJson,
+				expiresAt,
+				businessHoursJobId,
+				requestStatus
+		));
 	}
 
 	public void markFailed(BusinessHoursRequestedEvent event, String lastError) {
 		retryUpsert(() -> updateOnce(event.kakaoPlaceId(), cache -> cache.markFailed(
 				event.placeUrl(),
 				event.placeName(),
-				lastError
+				lastError,
+				clock.instant().plus(businessHoursProperties.detailRefresh().failureCooldown())
 		), event.placeUrl(), event.placeName()));
 	}
 
@@ -80,9 +91,19 @@ public class PlaceBusinessHoursCacheService {
 		return updated != null && updated == 1;
 	}
 
+	private Instant remoteOrInProgressExpiry(BusinessHoursPlaceResponse place) {
+		Instant remoteExpiresAt = toInstant(place.businessHoursExpiresAt());
+		if (remoteExpiresAt != null || (place.businessHoursStatus() != BusinessHoursStatus.PENDING
+				&& place.businessHoursStatus() != BusinessHoursStatus.FETCHING)) {
+			return remoteExpiresAt;
+		}
+		return clock.instant().plus(businessHoursProperties.detailRefresh().jobTimeout());
+	}
+
 	private void upsertRemotePlaceOnce(
 			BusinessHoursPlaceResponse place,
 			String businessHoursJson,
+			Instant effectiveExpiresAt,
 			String businessHoursJobId,
 			BusinessHoursRequestStatus requestStatus
 	) {
@@ -93,7 +114,7 @@ public class PlaceBusinessHoursCacheService {
 				null,
 				place.businessHoursStatus(),
 				toInstant(place.businessHoursFetchedAt()),
-				toInstant(place.businessHoursExpiresAt()),
+				effectiveExpiresAt,
 				null,
 				businessHoursJobId,
 				errorDetails(place),

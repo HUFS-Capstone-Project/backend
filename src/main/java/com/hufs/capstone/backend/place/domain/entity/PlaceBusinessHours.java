@@ -112,20 +112,55 @@ public class PlaceBusinessHours extends AuditableEntity {
 			BusinessHoursRequestStatus lastRequestStatus
 	) {
 		applyPlaceSnapshot(placeUrl, placeName);
-		this.businessHoursJson = businessHoursJson;
-		this.businessHoursRaw = trimToNull(businessHoursRaw);
+		if (businessHoursJson != null) {
+			this.businessHoursJson = businessHoursJson;
+			this.businessHoursRaw = trimToNull(businessHoursRaw);
+			this.businessHoursFetchedAt = businessHoursFetchedAt;
+			this.businessHoursExpiresAt = businessHoursExpiresAt;
+			this.businessHoursSource = trimToNull(businessHoursSource);
+		} else if (businessHoursStatus == BusinessHoursStatus.NOT_FOUND) {
+			clearBusinessHoursData(businessHoursFetchedAt, businessHoursExpiresAt, businessHoursSource);
+		} else if (businessHoursStatus == BusinessHoursStatus.PENDING
+				|| businessHoursStatus == BusinessHoursStatus.FETCHING) {
+			this.businessHoursExpiresAt = businessHoursExpiresAt;
+		} else if (businessHoursStatus == BusinessHoursStatus.SUCCEEDED && this.businessHoursJson == null) {
+			this.businessHoursFetchedAt = businessHoursFetchedAt;
+			this.businessHoursExpiresAt = businessHoursExpiresAt;
+			this.businessHoursSource = trimToNull(businessHoursSource);
+		}
 		this.businessHoursStatus = businessHoursStatus;
-		this.businessHoursFetchedAt = businessHoursFetchedAt;
-		this.businessHoursExpiresAt = businessHoursExpiresAt;
-		this.businessHoursSource = trimToNull(businessHoursSource);
 		this.businessHoursJobId = trimToNull(businessHoursJobId);
 		this.lastError = trimToNull(lastError);
 		this.lastRequestStatus = lastRequestStatus;
 	}
 
-	public void markFailed(String placeUrl, String placeName, String lastError) {
+	public void markRefreshRequested(String placeUrl, String placeName, Instant requestedAt, Instant timeoutAt) {
+		applyPlaceSnapshot(placeUrl, placeName);
+		this.businessHoursStatus = BusinessHoursStatus.PENDING;
+		this.businessHoursJobId = null;
+		this.lastRequestStatus = null;
+		this.lastError = null;
+		this.lastPolledAt = requestedAt;
+		this.businessHoursExpiresAt = timeoutAt;
+	}
+
+	private void clearBusinessHoursData(
+			Instant businessHoursFetchedAt,
+			Instant businessHoursExpiresAt,
+			String businessHoursSource
+	) {
+		this.businessHoursJson = null;
+		this.businessHoursRaw = null;
+		this.businessHoursFetchedAt = businessHoursFetchedAt;
+		this.businessHoursExpiresAt = businessHoursExpiresAt;
+		this.businessHoursSource = trimToNull(businessHoursSource);
+	}
+
+	public void markFailed(String placeUrl, String placeName, String lastError, Instant retryAt) {
 		applyPlaceSnapshot(placeUrl, placeName);
 		this.businessHoursStatus = BusinessHoursStatus.FAILED;
+		this.businessHoursJobId = null;
+		this.businessHoursExpiresAt = retryAt;
 		this.lastRequestStatus = BusinessHoursRequestStatus.FAILED;
 		this.lastError = trimToNull(lastError);
 	}

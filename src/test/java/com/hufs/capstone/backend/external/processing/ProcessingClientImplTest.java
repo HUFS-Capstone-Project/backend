@@ -208,7 +208,8 @@ class ProcessingClientImplTest {
 		String requestJson = objectMapper.writeValueAsString(new BusinessHoursJobCreateRequest(
 				"123",
 				"https://place.map.kakao.com/123",
-				"Coffee Mansion"
+				"Coffee Mansion",
+				java.time.LocalDate.of(2026, 5, 7)
 		));
 		BusinessHoursJobCreateResponse response = objectMapper.readValue("""
 				{
@@ -231,6 +232,7 @@ class ProcessingClientImplTest {
 		assertThat(requestJson).contains("\"kakao_place_id\":\"123\"");
 		assertThat(requestJson).contains("\"place_url\":\"https://place.map.kakao.com/123\"");
 		assertThat(requestJson).contains("\"place_name\":\"Coffee Mansion\"");
+		assertThat(requestJson).contains("\"required_date\":\"2026-05-07\"");
 		assertThat(response.cacheHit()).isFalse();
 		assertThat(response.job().jobId()).isEqualTo("job-1");
 		assertThat(response.job().status()).isEqualTo(BusinessHoursJobStatus.SUCCEEDED);

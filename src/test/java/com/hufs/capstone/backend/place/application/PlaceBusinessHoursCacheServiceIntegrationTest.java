@@ -20,6 +20,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
@@ -29,6 +30,7 @@ import org.springframework.test.context.ActiveProfiles;
 @SpringBootTest
 @ActiveProfiles("test")
 @AutoConfigureTestDatabase
+@Timeout(30)
 class PlaceBusinessHoursCacheServiceIntegrationTest {
 
 	@Autowired
@@ -59,6 +61,30 @@ class PlaceBusinessHoursCacheServiceIntegrationTest {
 		assertThat(cache.getBusinessHoursStatus()).isEqualTo(BusinessHoursStatus.SUCCEEDED);
 		assertThat(cache.getLastRequestStatus()).isEqualTo(BusinessHoursRequestStatus.FAILED);
 		assertThat(cache.getLastError()).isEqualTo("connect failed");
+	}
+
+	@Test
+	void shouldPreserveRemoteExpiryBecauseDailyFreshnessUsesFetchedDate() {
+		cacheService.upsertRemotePlace(successPlace(), "job-1", BusinessHoursRequestStatus.SUCCEEDED);
+
+		PlaceBusinessHours cache = repository.findByKakaoPlaceId("13298463").orElseThrow();
+		assertThat(cache.getBusinessHoursExpiresAt()).isEqualTo(Instant.parse("2026-05-21T10:00:03Z"));
+	}
+
+	@Test
+	void shouldPreserveLastSuccessfulPayloadWhileRefreshIsPending() {
+		cacheService.upsertRemotePlace(successPlace(), "job-1", BusinessHoursRequestStatus.SUCCEEDED);
+		String successfulJson = repository.findByKakaoPlaceId("13298463").orElseThrow().getBusinessHoursJson();
+
+		Instant requestedAfter = Instant.now();
+		cacheService.upsertRemotePlace(pendingPlace(), "job-2", BusinessHoursRequestStatus.SUCCEEDED);
+
+		PlaceBusinessHours cache = repository.findByKakaoPlaceId("13298463").orElseThrow();
+		assertThat(cache.getBusinessHoursStatus()).isEqualTo(BusinessHoursStatus.PENDING);
+		assertThat(cache.getBusinessHoursJson()).isEqualTo(successfulJson);
+		assertThat(cache.getBusinessHoursFetchedAt()).isEqualTo(Instant.parse("2026-05-07T10:00:03Z"));
+		assertThat(cache.getBusinessHoursExpiresAt()).isAfterOrEqualTo(requestedAfter.plusSeconds(14 * 60));
+		assertThat(cache.getBusinessHoursExpiresAt()).isBeforeOrEqualTo(Instant.now().plusSeconds(16 * 60));
 	}
 
 	@Test
@@ -127,6 +153,7 @@ class PlaceBusinessHoursCacheServiceIntegrationTest {
 				"13298463",
 				"https://place.map.kakao.com/13298463",
 				"Test Place",
+				java.time.LocalDate.of(2026, 5, 7),
 				false,
 				"test"
 		);

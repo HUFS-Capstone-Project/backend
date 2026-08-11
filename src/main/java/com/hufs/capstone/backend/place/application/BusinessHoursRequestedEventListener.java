@@ -11,6 +11,7 @@ import java.net.URI;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -18,6 +19,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 @Slf4j
 @Component
 @RequiredArgsConstructor
+@ConditionalOnProperty(prefix = "app.business-hours", name = "requests-enabled", havingValue = "true", matchIfMissing = true)
 public class BusinessHoursRequestedEventListener {
 
 	private static final String KAKAO_PLACE_HOST = "place.map.kakao.com";
@@ -26,7 +28,7 @@ public class BusinessHoursRequestedEventListener {
 	private final PlaceBusinessHoursCacheService placeBusinessHoursCacheService;
 
 	@Async(BusinessHoursAsyncConfig.BUSINESS_HOURS_TASK_EXECUTOR)
-	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
 	public void onBusinessHoursRequested(BusinessHoursRequestedEvent event) {
 		if (!isRequestable(event)) {
 			log.debug(
@@ -38,7 +40,12 @@ public class BusinessHoursRequestedEventListener {
 		}
 		try {
 			BusinessHoursJobCreateResponse response = processingBusinessHoursClient.createJob(
-					new BusinessHoursJobCreateRequest(event.kakaoPlaceId(), event.placeUrl(), event.placeName())
+					new BusinessHoursJobCreateRequest(
+							event.kakaoPlaceId(),
+							event.placeUrl(),
+							event.placeName(),
+							event.requiredDate()
+					)
 			);
 			applyCreateResponse(event, response);
 		} catch (ProcessingClientException ex) {
@@ -50,11 +57,7 @@ public class BusinessHoursRequestedEventListener {
 					event.kakaoPlaceId(),
 					ex
 			);
-			placeBusinessHoursCacheService.markRequestFailure(
-					event,
-					BusinessHoursRequestStatus.FAILED,
-					ex.getMessage()
-			);
+			placeBusinessHoursCacheService.markFailed(event, ex.getMessage());
 		}
 	}
 
@@ -82,11 +85,7 @@ public class BusinessHoursRequestedEventListener {
 
 	private void handleProcessingClientException(BusinessHoursRequestedEvent event, ProcessingClientException ex) {
 		if (ex.hasStatus(422)) {
-			placeBusinessHoursCacheService.markRequestFailure(
-					event,
-					BusinessHoursRequestStatus.INVALID_REQUEST,
-					errorMessage(ex)
-			);
+			placeBusinessHoursCacheService.markFailed(event, errorMessage(ex));
 			return;
 		}
 		if (ex.hasStatus(503) && isEnqueueFailed(ex)) {
@@ -102,6 +101,7 @@ public class BusinessHoursRequestedEventListener {
 	private static boolean isRequestable(BusinessHoursRequestedEvent event) {
 		return hasText(event.kakaoPlaceId())
 				&& hasText(event.placeUrl())
+				&& event.requiredDate() != null
 				&& hasKakaoPlaceHost(event.placeUrl());
 	}
 
