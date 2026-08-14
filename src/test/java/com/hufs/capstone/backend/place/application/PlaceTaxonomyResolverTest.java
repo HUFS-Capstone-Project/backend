@@ -3,6 +3,7 @@ package com.hufs.capstone.backend.place.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.hufs.capstone.backend.global.exception.BusinessException;
@@ -31,26 +32,31 @@ class PlaceTaxonomyResolverTest {
 	private PlaceTagRepository placeTagRepository;
 
 	private PlaceTaxonomyResolver resolver;
+	private PlaceTaxonomyCatalogProvider catalogProvider;
 	private PlaceCategory food;
 	private PlaceCategory cafe;
 	private PlaceCategory activity;
 
 	@BeforeEach
 	void setUp() {
-		resolver = new PlaceTaxonomyResolver(placeCategoryRepository, placeTagRepository);
+		catalogProvider = mock(PlaceTaxonomyCatalogProvider.class);
+		resolver = new PlaceTaxonomyResolver(placeCategoryRepository, placeTagRepository, catalogProvider);
 		food = category(1L, "FOOD", "음식점", 1);
 		cafe = category(2L, "CAFE", "카페", 2);
 		activity = category(3L, "ACTIVITY", "놀거리", 3);
 		lenient().when(placeCategoryRepository.findByCode("FOOD")).thenReturn(Optional.of(food));
 		lenient().when(placeCategoryRepository.findByCode("CAFE")).thenReturn(Optional.of(cafe));
 		lenient().when(placeCategoryRepository.findByCode("ACTIVITY")).thenReturn(Optional.of(activity));
+		lenient().when(placeCategoryRepository.getReferenceById(1L)).thenReturn(food);
+		lenient().when(placeCategoryRepository.getReferenceById(2L)).thenReturn(cafe);
+		lenient().when(placeCategoryRepository.getReferenceById(3L)).thenReturn(activity);
 	}
 
 	@Test
 	void shouldResolveFoodCategoryFromKakaoFoodGroup() {
 		PlaceTag japanese = tag(10L, food, "JAPANESE", "일식", 1);
 		PlaceTag misc = tag(11L, food, "MISC", "기타", 9);
-		when(placeTagRepository.findActiveTaxonomyTags()).thenReturn(List.of(japanese, misc));
+		stubCatalog(List.of(japanese, misc));
 
 		ResolvedPlaceTaxonomy result = resolver.resolve("FD6", "음식점 > 일식 > 돈까스");
 
@@ -63,7 +69,7 @@ class PlaceTaxonomyResolverTest {
 		PlaceTag bakery = tag(20L, cafe, "BAKERY", "제과,베이커리", 1);
 		PlaceTag coffeeDessert = tag(21L, cafe, "COFFEE_DESSERT", "커피·디저트", 2);
 		PlaceTag misc = tag(22L, cafe, "MISC", "기타", 9);
-		when(placeTagRepository.findActiveTaxonomyTags()).thenReturn(List.of(bakery, coffeeDessert, misc));
+		stubCatalog(List.of(bakery, coffeeDessert, misc));
 
 		ResolvedPlaceTaxonomy result = resolver.resolve("CE7", "음식점 > 카페 > 베이커리");
 
@@ -76,7 +82,7 @@ class PlaceTaxonomyResolverTest {
 		PlaceTag bakery = tag(20L, cafe, "BAKERY", "제과,베이커리", 1);
 		PlaceTag coffeeDessert = tag(21L, cafe, "COFFEE_DESSERT", "커피·디저트", 2);
 		PlaceTag misc = tag(22L, cafe, "MISC", "기타", 9);
-		when(placeTagRepository.findActiveTaxonomyTags()).thenReturn(List.of(bakery, coffeeDessert, misc));
+		stubCatalog(List.of(bakery, coffeeDessert, misc));
 
 		ResolvedPlaceTaxonomy confectionery = resolver.resolve("CE7", "카페 > 제과");
 		ResolvedPlaceTaxonomy bakeryResult = resolver.resolve("CE7", "카페 > 베이커리");
@@ -91,7 +97,7 @@ class PlaceTaxonomyResolverTest {
 		PlaceTag bakery = tag(20L, cafe, "BAKERY", "제과,베이커리", 1);
 		PlaceTag coffeeDessert = tag(21L, cafe, "COFFEE_DESSERT", "커피·디저트", 2);
 		PlaceTag misc = tag(22L, cafe, "MISC", "기타", 9);
-		when(placeTagRepository.findActiveTaxonomyTags()).thenReturn(List.of(bakery, coffeeDessert, misc));
+		stubCatalog(List.of(bakery, coffeeDessert, misc));
 
 		ResolvedPlaceTaxonomy result = resolver.resolve("FD6", "음식점 > 간식 > 제과,베이커리");
 
@@ -104,7 +110,7 @@ class PlaceTaxonomyResolverTest {
 		PlaceTag bakery = tag(20L, cafe, "BAKERY", "제과,베이커리", 1);
 		PlaceTag coffeeDessert = tag(21L, cafe, "COFFEE_DESSERT", "커피·디저트", 2);
 		PlaceTag misc = tag(22L, cafe, "MISC", "기타", 9);
-		when(placeTagRepository.findActiveTaxonomyTags()).thenReturn(List.of(bakery, coffeeDessert, misc));
+		stubCatalog(List.of(bakery, coffeeDessert, misc));
 
 		ResolvedPlaceTaxonomy plainCafe = resolver.resolve("CE7", "음식점 > 카페");
 		ResolvedPlaceTaxonomy coffeeShop = resolver.resolve("CE7", "음식점 > 카페 > 커피전문점");
@@ -118,7 +124,7 @@ class PlaceTaxonomyResolverTest {
 		PlaceTag bakery = tag(20L, cafe, "BAKERY", "제과,베이커리", 1);
 		PlaceTag coffeeDessert = tag(21L, cafe, "COFFEE_DESSERT", "커피·디저트", 2);
 		PlaceTag misc = tag(22L, cafe, "MISC", "기타", 9);
-		when(placeTagRepository.findActiveTaxonomyTags()).thenReturn(List.of(bakery, coffeeDessert, misc));
+		stubCatalog(List.of(bakery, coffeeDessert, misc));
 
 		ResolvedPlaceTaxonomy result = resolver.resolve("CE7", "음식점 > 카페 > 테마카페 > 고양이카페");
 
@@ -130,7 +136,7 @@ class PlaceTaxonomyResolverTest {
 	void shouldOverrideKakaoCafeBoardCafeToActivityBoardGameCafe() {
 		PlaceTag boardGameCafe = tag(30L, activity, "BOARD_GAME_CAFE", "BOARD_GAME_CAFE", 1);
 		PlaceTag misc = tag(31L, activity, "MISC", "MISC", 9);
-		when(placeTagRepository.findActiveTaxonomyTags()).thenReturn(List.of(boardGameCafe, misc));
+		stubCatalog(List.of(boardGameCafe, misc));
 
 		ResolvedPlaceTaxonomy result = resolver.resolve(
 				"CE7",
@@ -145,7 +151,7 @@ class PlaceTaxonomyResolverTest {
 	void shouldOverrideKakaoCafeComicCafeToActivityComicCafe() {
 		PlaceTag comicCafe = tag(30L, activity, "COMIC_CAFE", "COMIC_CAFE", 1);
 		PlaceTag misc = tag(31L, activity, "MISC", "MISC", 9);
-		when(placeTagRepository.findActiveTaxonomyTags()).thenReturn(List.of(comicCafe, misc));
+		stubCatalog(List.of(comicCafe, misc));
 
 		ResolvedPlaceTaxonomy result = resolver.resolve(
 				"CE7",
@@ -160,7 +166,7 @@ class PlaceTaxonomyResolverTest {
 	void shouldResolveActivityPhotoCategoryToPhotoStudioWhenNoTagNameMatches() {
 		PlaceTag photoStudio = tag(30L, activity, "PHOTO_STUDIO", "포토스튜디오", 1);
 		PlaceTag misc = tag(31L, activity, "MISC", "기타", 9);
-		when(placeTagRepository.findActiveTaxonomyTags()).thenReturn(List.of(photoStudio, misc));
+		stubCatalog(List.of(photoStudio, misc));
 
 		ResolvedPlaceTaxonomy result = resolver.resolve("CT1", "문화,예술 > 사진 > 즉석사진 > 인생네컷");
 
@@ -173,7 +179,7 @@ class PlaceTaxonomyResolverTest {
 		PlaceTag bakery = tag(20L, cafe, "BAKERY", "제과,베이커리", 1);
 		PlaceTag coffeeDessert = tag(21L, cafe, "COFFEE_DESSERT", "커피·디저트", 2);
 		PlaceTag misc = tag(22L, cafe, "MISC", "기타", 9);
-		when(placeTagRepository.findActiveTaxonomyTags()).thenReturn(List.of(bakery, coffeeDessert, misc));
+		stubCatalog(List.of(bakery, coffeeDessert, misc));
 
 		ResolvedPlaceTaxonomy result = resolver.resolve("CE7", "음식점 > 카페 > 사진카페");
 
@@ -185,7 +191,7 @@ class PlaceTaxonomyResolverTest {
 	void shouldFallbackToActivityCategoryWhenGroupIsUnknownOrMissing() {
 		PlaceTag park = tag(30L, activity, "PARK", "공원", 1);
 		PlaceTag misc = tag(31L, activity, "MISC", "기타", 9);
-		when(placeTagRepository.findActiveTaxonomyTags()).thenReturn(List.of(park, misc));
+		stubCatalog(List.of(park, misc));
 
 		ResolvedPlaceTaxonomy unknown = resolver.resolve("CT1", "여행 > 공원");
 		ResolvedPlaceTaxonomy missing = resolver.resolve(null, "문화시설 > 전시관");
@@ -201,7 +207,7 @@ class PlaceTaxonomyResolverTest {
 		PlaceTag boardGame = tag(40L, activity, "BOARD_GAME", "보드게임", 1);
 		PlaceTag boardGameCafe = tag(41L, activity, "BOARD_GAME_CAFE", "보드게임카페", 2);
 		PlaceTag misc = tag(42L, activity, "MISC", "기타", 9);
-		when(placeTagRepository.findActiveTaxonomyTags()).thenReturn(List.of(boardGame, boardGameCafe, misc));
+		stubCatalog(List.of(boardGame, boardGameCafe, misc));
 
 		ResolvedPlaceTaxonomy result = resolver.resolve(null, "놀거리 > 보드 게임-카페");
 
@@ -210,7 +216,7 @@ class PlaceTaxonomyResolverTest {
 
 	@Test
 	void shouldFailClearlyWhenFallbackMiscTagIsMissing() {
-		when(placeTagRepository.findActiveTaxonomyTags()).thenReturn(List.of(tag(50L, food, "KOREAN", "한식", 1)));
+		stubCatalog(List.of(tag(50L, food, "KOREAN", "한식", 1)));
 
 		assertThatThrownBy(() -> resolver.resolve("FD6", "음식점 > 한식"))
 				.isInstanceOf(BusinessException.class)
@@ -221,6 +227,26 @@ class PlaceTaxonomyResolverTest {
 		PlaceCategory category = PlaceCategory.create(code, name, sortOrder, true);
 		ReflectionTestUtils.setField(category, "id", id);
 		return category;
+	}
+
+	@Test
+	void shouldResolveCategoryWithTheSameOverrideRules() {
+		stubCatalog(List.of());
+
+		assertThat(resolver.resolveCategory("FD6", "음식점 > 한식").code()).isEqualTo("FOOD");
+		assertThat(resolver.resolveCategory("CE7", "카페 > 베이커리").code()).isEqualTo("CAFE");
+		assertThat(resolver.resolveCategory("FD6", "음식점 > 제과,베이커리").code()).isEqualTo("CAFE");
+		assertThat(resolver.resolveCategory(null, "문화시설 > 전시관").code()).isEqualTo("ACTIVITY");
+	}
+
+	private void stubCatalog(List<PlaceTag> tags) {
+		when(catalogProvider.getCatalog()).thenReturn(PlaceTaxonomyCatalog.from(
+				List.of(food, cafe, activity),
+				tags
+		));
+		for (PlaceTag tag : tags) {
+			lenient().when(placeTagRepository.getReferenceById(tag.getId())).thenReturn(tag);
+		}
 	}
 
 	private static PlaceTag tag(Long id, PlaceCategory category, String code, String name, int sortOrder) {

@@ -1,5 +1,6 @@
 package com.hufs.capstone.backend.place.infrastructure.seed;
 
+import com.hufs.capstone.backend.global.cache.ReferenceDataCacheInvalidator;
 import com.hufs.capstone.backend.place.domain.entity.PlaceCategory;
 import com.hufs.capstone.backend.place.domain.entity.PlaceTag;
 import com.hufs.capstone.backend.place.domain.entity.PlaceTagGroup;
@@ -30,6 +31,7 @@ public class PlaceTaxonomySeedDataInitializer implements ApplicationRunner {
 	private final PlaceCategoryRepository placeCategoryRepository;
 	private final PlaceTagGroupRepository placeTagGroupRepository;
 	private final PlaceTagRepository placeTagRepository;
+	private final ReferenceDataCacheInvalidator cacheInvalidator;
 
 	@Override
 	@Transactional
@@ -43,6 +45,7 @@ public class PlaceTaxonomySeedDataInitializer implements ApplicationRunner {
 		seedFoodTags(foodCategory);
 		seedCafeTags(cafeCategory);
 		seedActivityTags(activityCategory, activityGroups);
+		cacheInvalidator.clearPlaceTaxonomyCachesAfterCommit();
 	}
 
 	private PlaceCategory upsertCategory(String code, String name, int sortOrder) {

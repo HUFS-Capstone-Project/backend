@@ -4,16 +4,27 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.hufs.capstone.backend.global.cache.CacheNames;
+import com.hufs.capstone.backend.region.domain.repository.RegionSidoRepository;
+import com.hufs.capstone.backend.region.domain.repository.RegionSigunguRepository;
+import com.hufs.capstone.backend.region.infrastructure.seed.RegionSeedDataInitializer;
+import com.hufs.capstone.backend.region.infrastructure.seed.RegionSeedReadinessHealthIndicator;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.DefaultApplicationArguments;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
-@SpringBootTest
+@SpringBootTest(properties = {
+	"management.endpoint.health.probes.enabled=true",
+	"management.endpoint.health.group.readiness.include=readinessState,regionSeedReadiness"
+})
 @ActiveProfiles("test")
 @AutoConfigureMockMvc
 @AutoConfigureTestDatabase
@@ -21,6 +32,21 @@ class RegionControllerIntegrationTest {
 
 	@Autowired
 	private MockMvc mockMvc;
+
+	@Autowired
+	private CacheManager cacheManager;
+
+	@Autowired
+	private RegionSeedDataInitializer seedDataInitializer;
+
+	@Autowired
+	private RegionSeedReadinessHealthIndicator readiness;
+
+	@Autowired
+	private RegionSidoRepository regionSidoRepository;
+
+	@Autowired
+	private RegionSigunguRepository regionSigunguRepository;
 
 	@Test
 	@WithMockUser
@@ -55,5 +81,50 @@ class RegionControllerIntegrationTest {
 				.andExpect(jsonPath("$.detail").value("입력값을 확인해 주세요."))
 				.andExpect(jsonPath("$.fieldErrors[0].field").value("sidoCode"))
 				.andExpect(jsonPath("$.fieldErrors[0].message").value("유효하지 않은 시/도 코드입니다."));
+	}
+
+	@Test
+	void shouldKeepLivenessUpWhileRegionSeedReadinessIsClosed() throws Exception {
+		readiness.markSeeding();
+		try {
+			mockMvc.perform(get("/actuator/health/readiness"))
+					.andExpect(status().isServiceUnavailable());
+			mockMvc.perform(get("/actuator/health"))
+					.andExpect(status().isServiceUnavailable());
+			mockMvc.perform(get("/actuator/health/liveness"))
+					.andExpect(status().isOk());
+		} finally {
+			readiness.markReady();
+		}
+
+		mockMvc.perform(get("/actuator/health/readiness"))
+				.andExpect(status().isOk());
+	}
+
+	@Test
+	void shouldClearEveryRegionCacheAfterSeedCompletes() throws Exception {
+		for (String cacheName : CacheNames.REGION_CACHES) {
+			requireCache(cacheName).put("stale", "value");
+		}
+
+		seedDataInitializer.run(new DefaultApplicationArguments(new String[0]));
+
+		for (String cacheName : CacheNames.REGION_CACHES) {
+			assertCacheEntryWasCleared(cacheName);
+		}
+		org.assertj.core.api.Assertions.assertThat(regionSidoRepository.count()).isEqualTo(17L);
+		org.assertj.core.api.Assertions.assertThat(regionSigunguRepository.count()).isEqualTo(255L);
+	}
+
+	private Cache requireCache(String cacheName) {
+		Cache cache = cacheManager.getCache(cacheName);
+		if (cache == null) {
+			throw new IllegalStateException("Missing cache: " + cacheName);
+		}
+		return cache;
+	}
+
+	private void assertCacheEntryWasCleared(String cacheName) {
+		org.assertj.core.api.Assertions.assertThat(requireCache(cacheName).get("stale")).isNull();
 	}
 }

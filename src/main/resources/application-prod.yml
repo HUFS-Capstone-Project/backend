@@ -54,7 +54,7 @@ management:
         liveness:
           include: livenessState
         readiness:
-          include: readinessState
+          include: readinessState,regionSeedReadiness
   health:
     redis:
       enabled: ${MANAGEMENT_HEALTH_REDIS_ENABLED:false}
@@ -70,6 +70,12 @@ server:
         path: /
 
 app:
+  cache:
+    reference-data-ttl: ${REFERENCE_DATA_CACHE_TTL:24h}
+    link-analysis:
+      ttl: ${LINK_ANALYSIS_CACHE_TTL:2s}
+      maximum-size: ${LINK_ANALYSIS_CACHE_MAXIMUM_SIZE:10000}
+      wait-timeout: ${LINK_ANALYSIS_CACHE_WAIT_TIMEOUT:35s}
   scheduling:
     enabled: ${APP_SCHEDULING_ENABLED:true}
   region:

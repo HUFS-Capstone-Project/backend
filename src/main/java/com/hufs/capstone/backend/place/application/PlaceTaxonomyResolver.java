@@ -2,6 +2,8 @@ package com.hufs.capstone.backend.place.application;
 
 import com.hufs.capstone.backend.global.exception.BusinessException;
 import com.hufs.capstone.backend.global.exception.ErrorCode;
+import com.hufs.capstone.backend.place.application.PlaceTaxonomyCatalog.CategoryDefinition;
+import com.hufs.capstone.backend.place.application.PlaceTaxonomyCatalog.TagDefinition;
 import com.hufs.capstone.backend.place.application.dto.ResolvedPlaceCategory;
 import com.hufs.capstone.backend.place.application.dto.ResolvedPlaceTaxonomy;
 import com.hufs.capstone.backend.place.domain.KakaoCategoryGroupPolicy;
@@ -80,17 +82,19 @@ public class PlaceTaxonomyResolver {
 
 	private final PlaceCategoryRepository placeCategoryRepository;
 	private final PlaceTagRepository placeTagRepository;
+	private final PlaceTaxonomyCatalogProvider catalogProvider;
 
 	public ResolvedPlaceTaxonomy resolve(String kakaoCategoryGroupCode, String kakaoCategoryName) {
+		PlaceTaxonomyCatalog catalog = catalogProvider.getCatalog();
 		TaxonomyOverride override = resolveOverride(kakaoCategoryGroupCode, kakaoCategoryName);
 		String categoryCode = resolveCategoryCode(kakaoCategoryGroupCode, override);
-		PlaceCategory category = findCategory(categoryCode);
-		List<PlaceTag> activeTags = findActiveTags(category);
-		PlaceTag fallbackTag = activeTags.stream()
-				.filter(tag -> KakaoCategoryGroupPolicy.FALLBACK_TAG_CODE.equals(tag.getCode()))
+		CategoryDefinition category = findCategory(catalog, categoryCode);
+		List<TagDefinition> activeTags = catalog.tags(category.code());
+		TagDefinition fallbackTag = activeTags.stream()
+				.filter(tag -> KakaoCategoryGroupPolicy.FALLBACK_TAG_CODE.equals(tag.code()))
 				.findFirst()
 				.orElseThrow(() -> taxonomyConfigurationError("폴백 장소 태그가 없습니다: " + categoryCode + ".MISC"));
-		PlaceTag matchedTag;
+		TagDefinition matchedTag;
 		if (override == null) {
 			matchedTag = matchTag(kakaoCategoryName, activeTags, fallbackTag);
 			matchedTag = applyFallbackTagRules(
@@ -103,59 +107,67 @@ public class PlaceTaxonomyResolver {
 		} else {
 			matchedTag = findOverrideTag(activeTags, override);
 		}
-		return new ResolvedPlaceTaxonomy(category, matchedTag);
+		PlaceCategory categoryReference = placeCategoryRepository.getReferenceById(category.id());
+		PlaceTag tagReference = placeTagRepository.getReferenceById(matchedTag.id());
+		return new ResolvedPlaceTaxonomy(categoryReference, tagReference);
 	}
 
 	public ResolvedPlaceCategory resolveCategory(String kakaoCategoryGroupCode, String kakaoCategoryName) {
+		PlaceTaxonomyCatalog catalog = catalogProvider.getCatalog();
 		TaxonomyOverride override = resolveOverride(kakaoCategoryGroupCode, kakaoCategoryName);
-		return ResolvedPlaceCategory.from(findCategory(resolveCategoryCode(kakaoCategoryGroupCode, override)));
+		CategoryDefinition category = findCategory(
+				catalog,
+				resolveCategoryCode(kakaoCategoryGroupCode, override)
+		);
+		return new ResolvedPlaceCategory(category.code(), category.name());
 	}
 
-	private PlaceCategory findCategory(String categoryCode) {
-		return placeCategoryRepository.findByCode(categoryCode)
-				.orElseThrow(() -> taxonomyConfigurationError("장소 카테고리가 없습니다: " + categoryCode));
+	private CategoryDefinition findCategory(PlaceTaxonomyCatalog catalog, String categoryCode) {
+		CategoryDefinition category = catalog.category(categoryCode);
+		if (category == null) {
+			throw taxonomyConfigurationError("장소 카테고리가 없습니다: " + categoryCode);
+		}
+		return category;
 	}
 
-	private List<PlaceTag> findActiveTags(PlaceCategory category) {
-		return placeTagRepository.findActiveTaxonomyTags().stream()
-				.filter(tag -> category.getId().equals(tag.getCategory().getId()))
-				.toList();
-	}
-
-	private PlaceTag findOverrideTag(List<PlaceTag> activeTags, TaxonomyOverride override) {
+	private TagDefinition findOverrideTag(List<TagDefinition> activeTags, TaxonomyOverride override) {
 		return activeTags.stream()
-				.filter(tag -> override.tagCode().equals(tag.getCode()))
+				.filter(tag -> override.tagCode().equals(tag.code()))
 				.findFirst()
 				.orElseThrow(() -> taxonomyConfigurationError(
 						"오버라이드 장소 태그가 없습니다: " + override.categoryCode() + "." + override.tagCode()
 				));
 	}
 
-	private PlaceTag matchTag(String kakaoCategoryName, List<PlaceTag> activeTags, PlaceTag fallbackTag) {
+	private TagDefinition matchTag(
+			String kakaoCategoryName,
+			List<TagDefinition> activeTags,
+			TagDefinition fallbackTag
+	) {
 		String normalizedCategoryName = normalizeForMatch(kakaoCategoryName);
 		if (normalizedCategoryName == null) {
 			return fallbackTag;
 		}
 		return activeTags.stream()
-				.filter(tag -> !KakaoCategoryGroupPolicy.FALLBACK_TAG_CODE.equals(tag.getCode()))
+				.filter(tag -> !KakaoCategoryGroupPolicy.FALLBACK_TAG_CODE.equals(tag.code()))
 				.filter(tag -> {
-					return normalizedTagNameCandidates(tag.getName()).stream()
+					return normalizedTagNameCandidates(tag.name()).stream()
 							.anyMatch(normalizedCategoryName::contains);
 				})
 				.min(Comparator
-						.comparingInt((PlaceTag tag) -> tag.getName() == null ? 0 : tag.getName().length())
+						.comparingInt((TagDefinition tag) -> tag.name() == null ? 0 : tag.name().length())
 						.reversed()
-						.thenComparing(PlaceTag::getSortOrder, Comparator.nullsLast(Integer::compareTo))
-						.thenComparing(PlaceTag::getId, Comparator.nullsLast(Long::compareTo)))
+						.thenComparing(TagDefinition::sortOrder, Comparator.nullsLast(Integer::compareTo))
+						.thenComparing(TagDefinition::id, Comparator.nullsLast(Long::compareTo)))
 				.orElse(fallbackTag);
 	}
 
-	private PlaceTag applyFallbackTagRules(
+	private TagDefinition applyFallbackTagRules(
 			String categoryCode,
 			String kakaoCategoryName,
-			List<PlaceTag> activeTags,
-			PlaceTag fallbackTag,
-			PlaceTag matchedTag
+			List<TagDefinition> activeTags,
+			TagDefinition fallbackTag,
+			TagDefinition matchedTag
 	) {
 		if (matchedTag != fallbackTag
 				|| FALLBACK_TAG_RULES.stream().noneMatch(rule -> rule.supports(categoryCode))) {
@@ -169,7 +181,7 @@ public class PlaceTaxonomyResolver {
 			if (!rule.matches(categoryCode, normalizedCategoryName)) {
 				continue;
 			}
-			PlaceTag fallbackMatch = findTagByCode(activeTags, rule.tagCode());
+			TagDefinition fallbackMatch = findTagByCode(activeTags, rule.tagCode());
 			if (fallbackMatch != null) {
 				return fallbackMatch;
 			}
@@ -177,9 +189,9 @@ public class PlaceTaxonomyResolver {
 		return matchedTag;
 	}
 
-	private static PlaceTag findTagByCode(List<PlaceTag> activeTags, String tagCode) {
+	private static TagDefinition findTagByCode(List<TagDefinition> activeTags, String tagCode) {
 		return activeTags.stream()
-				.filter(tag -> tagCode.equals(tag.getCode()))
+				.filter(tag -> tagCode.equals(tag.code()))
 				.findFirst()
 				.orElse(null);
 	}

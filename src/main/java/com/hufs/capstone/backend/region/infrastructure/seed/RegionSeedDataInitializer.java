@@ -1,5 +1,6 @@
 package com.hufs.capstone.backend.region.infrastructure.seed;
 
+import com.hufs.capstone.backend.global.cache.ReferenceDataCacheInvalidator;
 import com.hufs.capstone.backend.region.domain.entity.RegionSido;
 import com.hufs.capstone.backend.region.domain.entity.RegionSigungu;
 import com.hufs.capstone.backend.region.domain.repository.RegionSidoRepository;
@@ -10,7 +11,9 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
@@ -35,11 +38,15 @@ public class RegionSeedDataInitializer implements ApplicationRunner {
 	// Source basis: MOIS standard code system 법정동코드목록조회, using active sido/sigungu legal-dong codes.
 	private static final String TYPE_SIDO = "SIDO";
 	private static final String TYPE_SIGUNGU = "SIGUNGU";
+	private static final int EXPECTED_SIDO_COUNT = 17;
+	private static final int EXPECTED_SIGUNGU_COUNT = 255;
 
 	private final RegionSidoRepository regionSidoRepository;
 	private final RegionSigunguRepository regionSigunguRepository;
 	private final TransactionTemplate transactionTemplate;
 	private final ThreadPoolTaskExecutor seedTaskExecutor;
+	private final ReferenceDataCacheInvalidator cacheInvalidator;
+	private final RegionSeedReadinessHealthIndicator readiness;
 	private final boolean async;
 	private final AtomicBoolean shutdownRequested = new AtomicBoolean();
 
@@ -51,22 +58,37 @@ public class RegionSeedDataInitializer implements ApplicationRunner {
 			TransactionTemplate transactionTemplate,
 			@Qualifier(RegionSeedAsyncConfig.REGION_SEED_TASK_EXECUTOR)
 			ThreadPoolTaskExecutor seedTaskExecutor,
+			ReferenceDataCacheInvalidator cacheInvalidator,
+			RegionSeedReadinessHealthIndicator readiness,
 			@Value("${app.region.seed.async:false}") boolean async
 	) {
 		this.regionSidoRepository = regionSidoRepository;
 		this.regionSigunguRepository = regionSigunguRepository;
 		this.transactionTemplate = transactionTemplate;
 		this.seedTaskExecutor = seedTaskExecutor;
+		this.cacheInvalidator = cacheInvalidator;
+		this.readiness = readiness;
 		this.async = async;
 	}
 
 	@Override
 	public void run(ApplicationArguments args) throws IOException {
+		readiness.markSeeding();
 		if (async) {
-			seedTask = seedTaskExecutor.submit(this::seedAsync);
+			try {
+				seedTask = seedTaskExecutor.submit(this::seedAsync);
+			} catch (RuntimeException exception) {
+				readiness.markFailed();
+				throw exception;
+			}
 			return;
 		}
-		seed();
+		try {
+			completeSeed();
+		} catch (IOException | RuntimeException exception) {
+			readiness.markFailed();
+			throw exception;
+		}
 	}
 
 	@EventListener(ContextClosedEvent.class)
@@ -80,7 +102,7 @@ public class RegionSeedDataInitializer implements ApplicationRunner {
 
 	private void seedAsync() {
 		try {
-			if (seed()) {
+			if (completeSeed()) {
 				log.info("Region seed initialization completed.");
 			}
 		} catch (IOException | RuntimeException exception) {
@@ -88,12 +110,23 @@ public class RegionSeedDataInitializer implements ApplicationRunner {
 				log.info("Region seed initialization stopped because application shutdown started.");
 				return;
 			}
+			readiness.markFailed();
 			log.error("Region seed initialization failed.", exception);
 		}
 	}
 
+	private boolean completeSeed() throws IOException {
+		if (!seed()) {
+			return false;
+		}
+		cacheInvalidator.clearRegionCaches();
+		readiness.markReady();
+		return true;
+	}
+
 	private boolean seed() throws IOException {
 		List<SeedRow> rows = readRows();
+		validateRows(rows);
 		List<SeedRow> sidoRows = rows.stream()
 				.filter(row -> TYPE_SIDO.equals(row.type()))
 				.toList();
@@ -105,6 +138,42 @@ public class RegionSeedDataInitializer implements ApplicationRunner {
 				.filter(row -> TYPE_SIGUNGU.equals(row.type()))
 				.toList();
 		return seedRows(sigunguRows, this::upsertSigungu);
+	}
+
+	private static void validateRows(List<SeedRow> rows) {
+		List<SeedRow> sidoRows = rows.stream().filter(row -> TYPE_SIDO.equals(row.type())).toList();
+		List<SeedRow> sigunguRows = rows.stream().filter(row -> TYPE_SIGUNGU.equals(row.type())).toList();
+		if (sidoRows.size() != EXPECTED_SIDO_COUNT || sigunguRows.size() != EXPECTED_SIGUNGU_COUNT) {
+			throw new IllegalStateException(
+					"Region seed must contain exactly " + EXPECTED_SIDO_COUNT + " SIDO and "
+							+ EXPECTED_SIGUNGU_COUNT + " SIGUNGU rows"
+			);
+		}
+		if (rows.size() != sidoRows.size() + sigunguRows.size()) {
+			throw new IllegalStateException("Region seed contains an unsupported row type");
+		}
+
+		Set<String> sidoCodes = new HashSet<>();
+		for (SeedRow sido : sidoRows) {
+			if (!sidoCodes.add(sido.code())) {
+				throw new IllegalStateException("Duplicate SIDO code in region seed: " + sido.code());
+			}
+			if (sido.sidoCode() != null) {
+				throw new IllegalStateException("SIDO row must not have a parent code: " + sido.code());
+			}
+		}
+
+		Set<String> sigunguCodes = new HashSet<>();
+		for (SeedRow sigungu : sigunguRows) {
+			if (!sigunguCodes.add(sigungu.code())) {
+				throw new IllegalStateException("Duplicate SIGUNGU code in region seed: " + sigungu.code());
+			}
+			if (!sidoCodes.contains(sigungu.sidoCode())) {
+				throw new IllegalStateException(
+						"SIGUNGU row has an unknown SIDO code: " + sigungu.code() + " -> " + sigungu.sidoCode()
+				);
+			}
+		}
 	}
 
 	private boolean seedRows(List<SeedRow> rows, Consumer<SeedRow> upsert) {

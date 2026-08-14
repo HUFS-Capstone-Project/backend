@@ -1,6 +1,7 @@
 package com.hufs.capstone.backend.region.application.impl;
 
 import com.hufs.capstone.backend.global.exception.FieldValidationException;
+import com.hufs.capstone.backend.global.cache.CacheNames;
 import com.hufs.capstone.backend.region.application.RegionQueryService;
 import com.hufs.capstone.backend.region.application.dto.RegionFilter;
 import com.hufs.capstone.backend.region.application.dto.RegionOptionResult;
@@ -28,7 +29,7 @@ public class RegionQueryServiceImpl implements RegionQueryService {
 
 	@Override
 	@Transactional(readOnly = true)
-	@Cacheable(cacheNames = "regionSidos", key = "'all'")
+	@Cacheable(cacheNames = CacheNames.REGION_SIDOS, key = "'all'", sync = true)
 	public List<RegionOptionResult> getSidos() {
 		List<RegionSido> sidos = regionSidoRepository.findAllByActiveTrueOrderByDisplayOrderAscCodeAsc();
 		List<RegionOptionResult> results = new ArrayList<>(sidos.size() + 1);
@@ -41,7 +42,7 @@ public class RegionQueryServiceImpl implements RegionQueryService {
 
 	@Override
 	@Transactional(readOnly = true)
-	@Cacheable(cacheNames = "regionSigungus", key = "#sidoCode")
+	@Cacheable(cacheNames = CacheNames.REGION_SIGUNGUS, key = "#sidoCode == null ? null : #sidoCode.trim()", sync = true)
 	public List<RegionOptionResult> getSigungus(String sidoCode) {
 		String normalizedSidoCode = normalize(sidoCode);
 		RegionSido sido = regionSidoRepository.findByCodeAndActiveTrue(normalizedSidoCode)

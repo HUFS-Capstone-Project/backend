@@ -1,5 +1,6 @@
 package com.hufs.capstone.backend.place.application.impl;
 
+import com.hufs.capstone.backend.global.cache.CacheNames;
 import com.hufs.capstone.backend.place.application.PlaceTaxonomyQueryService;
 import com.hufs.capstone.backend.place.application.dto.PlaceTaxonomyCategoryResult;
 import com.hufs.capstone.backend.place.application.dto.PlaceTaxonomyResult;
@@ -38,7 +39,7 @@ public class PlaceTaxonomyQueryServiceImpl implements PlaceTaxonomyQueryService 
 
 	@Override
 	@Transactional(readOnly = true)
-	@Cacheable(cacheNames = "placeTaxonomy", key = "'all'")
+	@Cacheable(cacheNames = CacheNames.PLACE_TAXONOMY_RESPONSE, key = "'all'", sync = true)
 	public PlaceTaxonomyResult getPlaceTaxonomy() {
 		List<PlaceCategory> categories = placeCategoryRepository.findActiveCategories();
 		List<PlaceTag> tags = placeTagRepository.findActiveTaxonomyTags();
