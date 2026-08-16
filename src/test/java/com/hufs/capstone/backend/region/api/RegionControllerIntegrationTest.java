@@ -1,5 +1,6 @@
 package com.hufs.capstone.backend.region.api;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -8,7 +9,6 @@ import com.hufs.capstone.backend.global.cache.CacheNames;
 import com.hufs.capstone.backend.region.domain.repository.RegionSidoRepository;
 import com.hufs.capstone.backend.region.domain.repository.RegionSigunguRepository;
 import com.hufs.capstone.backend.region.infrastructure.seed.RegionSeedDataInitializer;
-import com.hufs.capstone.backend.region.infrastructure.seed.RegionSeedReadinessHealthIndicator;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.DefaultApplicationArguments;
@@ -23,7 +23,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest(properties = {
 	"management.endpoint.health.probes.enabled=true",
-	"management.endpoint.health.group.readiness.include=readinessState,regionSeedReadiness"
+	"management.endpoint.health.group.readiness.include=readinessState"
 })
 @ActiveProfiles("test")
 @AutoConfigureMockMvc
@@ -38,9 +38,6 @@ class RegionControllerIntegrationTest {
 
 	@Autowired
 	private RegionSeedDataInitializer seedDataInitializer;
-
-	@Autowired
-	private RegionSeedReadinessHealthIndicator readiness;
 
 	@Autowired
 	private RegionSidoRepository regionSidoRepository;
@@ -84,20 +81,12 @@ class RegionControllerIntegrationTest {
 	}
 
 	@Test
-	void shouldKeepLivenessUpWhileRegionSeedReadinessIsClosed() throws Exception {
-		readiness.markSeeding();
-		try {
-			mockMvc.perform(get("/actuator/health/readiness"))
-					.andExpect(status().isServiceUnavailable());
-			mockMvc.perform(get("/actuator/health"))
-					.andExpect(status().isServiceUnavailable());
-			mockMvc.perform(get("/actuator/health/liveness"))
-					.andExpect(status().isOk());
-		} finally {
-			readiness.markReady();
-		}
-
+	void shouldReportReadyAfterSynchronousRegionSeedCompletes() throws Exception {
+		assertThat(regionSidoRepository.count()).isEqualTo(17L);
+		assertThat(regionSigunguRepository.count()).isEqualTo(255L);
 		mockMvc.perform(get("/actuator/health/readiness"))
+				.andExpect(status().isOk());
+		mockMvc.perform(get("/actuator/health/liveness"))
 				.andExpect(status().isOk());
 	}
 
@@ -112,8 +101,8 @@ class RegionControllerIntegrationTest {
 		for (String cacheName : CacheNames.REGION_CACHES) {
 			assertCacheEntryWasCleared(cacheName);
 		}
-		org.assertj.core.api.Assertions.assertThat(regionSidoRepository.count()).isEqualTo(17L);
-		org.assertj.core.api.Assertions.assertThat(regionSigunguRepository.count()).isEqualTo(255L);
+		assertThat(regionSidoRepository.count()).isEqualTo(17L);
+		assertThat(regionSigunguRepository.count()).isEqualTo(255L);
 	}
 
 	private Cache requireCache(String cacheName) {
@@ -125,6 +114,6 @@ class RegionControllerIntegrationTest {
 	}
 
 	private void assertCacheEntryWasCleared(String cacheName) {
-		org.assertj.core.api.Assertions.assertThat(requireCache(cacheName).get("stale")).isNull();
+		assertThat(requireCache(cacheName).get("stale")).isNull();
 	}
 }

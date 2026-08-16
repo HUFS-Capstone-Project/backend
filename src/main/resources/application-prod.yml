@@ -54,7 +54,7 @@ management:
         liveness:
           include: livenessState
         readiness:
-          include: readinessState,regionSeedReadiness
+          include: readinessState
   health:
     redis:
       enabled: ${MANAGEMENT_HEALTH_REDIS_ENABLED:false}
@@ -78,9 +78,6 @@ app:
       wait-timeout: ${LINK_ANALYSIS_CACHE_WAIT_TIMEOUT:35s}
   scheduling:
     enabled: ${APP_SCHEDULING_ENABLED:true}
-  region:
-    seed:
-      async: ${REGION_SEED_ASYNC:true}
   business-hours:
     requests-enabled: ${BUSINESS_HOURS_REQUESTS_ENABLED:true}
     polling:
