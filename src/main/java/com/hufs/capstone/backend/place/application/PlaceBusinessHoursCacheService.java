@@ -11,7 +11,6 @@ import jakarta.persistence.OptimisticLockException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.OffsetDateTime;
-import java.util.Collection;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -81,13 +80,12 @@ public class PlaceBusinessHoursCacheService {
 
 	public boolean claimPolling(
 			Long cacheId,
-			Collection<BusinessHoursStatus> statuses,
 			Instant dueBefore,
 			Instant claimedAt
 	) {
 		TransactionTemplate transactionTemplate = requiresNewTransactionTemplate();
 		Integer updated = transactionTemplate.execute(status ->
-				placeBusinessHoursRepository.claimPollable(cacheId, statuses, dueBefore, claimedAt));
+				placeBusinessHoursRepository.claimPollable(cacheId, dueBefore, claimedAt));
 		return updated != null && updated == 1;
 	}
 

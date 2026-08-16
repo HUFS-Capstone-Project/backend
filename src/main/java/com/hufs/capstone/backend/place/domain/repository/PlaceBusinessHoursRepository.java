@@ -1,7 +1,6 @@
 package com.hufs.capstone.backend.place.domain.repository;
 
 import com.hufs.capstone.backend.place.domain.entity.PlaceBusinessHours;
-import com.hufs.capstone.backend.place.domain.enums.BusinessHoursStatus;
 import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.util.Collection;
@@ -27,17 +26,16 @@ public interface PlaceBusinessHoursRepository extends JpaRepository<PlaceBusines
 	@Query("""
 			select pbh
 			from PlaceBusinessHours pbh
-			where pbh.businessHoursStatus in :statuses
+			where pbh.businessHoursStatus in (
+			    com.hufs.capstone.backend.place.domain.enums.BusinessHoursStatus.PENDING,
+			    com.hufs.capstone.backend.place.domain.enums.BusinessHoursStatus.FETCHING
+			)
 			  and pbh.businessHoursJobId is not null
 			  and pbh.businessHoursJobId <> ''
-			  and (
-			      (pbh.lastPolledAt is null and pbh.updatedAt <= :dueBefore)
-			      or pbh.lastPolledAt <= :dueBefore
-			  )
-			order by pbh.updatedAt asc, pbh.id asc
+			  and coalesce(pbh.lastPolledAt, pbh.updatedAt) <= :dueBefore
+			order by coalesce(pbh.lastPolledAt, pbh.updatedAt) asc, pbh.id asc
 			""")
 	List<PlaceBusinessHours> findPollable(
-			@Param("statuses") Collection<BusinessHoursStatus> statuses,
 			@Param("dueBefore") Instant dueBefore,
 			Pageable pageable
 	);
@@ -47,17 +45,16 @@ public interface PlaceBusinessHoursRepository extends JpaRepository<PlaceBusines
 			update PlaceBusinessHours pbh
 			set pbh.lastPolledAt = :claimedAt
 			where pbh.id = :id
-			  and pbh.businessHoursStatus in :statuses
+			  and pbh.businessHoursStatus in (
+			      com.hufs.capstone.backend.place.domain.enums.BusinessHoursStatus.PENDING,
+			      com.hufs.capstone.backend.place.domain.enums.BusinessHoursStatus.FETCHING
+			  )
 			  and pbh.businessHoursJobId is not null
 			  and pbh.businessHoursJobId <> ''
-			  and (
-			      (pbh.lastPolledAt is null and pbh.updatedAt <= :dueBefore)
-			      or pbh.lastPolledAt <= :dueBefore
-			  )
+			  and coalesce(pbh.lastPolledAt, pbh.updatedAt) <= :dueBefore
 			""")
 	int claimPollable(
 			@Param("id") Long id,
-			@Param("statuses") Collection<BusinessHoursStatus> statuses,
 			@Param("dueBefore") Instant dueBefore,
 			@Param("claimedAt") Instant claimedAt
 	);

@@ -6,12 +6,10 @@ import com.hufs.capstone.backend.external.processing.dto.BusinessHoursJobLookupR
 import com.hufs.capstone.backend.external.processing.dto.BusinessHoursJobStatus;
 import com.hufs.capstone.backend.place.domain.entity.PlaceBusinessHours;
 import com.hufs.capstone.backend.place.domain.enums.BusinessHoursRequestStatus;
-import com.hufs.capstone.backend.place.domain.enums.BusinessHoursStatus;
 import com.hufs.capstone.backend.place.domain.repository.PlaceBusinessHoursRepository;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.EnumSet;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,9 +25,6 @@ import org.springframework.stereotype.Component;
 public class BusinessHoursPollingScheduler {
 	private static final ZoneId SEOUL_ZONE = ZoneId.of("Asia/Seoul");
 
-	private static final EnumSet<BusinessHoursStatus> POLLABLE_STATUSES =
-			EnumSet.of(BusinessHoursStatus.PENDING, BusinessHoursStatus.FETCHING);
-
 	private final BusinessHoursProperties businessHoursProperties;
 	private final PlaceBusinessHoursRepository placeBusinessHoursRepository;
 	private final ProcessingBusinessHoursClient processingBusinessHoursClient;
@@ -40,7 +35,6 @@ public class BusinessHoursPollingScheduler {
 		Instant now = Instant.now();
 		Instant dueBefore = now.minus(businessHoursProperties.polling().interval());
 		List<PlaceBusinessHours> pollableRows = placeBusinessHoursRepository.findPollable(
-				POLLABLE_STATUSES,
 				dueBefore,
 				PageRequest.of(0, businessHoursProperties.polling().batchSize())
 		);
@@ -50,7 +44,7 @@ public class BusinessHoursPollingScheduler {
 	}
 
 	private void pollOne(PlaceBusinessHours row, Instant now, Instant dueBefore) {
-		if (!placeBusinessHoursCacheService.claimPolling(row.getId(), POLLABLE_STATUSES, dueBefore, now)) {
+		if (!placeBusinessHoursCacheService.claimPolling(row.getId(), dueBefore, now)) {
 			return;
 		}
 		if (row.getBusinessHoursExpiresAt() != null && !row.getBusinessHoursExpiresAt().isAfter(now)) {

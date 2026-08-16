@@ -86,6 +86,49 @@ class RoomPlaceSearchRepositoryTest {
 		assertThat(roomPlaces).filteredOn(roomPlace -> roomPlace.getOriginRoomLinkId() != null).hasSize(1);
 	}
 
+	@Test
+	void shouldReturnOnlyTheLatestAccessibleRoomPlaceForTheSamePlace() {
+		RoomPlace firstSaved = repository.findById(roomPlaceIds.get(0)).orElseThrow();
+		Room newerRoom = entityManager.persist(Room.create(
+				UUID.randomUUID().toString(),
+				"Newer Room",
+				UUID.randomUUID().toString().replace("-", ""),
+				USER_ID
+		));
+		entityManager.persist(RoomMember.join(newerRoom, USER_ID));
+		PlaceSnapshot snapshot = PlaceSnapshot.kakao(
+				firstSaved.getKakaoPlaceId(),
+				"Latest saved place",
+				"Food > Korean",
+				"FD6",
+				null,
+				"Seoul Mapo-gu",
+				"Seoul Mapo-gu",
+				null,
+				null,
+				"https://place.map.kakao.com/" + firstSaved.getKakaoPlaceId()
+		);
+		RoomPlace latestSaved = entityManager.persist(RoomPlace.create(
+				newerRoom,
+				firstSaved.getPlace(),
+				USER_ID,
+				RoomPlaceAddedVia.EXTERNAL_SEARCH,
+				null,
+				snapshot,
+				REGION
+		));
+		entityManager.flush();
+		entityManager.clear();
+
+		List<RoomPlace> result = repository.searchMyRoomPlacesAfterCursor(
+				USER_ID, null, null, null, null, null, null, null, 10
+		);
+
+		assertThat(result).extracting(RoomPlace::getId)
+				.contains(latestSaved.getId(), roomPlaceIds.get(1))
+				.doesNotContain(firstSaved.getId());
+	}
+
 	private RoomPlace persistRoomPlace(
 			Room room,
 			PlaceCategory category,

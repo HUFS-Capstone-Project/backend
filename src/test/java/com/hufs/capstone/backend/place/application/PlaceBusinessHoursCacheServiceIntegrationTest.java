@@ -8,9 +8,9 @@ import com.hufs.capstone.backend.place.domain.entity.PlaceBusinessHours;
 import com.hufs.capstone.backend.place.domain.enums.BusinessHoursRequestStatus;
 import com.hufs.capstone.backend.place.domain.enums.BusinessHoursStatus;
 import com.hufs.capstone.backend.place.domain.repository.PlaceBusinessHoursRepository;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.OffsetDateTime;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
@@ -25,6 +25,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest
@@ -41,6 +42,9 @@ class PlaceBusinessHoursCacheServiceIntegrationTest {
 
 	@Autowired
 	private ObjectMapper objectMapper;
+
+	@Autowired
+	private JdbcTemplate jdbcTemplate;
 
 	@AfterEach
 	void tearDown() {
@@ -103,12 +107,10 @@ class PlaceBusinessHoursCacheServiceIntegrationTest {
 		cacheService.upsertRemotePlace(pendingPlace(), "job-1", BusinessHoursRequestStatus.SUCCEEDED);
 
 		List<PlaceBusinessHours> tooEarly = repository.findPollable(
-				EnumSet.of(BusinessHoursStatus.PENDING, BusinessHoursStatus.FETCHING),
 				Instant.now().minusSeconds(60),
 				PageRequest.of(0, 10)
 		);
 		List<PlaceBusinessHours> due = repository.findPollable(
-				EnumSet.of(BusinessHoursStatus.PENDING, BusinessHoursStatus.FETCHING),
 				Instant.now().plusSeconds(1),
 				PageRequest.of(0, 10)
 		);
@@ -116,6 +118,37 @@ class PlaceBusinessHoursCacheServiceIntegrationTest {
 		assertThat(tooEarly).isEmpty();
 		assertThat(due).hasSize(1);
 		assertThat(due.get(0).getBusinessHoursJobId()).isEqualTo("job-1");
+	}
+
+	@Test
+	void shouldPrioritizeTheRowWithTheOldestEffectivePollTime() {
+		Instant now = Instant.parse("2026-08-16T12:00:00Z");
+		cacheService.upsertRemotePlace(pendingPlace("recently-polled"), "job-recent", BusinessHoursRequestStatus.SUCCEEDED);
+		cacheService.upsertRemotePlace(pendingPlace("most-overdue"), "job-overdue", BusinessHoursRequestStatus.SUCCEEDED);
+
+		updatePollingTimes("recently-polled", now.minusSeconds(7_200), now.minusSeconds(300));
+		updatePollingTimes("most-overdue", now.minusSeconds(3_600), now.minusSeconds(1_800));
+
+		List<PlaceBusinessHours> result = repository.findPollable(
+				now.minusSeconds(60),
+				PageRequest.of(0, 1)
+		);
+
+		assertThat(result).extracting(PlaceBusinessHours::getKakaoPlaceId).containsExactly("most-overdue");
+	}
+
+	@Test
+	void shouldAllowOnlyOneClaimWithinTheSamePollingWindow() {
+		Instant now = Instant.parse("2026-08-16T12:00:00Z");
+		cacheService.upsertRemotePlace(pendingPlace("claim-once"), "job-claim", BusinessHoursRequestStatus.SUCCEEDED);
+		updatePollingTimes("claim-once", now.minusSeconds(600), now.minusSeconds(600));
+		Long cacheId = repository.findByKakaoPlaceId("claim-once").orElseThrow().getId();
+
+		boolean firstClaim = cacheService.claimPolling(cacheId, now.minusSeconds(60), now);
+		boolean duplicateClaim = cacheService.claimPolling(cacheId, now.minusSeconds(60), now.plusSeconds(1));
+
+		assertThat(firstClaim).isTrue();
+		assertThat(duplicateClaim).isFalse();
 	}
 
 	private BusinessHoursPlaceResponse successPlace() {
@@ -133,16 +166,33 @@ class PlaceBusinessHoursCacheServiceIntegrationTest {
 	}
 
 	private BusinessHoursPlaceResponse pendingPlace() {
+		return pendingPlace("13298463");
+	}
+
+	private BusinessHoursPlaceResponse pendingPlace(String kakaoPlaceId) {
 		return new BusinessHoursPlaceResponse(
-				"13298463",
+				kakaoPlaceId,
 				"Test Place",
-				"https://place.map.kakao.com/13298463",
+				"https://place.map.kakao.com/" + kakaoPlaceId,
 				BusinessHoursStatus.PENDING,
 				null,
 				null,
 				null,
 				null,
 				null
+		);
+	}
+
+	private void updatePollingTimes(String kakaoPlaceId, Instant updatedAt, Instant lastPolledAt) {
+		jdbcTemplate.update(
+				"""
+				update place_business_hours
+				set updated_at = ?, last_polled_at = ?
+				where kakao_place_id = ?
+				""",
+				Timestamp.from(updatedAt),
+				Timestamp.from(lastPolledAt),
+				kakaoPlaceId
 		);
 	}
 
