@@ -51,7 +51,7 @@ public class LinkProcessingDispatchRecoveryScheduler {
 
 		log.info("stale 링크 디스패치 복구를 제출합니다. count={}, batchBudget={}", events.size(), batchSize);
 		for (LinkProcessingRequestedEvent event : events) {
-			dispatchExecutor.execute(() -> dispatchService.dispatch(event));
+			dispatchExecutor.execute(() -> dispatchService.dispatch(event.dispatchAttemptId()));
 		}
 	}
 

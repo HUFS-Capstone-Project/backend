@@ -59,7 +59,7 @@ class LinkProcessingDispatchRecoverySchedulerTest {
 		verify(dispatchService, never()).dispatch(any());
 
 		taskCaptor.getValue().run();
-		verify(dispatchService).dispatch(event);
+		verify(dispatchService).dispatch(event.dispatchAttemptId());
 	}
 
 	@Test
@@ -75,13 +75,7 @@ class LinkProcessingDispatchRecoverySchedulerTest {
 		verify(dispatchExecutor, never()).execute(any(Runnable.class));
 	}
 
-	private static LinkProcessingRequestedEvent event(Long linkId) {
-		return new LinkProcessingRequestedEvent(
-				linkId,
-				"https://example.com/original/" + linkId,
-				"https://example.com/canonical/" + linkId,
-				"room-id",
-				null
-		);
+	private static LinkProcessingRequestedEvent event(Long attemptId) {
+		return new LinkProcessingRequestedEvent(attemptId);
 	}
 }

@@ -9,7 +9,9 @@ import com.hufs.capstone.backend.link.domain.LinkAnalysisStatus;
 import com.hufs.capstone.backend.link.domain.ProcessingDispatchStatus;
 import com.hufs.capstone.backend.link.domain.entity.Link;
 import com.hufs.capstone.backend.link.domain.entity.LinkAnalysisRequest;
+import com.hufs.capstone.backend.link.domain.entity.LinkProcessingDispatchAttempt;
 import com.hufs.capstone.backend.link.domain.repository.LinkAnalysisRequestRepository;
+import com.hufs.capstone.backend.link.domain.repository.LinkProcessingDispatchAttemptRepository;
 import com.hufs.capstone.backend.link.domain.repository.LinkRepository;
 import com.hufs.capstone.backend.room.application.RoomAccessService;
 import com.hufs.capstone.backend.room.domain.entity.Room;
@@ -29,6 +31,7 @@ public class LinkAnalysisRequestWriteService {
 
 	private final LinkRepository linkRepository;
 	private final LinkAnalysisRequestRepository linkAnalysisRequestRepository;
+	private final LinkProcessingDispatchAttemptRepository linkProcessingDispatchAttemptRepository;
 	private final RoomAccessService roomAccessService;
 	private final ApplicationEventPublisher eventPublisher;
 	private final LinkProcessingDispatchPolicy dispatchPolicy;
@@ -56,14 +59,16 @@ public class LinkAnalysisRequestWriteService {
 		boolean recoveredDispatchFailed = recoverDispatchFailedForManualRetry(target.link());
 		boolean staleRequestedWithoutJob = isStaleRequestedWithoutJob(target.link());
 
-		publishProcessingRequestedEventIfNeeded(
-				target.createdNewLink() || recoveredInstagramRateLimit || recoveredDispatchFailed || staleRequestedWithoutJob,
-				target.link(),
-				requestTarget.analysisRequest().getOriginalUrl(),
-				normalizedUrl.normalizedUrl(),
-				room.getPublicId(),
-				source
-		);
+		boolean startsNewAttempt = target.createdNewLink() || recoveredInstagramRateLimit || recoveredDispatchFailed;
+		if (startsNewAttempt) {
+			createAndPublishDispatchAttempt(
+					target.link(),
+					requestTarget.analysisRequest().getOriginalUrl(),
+					room.getPublicId()
+			);
+		} else if (staleRequestedWithoutJob) {
+			publishActiveDispatchAttempt(target.link().getId());
+		}
 
 		return LinkAnalysisRequestResult.from(
 				target.link(),
@@ -93,13 +98,10 @@ public class LinkAnalysisRequestWriteService {
 			}
 		}
 
-		publishProcessingRequestedEventIfNeeded(
-				true,
+		createAndPublishDispatchAttempt(
 				link,
 				analysisRequest.getOriginalUrl(),
-				link.getNormalizedUrl(),
-				room.getPublicId(),
-				analysisRequest.getSource()
+				room.getPublicId()
 		);
 
 		Link reloaded = linkRepository.findById(link.getId()).orElse(link);
@@ -152,18 +154,28 @@ public class LinkAnalysisRequestWriteService {
 		}
 	}
 
-	private void publishProcessingRequestedEventIfNeeded(
-			boolean shouldPublish,
+	private void createAndPublishDispatchAttempt(
 			Link link,
 			String originalUrl,
-			String normalizedUrl,
-			String roomId,
-			String source
+			String roomId
 	) {
-		if (!shouldPublish) {
-			return;
-		}
-		eventPublisher.publishEvent(new LinkProcessingRequestedEvent(link.getId(), originalUrl, normalizedUrl, roomId, source));
+		LinkProcessingDispatchAttempt attempt = linkProcessingDispatchAttemptRepository.saveAndFlush(
+				LinkProcessingDispatchAttempt.create(link, originalUrl, roomId)
+		);
+		publishDispatchAttempt(attempt);
+	}
+
+	private void publishActiveDispatchAttempt(Long linkId) {
+		LinkProcessingDispatchAttempt attempt = linkProcessingDispatchAttemptRepository.findActiveByLinkId(linkId)
+				.orElseThrow(() -> new BusinessException(
+						ErrorCode.E500_INTERNAL,
+						"복구할 링크 디스패치 시도를 찾을 수 없습니다."
+				));
+		publishDispatchAttempt(attempt);
+	}
+
+	private void publishDispatchAttempt(LinkProcessingDispatchAttempt attempt) {
+		eventPublisher.publishEvent(new LinkProcessingRequestedEvent(attempt.getId()));
 	}
 
 	private boolean recoverDispatchFailedForManualRetry(Link link) {

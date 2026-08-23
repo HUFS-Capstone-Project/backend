@@ -18,6 +18,6 @@ public class LinkProcessingRequestedEventListener {
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
 	public void onProcessingRequested(LinkProcessingRequestedEvent event) {
 		// 트랜잭션 커밋 이후 별도 스레드에서 외부 processing 디스패치를 수행한다.
-		linkProcessingDispatchService.dispatch(event);
+		linkProcessingDispatchService.dispatch(event.dispatchAttemptId());
 	}
 }

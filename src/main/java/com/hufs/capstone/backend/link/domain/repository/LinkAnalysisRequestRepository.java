@@ -15,9 +15,6 @@ public interface LinkAnalysisRequestRepository extends JpaRepository<LinkAnalysi
 
 	Optional<LinkAnalysisRequest> findByRoomAndLinkId(Room room, Long linkId);
 
-	@EntityGraph(attributePaths = "room")
-	Optional<LinkAnalysisRequest> findFirstByLinkIdOrderByIdAsc(Long linkId);
-
 	@EntityGraph(attributePaths = {"room", "link"})
 	@Query("""
 			select lar

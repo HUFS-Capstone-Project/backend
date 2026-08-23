@@ -6,9 +6,7 @@ import com.hufs.capstone.backend.link.domain.ProcessingDispatchStatus;
 import com.hufs.capstone.backend.link.domain.entity.Link;
 import java.time.Instant;
 import java.util.Collection;
-import java.util.List;
 import java.util.Optional;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -18,23 +16,7 @@ public interface LinkRepository extends JpaRepository<Link, Long> {
 
 	Optional<Link> findByNormalizedUrl(String normalizedUrl);
 
-	@Query("""
-			select l
-			from Link l
-			where l.dispatchStatus in :dispatchStatuses
-			  and l.processingJobId is null
-			  and l.status = :status
-			  and l.updatedAt <= :staleBefore
-			order by l.updatedAt asc, l.id asc
-			""")
-	List<Link> findStaleDispatchTargets(
-			@Param("dispatchStatuses") Collection<ProcessingDispatchStatus> dispatchStatuses,
-			@Param("status") LinkAnalysisStatus status,
-			@Param("staleBefore") Instant staleBefore,
-			Pageable pageable
-	);
-
-	@Modifying(flushAutomatically = true, clearAutomatically = true)
+	@Modifying(flushAutomatically = true)
 	@Query("""
 			update Link l
 			set l.dispatchStatus = :targetDispatchStatus,
@@ -104,7 +86,7 @@ public interface LinkRepository extends JpaRepository<Link, Long> {
 			@Param("updatedAt") Instant updatedAt
 	);
 
-	@Modifying(flushAutomatically = true, clearAutomatically = true)
+	@Modifying(flushAutomatically = true)
 	@Query("""
 			update Link l
 			set l.processingJobId = :newProcessingJobId,
@@ -123,7 +105,7 @@ public interface LinkRepository extends JpaRepository<Link, Long> {
 			@Param("updatedAt") Instant updatedAt
 	);
 
-	@Modifying(flushAutomatically = true, clearAutomatically = true)
+	@Modifying(flushAutomatically = true)
 	@Query("""
 			update Link l
 			set l.dispatchStatus = :targetDispatchStatus,

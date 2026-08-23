@@ -6,7 +6,9 @@ import static org.mockito.Mockito.when;
 import com.hufs.capstone.backend.link.domain.LinkSourceType;
 import com.hufs.capstone.backend.link.domain.entity.Link;
 import com.hufs.capstone.backend.link.domain.entity.LinkAnalysisRequest;
+import com.hufs.capstone.backend.link.domain.entity.LinkProcessingDispatchAttempt;
 import com.hufs.capstone.backend.link.domain.repository.LinkAnalysisRequestRepository;
+import com.hufs.capstone.backend.link.domain.repository.LinkProcessingDispatchAttemptRepository;
 import com.hufs.capstone.backend.link.domain.repository.LinkRepository;
 import com.hufs.capstone.backend.room.application.RoomAccessService;
 import com.hufs.capstone.backend.room.domain.entity.Room;
@@ -31,6 +33,9 @@ class LinkAnalysisRequestWriteServiceTest {
 	private LinkAnalysisRequestRepository linkAnalysisRequestRepository;
 
 	@Mock
+	private LinkProcessingDispatchAttemptRepository linkProcessingDispatchAttemptRepository;
+
+	@Mock
 	private RoomAccessService roomAccessService;
 
 	@Mock
@@ -51,6 +56,8 @@ class LinkAnalysisRequestWriteServiceTest {
 		);
 		ArgumentCaptor<Link> linkCaptor = ArgumentCaptor.forClass(Link.class);
 		ArgumentCaptor<LinkAnalysisRequest> requestCaptor = ArgumentCaptor.forClass(LinkAnalysisRequest.class);
+		ArgumentCaptor<LinkProcessingDispatchAttempt> dispatchAttemptCaptor =
+				ArgumentCaptor.forClass(LinkProcessingDispatchAttempt.class);
 
 		when(roomAccessService.requireMemberRoom("room-public-id", 100L)).thenReturn(room);
 		when(linkRepository.findByNormalizedUrl(normalizedUrl.normalizedUrl())).thenReturn(Optional.empty());
@@ -65,6 +72,12 @@ class LinkAnalysisRequestWriteServiceTest {
 			ReflectionTestUtils.setField(saved, "id", 20L);
 			return saved;
 		});
+		when(linkProcessingDispatchAttemptRepository.saveAndFlush(dispatchAttemptCaptor.capture()))
+				.thenAnswer(invocation -> {
+					LinkProcessingDispatchAttempt saved = invocation.getArgument(0);
+					ReflectionTestUtils.setField(saved, "id", 30L);
+					return saved;
+				});
 
 		service.requestWithinWriteTransaction(normalizedUrl, "room-public-id", 100L, "WEB");
 
@@ -73,5 +86,8 @@ class LinkAnalysisRequestWriteServiceTest {
 		assertThat(savedLink.getNormalizedUrl()).isEqualTo("https://www.instagram.com/reel/abc/");
 		assertThat(savedLink.getLinkSourceType()).isEqualTo(LinkSourceType.INSTAGRAM);
 		assertThat(requestCaptor.getValue().getOriginalUrl()).isEqualTo(savedLink.getOriginalUrl());
+		assertThat(dispatchAttemptCaptor.getValue().getLink()).isSameAs(savedLink);
+		assertThat(dispatchAttemptCaptor.getValue().getOriginalUrl()).isEqualTo(savedLink.getOriginalUrl());
+		assertThat(dispatchAttemptCaptor.getValue().getRoomId()).isEqualTo("room-public-id");
 	}
 }

@@ -74,8 +74,7 @@ class ProcessingClientImplTest {
 
 		CreateProcessingJobResponse response = client(3000).createJob(
 				"https://example.com/p/1",
-				"11111111-1111-1111-1111-111111111111",
-				"WEB"
+				"11111111-1111-1111-1111-111111111111"
 		);
 
 		assertThat(response.jobId()).isEqualTo("job-1");
@@ -246,7 +245,7 @@ class ProcessingClientImplTest {
 				{"detail":{"code":"INVALID_URL","message":"Invalid URL."}}
 				"""));
 
-		assertThatThrownBy(() -> client(3000).createJob("bad", "room-1", null))
+		assertThatThrownBy(() -> client(3000).createJob("bad", "room-1"))
 				.isInstanceOfSatisfying(ProcessingClientException.class, exception -> {
 					assertThat(exception.getErrorType()).isEqualTo(ProcessingClientErrorType.CLIENT_ERROR);
 					assertThat(exception.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
@@ -282,7 +281,7 @@ class ProcessingClientImplTest {
 				}
 				"""));
 
-		assertThatThrownBy(() -> client(3000).createJob("https://instagram.com/p/abc", "room-1", null))
+		assertThatThrownBy(() -> client(3000).createJob("https://instagram.com/p/abc", "room-1"))
 				.isInstanceOfSatisfying(InstagramRateLimitedException.class, exception -> {
 					assertThat(exception.getStatus()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
 					assertThat(exception.getProcessingErrorCode()).isEqualTo(ProcessingErrorCodes.INSTAGRAM_RATE_LIMITED);
