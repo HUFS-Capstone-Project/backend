@@ -16,9 +16,14 @@ spring:
       connect-timeout: 2s
       timeout: 2s
   jpa:
+    defer-datasource-initialization: true
     hibernate:
       ddl-auto: create
     show-sql: false
+  sql:
+    init:
+      mode: always
+      platform: postgresql
   security:
     oauth2:
       client:

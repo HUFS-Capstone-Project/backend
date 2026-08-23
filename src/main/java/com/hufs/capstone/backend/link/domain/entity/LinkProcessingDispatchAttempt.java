@@ -7,7 +7,6 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
-import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
@@ -25,10 +24,6 @@ import org.hibernate.annotations.OnDeleteAction;
 @Entity
 @Table(
 		name = "link_processing_dispatch_attempts",
-		indexes = {
-			@Index(name = "idx_link_dispatch_attempts_recovery",
-					columnList = "active_slot, status, claimed_at, created_at")
-		},
 		uniqueConstraints = {
 			@UniqueConstraint(name = "uq_link_dispatch_attempts_active",
 					columnNames = {"link_id", "active_slot"})
