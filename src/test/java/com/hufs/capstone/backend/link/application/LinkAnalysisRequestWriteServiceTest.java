@@ -89,5 +89,6 @@ class LinkAnalysisRequestWriteServiceTest {
 		assertThat(dispatchAttemptCaptor.getValue().getLink()).isSameAs(savedLink);
 		assertThat(dispatchAttemptCaptor.getValue().getOriginalUrl()).isEqualTo(savedLink.getOriginalUrl());
 		assertThat(dispatchAttemptCaptor.getValue().getRoomId()).isEqualTo("room-public-id");
+		assertThat(dispatchAttemptCaptor.getValue().getIdempotencyKey()).isNotNull();
 	}
 }

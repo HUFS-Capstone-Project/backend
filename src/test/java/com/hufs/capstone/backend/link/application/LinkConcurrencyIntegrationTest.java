@@ -41,6 +41,7 @@ import com.hufs.capstone.backend.link.domain.repository.LinkRepository;
 import com.hufs.capstone.backend.link.domain.repository.RoomLinkCandidateOverrideRepository;
 import com.hufs.capstone.backend.link.domain.repository.RoomLinkRepository;
 import com.hufs.capstone.backend.place.application.dto.RoomPlaceSaveResult;
+import com.hufs.capstone.backend.place.application.port.RoomPlaceSearchPort;
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
 import com.hufs.capstone.backend.place.domain.enums.RoomPlaceAddedVia;
 import com.hufs.capstone.backend.place.domain.repository.PlaceRepository;
@@ -56,6 +57,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -131,6 +133,9 @@ class LinkConcurrencyIntegrationTest {
 
 	@Autowired
 	private RoomPlaceRepository roomPlaceRepository;
+
+	@Autowired
+	private RoomPlaceSearchPort roomPlaceSearchPort;
 
 	@Autowired
 	private RoomPlaceOriginRepository roomPlaceOriginRepository;
@@ -608,7 +613,7 @@ class LinkConcurrencyIntegrationTest {
 		assertThat(repeated.places().get(0).created()).isFalse();
 		assertThat(repeated.places().get(0).alreadyInRoom()).isTrue();
 		assertThat(roomPlaceRepository.countByRoomId(roomA.getId())).isEqualTo(2);
-		List<RoomPlace> savedRoomPlaces = roomPlaceRepository.findExistingByRoomIdAndKakaoPlaceIds(
+		List<RoomPlace> savedRoomPlaces = roomPlaceSearchPort.findExistingByRoomIdAndKakaoPlaceIds(
 				roomA.getId(),
 				List.of("123456789", "987654321")
 		);
@@ -1265,7 +1270,10 @@ class LinkConcurrencyIntegrationTest {
 				.createJob(eq("https://example.com/post/11"), eq(ROOM_A_PUBLIC_ID), idempotencyKeys.capture());
 		assertThat(idempotencyKeys.getAllValues().subList(0, 3)).containsOnly(idempotencyKeys.getAllValues().get(0));
 		assertThat(idempotencyKeys.getAllValues().get(3)).isNotEqualTo(idempotencyKeys.getAllValues().get(0));
-		assertThat(idempotencyKeys.getAllValues()).allMatch(key -> key.startsWith("link-dispatch-attempt:"));
+		assertThat(idempotencyKeys.getAllValues()).allSatisfy(key -> {
+			assertThat(key).startsWith("link-dispatch-attempt:");
+			assertThat(UUID.fromString(key.substring("link-dispatch-attempt:".length()))).isNotNull();
+		});
 	}
 
 	@Test
@@ -1291,7 +1299,7 @@ class LinkConcurrencyIntegrationTest {
 				Link.registerPending("https://example.com/post/12", "https://example.com/post/12")
 		);
 		linkAnalysisRequestRepository.saveAndFlush(LinkAnalysisRequest.create(link, roomA, MEMBER_USER_ID, null));
-		linkProcessingDispatchAttemptRepository.saveAndFlush(
+		LinkProcessingDispatchAttempt attempt = linkProcessingDispatchAttemptRepository.saveAndFlush(
 				LinkProcessingDispatchAttempt.create(
 						link,
 						link.getOriginalUrl(),
@@ -1308,8 +1316,11 @@ class LinkConcurrencyIntegrationTest {
 		Link recovered = linkRepository.findById(link.getId()).orElseThrow();
 		assertThat(recovered.getProcessingJobId()).isEqualTo("job-recovered");
 		assertThat(recovered.getDispatchStatus()).isEqualTo(ProcessingDispatchStatus.DISPATCHED);
+		ArgumentCaptor<String> idempotencyKey = ArgumentCaptor.forClass(String.class);
 		verify(processingClient, times(1))
-				.createJob(eq("https://example.com/post/12"), eq(ROOM_A_PUBLIC_ID), anyString());
+				.createJob(eq("https://example.com/post/12"), eq(ROOM_A_PUBLIC_ID), idempotencyKey.capture());
+		assertThat(idempotencyKey.getValue())
+				.isEqualTo("link-dispatch-attempt:" + attempt.getIdempotencyKey());
 	}
 
 	@Test

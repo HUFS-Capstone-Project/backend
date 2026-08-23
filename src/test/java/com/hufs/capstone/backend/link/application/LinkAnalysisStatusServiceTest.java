@@ -17,7 +17,7 @@ import com.hufs.capstone.backend.link.domain.repository.LinkCandidateRepository;
 import com.hufs.capstone.backend.link.domain.repository.LinkRepository;
 import com.hufs.capstone.backend.link.domain.repository.RoomLinkCandidateOverrideRepository;
 import com.hufs.capstone.backend.link.domain.repository.RoomLinkRepository;
-import com.hufs.capstone.backend.place.domain.repository.RoomPlaceRepository;
+import com.hufs.capstone.backend.place.application.port.RoomPlaceSearchPort;
 import com.hufs.capstone.backend.room.domain.entity.Room;
 import java.util.List;
 import java.util.Optional;
@@ -58,7 +58,7 @@ class LinkAnalysisStatusServiceTest {
 	private LinkAnalysisResultAssembler linkAnalysisResultAssembler;
 
 	@Mock
-	private RoomPlaceRepository roomPlaceRepository;
+	private RoomPlaceSearchPort roomPlaceSearchPort;
 
 	@Mock
 	private LinkCandidateRepository linkCandidateRepository;

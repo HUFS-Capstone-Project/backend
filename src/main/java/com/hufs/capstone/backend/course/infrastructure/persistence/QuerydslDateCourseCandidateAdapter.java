@@ -1,7 +1,8 @@
-package com.hufs.capstone.backend.course.domain.repository;
+package com.hufs.capstone.backend.course.infrastructure.persistence;
 
 import com.hufs.capstone.backend.course.application.dto.CategorySlotCommand;
 import com.hufs.capstone.backend.course.application.dto.DateCourseCandidate;
+import com.hufs.capstone.backend.course.application.port.DateCourseCandidateQueryPort;
 import com.hufs.capstone.backend.link.domain.entity.QLink;
 import com.hufs.capstone.backend.link.domain.entity.QRoomLink;
 import com.hufs.capstone.backend.place.domain.entity.QPlace;
@@ -19,7 +20,7 @@ import java.util.List;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public class DateCourseCandidateRepositoryImpl implements DateCourseCandidateRepository {
+public class QuerydslDateCourseCandidateAdapter implements DateCourseCandidateQueryPort {
 
 	private static final QRoomPlace ROOM_PLACE = QRoomPlace.roomPlace;
 	private static final QPlace PLACE = QPlace.place;
@@ -31,7 +32,7 @@ public class DateCourseCandidateRepositoryImpl implements DateCourseCandidateRep
 
 	private final JPAQueryFactory queryFactory;
 
-	public DateCourseCandidateRepositoryImpl(EntityManager entityManager) {
+	public QuerydslDateCourseCandidateAdapter(EntityManager entityManager) {
 		this.queryFactory = new JPAQueryFactory(entityManager);
 	}
 

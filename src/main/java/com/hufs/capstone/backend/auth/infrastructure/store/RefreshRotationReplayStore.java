@@ -3,6 +3,7 @@ package com.hufs.capstone.backend.auth.infrastructure.store;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hufs.capstone.backend.auth.application.dto.TokenPair;
+import com.hufs.capstone.backend.auth.application.port.RotationReplayPort;
 import com.hufs.capstone.backend.auth.domain.vo.ClientContext;
 import com.hufs.capstone.backend.auth.infrastructure.config.AuthProperties;
 import java.time.Duration;
@@ -14,12 +15,13 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class RefreshRotationReplayStore {
+public class RefreshRotationReplayStore implements RotationReplayPort {
 
 	private final StringRedisTemplate redisTemplate;
 	private final ObjectMapper objectMapper;
 	private final AuthProperties authProperties;
 
+	@Override
 	public void save(String oldTokenHash, ClientContext context, TokenPair tokenPair, Duration ttl) {
 		ReplayEntry entry = new ReplayEntry(tokenPair, fingerprint(context));
 		try {
@@ -32,6 +34,7 @@ public class RefreshRotationReplayStore {
 		}
 	}
 
+	@Override
 	public TokenPair findReplay(String oldTokenHash, ClientContext context) {
 		try {
 			String serialized = redisTemplate.opsForValue().get(replayKey(oldTokenHash));

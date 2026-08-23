@@ -3,6 +3,7 @@ package com.hufs.capstone.backend.room.application;
 import com.hufs.capstone.backend.room.application.port.RoomLinkCountPort;
 import com.hufs.capstone.backend.room.application.port.RoomMemberUserProfilePort;
 import com.hufs.capstone.backend.room.application.port.RoomMemberUserProfilePort.RoomMemberUserProfile;
+import com.hufs.capstone.backend.room.application.port.RoomMemberSearchPort;
 import com.hufs.capstone.backend.room.application.port.RoomPlaceCountPort;
 import com.hufs.capstone.backend.room.application.dto.RoomDetailResult;
 import com.hufs.capstone.backend.room.application.dto.RoomMemberProfileResult;
@@ -25,6 +26,7 @@ public class RoomQueryService {
 
 	private final RoomAccessService roomAccessService;
 	private final RoomMemberRepository roomMemberRepository;
+	private final RoomMemberSearchPort roomMemberSearchPort;
 	private final RoomLinkCountPort roomLinkCountPort;
 	private final RoomPlaceCountPort roomPlaceCountPort;
 	private final RoomMemberUserProfilePort roomMemberUserProfilePort;
@@ -37,7 +39,7 @@ public class RoomQueryService {
 	@Transactional(readOnly = true)
 	public List<RoomSummaryResult> getMyRooms(Long userId, String keyword) {
 		String normalizedKeyword = StringUtils.hasText(keyword) ? keyword.trim() : null;
-		List<RoomMember> memberships = roomMemberRepository.findMyRooms(userId, normalizedKeyword);
+		List<RoomMember> memberships = roomMemberSearchPort.findMyRooms(userId, normalizedKeyword);
 		List<Long> roomIds = memberships.stream()
 				.map(RoomMember::getRoom)
 				.map(Room::getId)

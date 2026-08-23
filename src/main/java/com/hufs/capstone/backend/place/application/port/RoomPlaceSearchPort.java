@@ -1,4 +1,4 @@
-package com.hufs.capstone.backend.place.domain.repository;
+package com.hufs.capstone.backend.place.application.port;
 
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
 import com.hufs.capstone.backend.place.domain.enums.PlaceSource;
@@ -9,7 +9,7 @@ import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
-public interface RoomPlaceSearchRepository {
+public interface RoomPlaceSearchPort {
 
 	Page<RoomPlace> searchRoomPlaces(
 			Long roomId,

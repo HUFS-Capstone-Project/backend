@@ -13,7 +13,7 @@ import com.hufs.capstone.backend.link.domain.repository.LinkRepository;
 import com.hufs.capstone.backend.link.domain.repository.RoomLinkCandidateOverrideRepository;
 import com.hufs.capstone.backend.link.domain.repository.RoomLinkRepository;
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
-import com.hufs.capstone.backend.place.domain.repository.RoomPlaceRepository;
+import com.hufs.capstone.backend.place.application.port.RoomPlaceSearchPort;
 import com.hufs.capstone.backend.room.domain.entity.Room;
 import java.util.List;
 import java.util.Optional;
@@ -31,7 +31,7 @@ public class LinkAnalysisStatusService {
 	private final LinkAnalysisStatusResolver linkAnalysisStatusResolver;
 	private final LinkAnalysisStatusWriteService linkAnalysisStatusWriteService;
 	private final LinkAnalysisResultAssembler linkAnalysisResultAssembler;
-	private final RoomPlaceRepository roomPlaceRepository;
+	private final RoomPlaceSearchPort roomPlaceSearchPort;
 	private final LinkCandidateRepository linkCandidateRepository;
 	private final RoomLinkRepository roomLinkRepository;
 	private final RoomLinkCandidateOverrideRepository overrideRepository;
@@ -55,7 +55,7 @@ public class LinkAnalysisStatusService {
 				.toList();
 		List<RoomPlace> savedPlaces = kakaoPlaceIds.isEmpty()
 				? List.of()
-				: roomPlaceRepository.findExistingByRoomIdAndKakaoPlaceIds(room.getId(), kakaoPlaceIds);
+				: roomPlaceSearchPort.findExistingByRoomIdAndKakaoPlaceIds(room.getId(), kakaoPlaceIds);
 		return linkAnalysisResultAssembler.withSavedStatus(result, savedPlaces);
 	}
 
@@ -75,7 +75,7 @@ public class LinkAnalysisStatusService {
 				.toList();
 		List<RoomPlace> savedPlaces = effectiveKakaoPlaceIds.isEmpty()
 				? List.of()
-				: roomPlaceRepository.findExistingByRoomIdAndKakaoPlaceIds(room.getId(), effectiveKakaoPlaceIds);
+				: roomPlaceSearchPort.findExistingByRoomIdAndKakaoPlaceIds(room.getId(), effectiveKakaoPlaceIds);
 		return linkAnalysisResultAssembler.withRoomCandidateContext(result, originalCandidates, overrides, savedPlaces);
 	}
 

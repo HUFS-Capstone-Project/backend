@@ -1,4 +1,4 @@
-package com.hufs.capstone.backend.region.application.dto;
+package com.hufs.capstone.backend.region.domain.vo;
 
 public record ResolvedRegion(
 		String sidoCode,

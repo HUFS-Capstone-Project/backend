@@ -1,7 +1,8 @@
-package com.hufs.capstone.backend.place.domain.repository;
+package com.hufs.capstone.backend.place.infrastructure.persistence;
 
 import com.hufs.capstone.backend.link.domain.entity.QLink;
 import com.hufs.capstone.backend.link.domain.entity.QRoomLink;
+import com.hufs.capstone.backend.place.application.port.RoomPlaceSearchPort;
 import com.hufs.capstone.backend.place.domain.entity.QPlace;
 import com.hufs.capstone.backend.place.domain.entity.QPlaceCategory;
 import com.hufs.capstone.backend.place.domain.entity.QPlaceTag;
@@ -23,9 +24,11 @@ import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
-public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository {
+@Repository
+public class QuerydslRoomPlaceSearchAdapter implements RoomPlaceSearchPort {
 
 	private static final QRoomPlace ROOM_PLACE = QRoomPlace.roomPlace;
 	private static final QRoomPlace OTHER_ROOM_PLACE = new QRoomPlace("otherRoomPlace");
@@ -40,7 +43,7 @@ public class RoomPlaceSearchRepositoryImpl implements RoomPlaceSearchRepository 
 
 	private final JPAQueryFactory queryFactory;
 
-	public RoomPlaceSearchRepositoryImpl(EntityManager entityManager) {
+	public QuerydslRoomPlaceSearchAdapter(EntityManager entityManager) {
 		this.queryFactory = new JPAQueryFactory(entityManager);
 	}
 

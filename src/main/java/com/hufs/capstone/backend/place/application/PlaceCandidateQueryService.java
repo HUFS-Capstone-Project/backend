@@ -6,9 +6,9 @@ import com.hufs.capstone.backend.place.application.dto.ExternalPlaceCandidateSea
 import com.hufs.capstone.backend.place.application.dto.PlaceCandidatePageResult;
 import com.hufs.capstone.backend.place.application.dto.PlaceCandidateResult;
 import com.hufs.capstone.backend.place.application.dto.ResolvedPlaceCategory;
+import com.hufs.capstone.backend.place.application.port.RoomPlaceSearchPort;
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
 import com.hufs.capstone.backend.place.domain.enums.PlaceSource;
-import com.hufs.capstone.backend.place.domain.repository.RoomPlaceRepository;
 import com.hufs.capstone.backend.place.domain.vo.PlaceSnapshot;
 import com.hufs.capstone.backend.room.application.RoomAccessService;
 import com.hufs.capstone.backend.room.domain.entity.Room;
@@ -25,7 +25,7 @@ public class PlaceCandidateQueryService {
 
 	private final RoomAccessService roomAccessService;
 	private final KakaoLocalClient kakaoLocalClient;
-	private final RoomPlaceRepository roomPlaceRepository;
+	private final RoomPlaceSearchPort roomPlaceSearchPort;
 	private final PlaceTaxonomyReadService placeTaxonomyReadService;
 
 	public List<PlaceCandidateResult> searchExternalCandidates(
@@ -83,7 +83,7 @@ public class PlaceCandidateQueryService {
 		if (externalPlaceIds.isEmpty()) {
 			return List.of();
 		}
-		return roomPlaceRepository.findExistingByRoomIdAndSourceExternalPlaceIds(
+		return roomPlaceSearchPort.findExistingByRoomIdAndSourceExternalPlaceIds(
 				roomId,
 				PlaceSource.KAKAO,
 				externalPlaceIds

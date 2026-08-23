@@ -1,7 +1,8 @@
-package com.hufs.capstone.backend.room.domain.repository;
+package com.hufs.capstone.backend.room.infrastructure.persistence;
 
 import com.hufs.capstone.backend.place.domain.entity.QPlace;
 import com.hufs.capstone.backend.place.domain.entity.QRoomPlace;
+import com.hufs.capstone.backend.room.application.port.RoomMemberSearchPort;
 import com.hufs.capstone.backend.room.domain.entity.QRoom;
 import com.hufs.capstone.backend.room.domain.entity.QRoomMember;
 import com.hufs.capstone.backend.room.domain.entity.RoomMember;
@@ -10,9 +11,11 @@ import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
 import java.util.List;
+import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
-public class RoomMemberSearchRepositoryImpl implements RoomMemberSearchRepository {
+@Repository
+public class QuerydslRoomMemberSearchAdapter implements RoomMemberSearchPort {
 
 	private static final QRoomMember ROOM_MEMBER = QRoomMember.roomMember;
 	private static final QRoom ROOM = QRoom.room;
@@ -21,7 +24,7 @@ public class RoomMemberSearchRepositoryImpl implements RoomMemberSearchRepositor
 
 	private final JPAQueryFactory queryFactory;
 
-	public RoomMemberSearchRepositoryImpl(EntityManager entityManager) {
+	public QuerydslRoomMemberSearchAdapter(EntityManager entityManager) {
 		this.queryFactory = new JPAQueryFactory(entityManager);
 	}
 

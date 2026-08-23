@@ -26,6 +26,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 public class LinkProcessingDispatchService {
 
 	private static final String DISPATCH_FAILED_ERROR_CODE = "PROCESSING_DISPATCH_FAILED";
+	private static final String IDEMPOTENCY_KEY_PREFIX = "link-dispatch-attempt:";
 	private static final String DISPATCH_FAILED_ERROR_MESSAGE = "처리 디스패치 재시도가 모두 소진되었습니다.";
 	private static final String INSTAGRAM_RATE_LIMITED_USER_MESSAGE =
 			"현재 Instagram 분석이 일시적으로 제한되어 있어요. 잠시 후 다시 시도해 주세요.";
@@ -60,7 +61,7 @@ public class LinkProcessingDispatchService {
 				CreateProcessingJobResponse createdJob = processingClient.createJob(
 						payload.originalUrl(),
 						payload.roomId(),
-						idempotencyKey(payload.attemptId())
+						formatIdempotencyKey(payload.idempotencyKey())
 				);
 				String createdJobId = requireCreatedJobId(createdJob, payload.linkId());
 				bindCreatedJobId(payload, claimToken, createdJobId);
@@ -99,7 +100,8 @@ public class LinkProcessingDispatchService {
 						attempt.getId(),
 						attempt.getLink().getId(),
 						attempt.getOriginalUrl(),
-						attempt.getRoomId()
+						attempt.getRoomId(),
+						attempt.getIdempotencyKey()
 				))
 				.orElse(null);
 	}
@@ -301,10 +303,19 @@ public class LinkProcessingDispatchService {
 		return createdJob.jobId();
 	}
 
-	private static String idempotencyKey(Long dispatchAttemptId) {
-		return "link-dispatch-attempt:" + dispatchAttemptId;
+	private static String formatIdempotencyKey(UUID idempotencyKey) {
+		if (idempotencyKey == null) {
+			throw new IllegalStateException("Dispatch attempt does not contain idempotencyKey");
+		}
+		return IDEMPOTENCY_KEY_PREFIX + idempotencyKey;
 	}
 
-	private record DispatchPayload(Long attemptId, Long linkId, String originalUrl, String roomId) {
+	private record DispatchPayload(
+			Long attemptId,
+			Long linkId,
+			String originalUrl,
+			String roomId,
+			UUID idempotencyKey
+	) {
 	}
 }

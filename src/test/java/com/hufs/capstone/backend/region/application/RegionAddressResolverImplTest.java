@@ -3,7 +3,7 @@ package com.hufs.capstone.backend.region.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.lenient;
 
-import com.hufs.capstone.backend.region.application.dto.ResolvedRegion;
+import com.hufs.capstone.backend.region.domain.vo.ResolvedRegion;
 import com.hufs.capstone.backend.region.application.impl.RegionAddressResolverImpl;
 import com.hufs.capstone.backend.region.domain.entity.RegionSido;
 import com.hufs.capstone.backend.region.domain.entity.RegionSigungu;

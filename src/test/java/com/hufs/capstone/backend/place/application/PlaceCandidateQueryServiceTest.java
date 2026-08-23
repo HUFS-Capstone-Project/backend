@@ -11,6 +11,7 @@ import com.hufs.capstone.backend.place.application.dto.ExternalPlaceCandidateSea
 import com.hufs.capstone.backend.place.application.dto.PlaceCandidatePageResult;
 import com.hufs.capstone.backend.place.application.dto.PlaceCandidateResult;
 import com.hufs.capstone.backend.place.application.dto.ResolvedPlaceCategory;
+import com.hufs.capstone.backend.place.application.port.RoomPlaceSearchPort;
 import com.hufs.capstone.backend.place.domain.entity.Place;
 import com.hufs.capstone.backend.place.domain.entity.PlaceCategory;
 import com.hufs.capstone.backend.place.domain.entity.PlaceTag;
@@ -18,9 +19,8 @@ import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
 import com.hufs.capstone.backend.place.domain.enums.PlaceCandidateDisabledReason;
 import com.hufs.capstone.backend.place.domain.enums.PlaceSource;
 import com.hufs.capstone.backend.place.domain.enums.RoomPlaceAddedVia;
-import com.hufs.capstone.backend.place.domain.repository.RoomPlaceRepository;
 import com.hufs.capstone.backend.place.domain.vo.PlaceSnapshot;
-import com.hufs.capstone.backend.region.application.dto.ResolvedRegion;
+import com.hufs.capstone.backend.region.domain.vo.ResolvedRegion;
 import com.hufs.capstone.backend.room.application.RoomAccessService;
 import com.hufs.capstone.backend.room.domain.entity.Room;
 import java.util.List;
@@ -41,7 +41,7 @@ class PlaceCandidateQueryServiceTest {
 	private KakaoLocalClient kakaoLocalClient;
 
 	@Mock
-	private RoomPlaceRepository roomPlaceRepository;
+	private RoomPlaceSearchPort roomPlaceSearchPort;
 
 	@Mock
 	private PlaceTaxonomyReadService placeTaxonomyReadService;
@@ -54,7 +54,7 @@ class PlaceCandidateQueryServiceTest {
 		service = new PlaceCandidateQueryService(
 				roomAccessService,
 				kakaoLocalClient,
-				roomPlaceRepository,
+				roomPlaceSearchPort,
 				placeTaxonomyReadService
 		);
 		room = Room.create("room-public-id", "Room", "INVITE123", 100L);
@@ -72,7 +72,7 @@ class PlaceCandidateQueryServiceTest {
 		when(kakaoLocalClient.searchByKeyword(query)).thenReturn(List.of(existingCandidate, newCandidate, missingIdCandidate));
 		when(placeTaxonomyReadService.resolveCategory(any(), any()))
 				.thenReturn(new ResolvedPlaceCategory("CAFE", "카페"));
-		when(roomPlaceRepository.findExistingByRoomIdAndSourceExternalPlaceIds(
+		when(roomPlaceSearchPort.findExistingByRoomIdAndSourceExternalPlaceIds(
 				eq(1L),
 				eq(PlaceSource.KAKAO),
 				eq(List.of("123", "456"))
@@ -109,7 +109,7 @@ class PlaceCandidateQueryServiceTest {
 				42,
 				40
 		));
-		when(roomPlaceRepository.findExistingByRoomIdAndSourceExternalPlaceIds(
+		when(roomPlaceSearchPort.findExistingByRoomIdAndSourceExternalPlaceIds(
 				eq(1L),
 				eq(PlaceSource.KAKAO),
 				eq(List.of("456"))

@@ -1,6 +1,6 @@
 package com.hufs.capstone.backend.region.application;
 
-import com.hufs.capstone.backend.region.application.dto.ResolvedRegion;
+import com.hufs.capstone.backend.region.domain.vo.ResolvedRegion;
 
 public interface RegionAddressResolver {
 

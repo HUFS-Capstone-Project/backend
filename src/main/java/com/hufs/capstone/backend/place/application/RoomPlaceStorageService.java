@@ -17,7 +17,7 @@ import com.hufs.capstone.backend.place.domain.repository.RoomPlaceRepository;
 import com.hufs.capstone.backend.place.domain.repository.RoomPlaceOriginRepository;
 import com.hufs.capstone.backend.place.domain.vo.PlaceSnapshot;
 import com.hufs.capstone.backend.region.application.RegionAddressResolver;
-import com.hufs.capstone.backend.region.application.dto.ResolvedRegion;
+import com.hufs.capstone.backend.region.domain.vo.ResolvedRegion;
 import com.hufs.capstone.backend.room.domain.entity.Room;
 import java.time.Clock;
 import java.time.LocalDate;

@@ -4,7 +4,7 @@ import com.hufs.capstone.backend.global.common.entity.AuditableEntity;
 import com.hufs.capstone.backend.link.domain.entity.RoomLink;
 import com.hufs.capstone.backend.place.domain.enums.RoomPlaceAddedVia;
 import com.hufs.capstone.backend.place.domain.vo.PlaceSnapshot;
-import com.hufs.capstone.backend.region.application.dto.ResolvedRegion;
+import com.hufs.capstone.backend.region.domain.vo.ResolvedRegion;
 import com.hufs.capstone.backend.room.domain.entity.Room;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

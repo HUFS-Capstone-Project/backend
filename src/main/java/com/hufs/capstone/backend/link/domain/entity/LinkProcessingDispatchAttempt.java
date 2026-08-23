@@ -14,6 +14,7 @@ import jakarta.persistence.UniqueConstraint;
 import jakarta.persistence.Version;
 import java.time.Instant;
 import java.util.Objects;
+import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -26,7 +27,9 @@ import org.hibernate.annotations.OnDeleteAction;
 		name = "link_processing_dispatch_attempts",
 		uniqueConstraints = {
 			@UniqueConstraint(name = "uq_link_dispatch_attempts_active",
-					columnNames = {"link_id", "active_slot"})
+					columnNames = {"link_id", "active_slot"}),
+			@UniqueConstraint(name = "uq_link_dispatch_attempts_idempotency_key",
+					columnNames = "idempotency_key")
 		}
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -44,6 +47,9 @@ public class LinkProcessingDispatchAttempt extends AuditableEntity {
 
 	@Column(nullable = false, length = 100)
 	private String roomId;
+
+	@Column(name = "idempotency_key", nullable = false, updatable = false, columnDefinition = "uuid")
+	private UUID idempotencyKey;
 
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false, length = 20)
@@ -72,6 +78,7 @@ public class LinkProcessingDispatchAttempt extends AuditableEntity {
 		this.link = Objects.requireNonNull(link);
 		this.originalUrl = requireText(originalUrl, "originalUrl");
 		this.roomId = requireText(roomId, "roomId");
+		this.idempotencyKey = UUID.randomUUID();
 		this.status = LinkProcessingDispatchAttemptStatus.PENDING;
 		this.activeSlot = ACTIVE_SLOT;
 	}

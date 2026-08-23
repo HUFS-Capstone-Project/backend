@@ -3,7 +3,7 @@ package com.hufs.capstone.backend.region.application.impl;
 import com.hufs.capstone.backend.region.application.RegionAddressCatalog;
 import com.hufs.capstone.backend.region.application.RegionAddressCatalogProvider;
 import com.hufs.capstone.backend.region.application.RegionAddressResolver;
-import com.hufs.capstone.backend.region.application.dto.ResolvedRegion;
+import com.hufs.capstone.backend.region.domain.vo.ResolvedRegion;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;

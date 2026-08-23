@@ -9,7 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface RoomMemberRepository extends JpaRepository<RoomMember, Long>, RoomMemberSearchRepository {
+public interface RoomMemberRepository extends JpaRepository<RoomMember, Long> {
 
 	boolean existsByRoomAndUserId(Room room, Long userId);
 

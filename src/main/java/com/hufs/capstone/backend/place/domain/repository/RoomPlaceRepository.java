@@ -12,7 +12,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
-public interface RoomPlaceRepository extends JpaRepository<RoomPlace, Long>, RoomPlaceSearchRepository {
+public interface RoomPlaceRepository extends JpaRepository<RoomPlace, Long> {
 
 	@Query("""
 			select rp

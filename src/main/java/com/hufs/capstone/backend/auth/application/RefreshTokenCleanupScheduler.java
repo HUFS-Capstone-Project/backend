@@ -1,7 +1,8 @@
 package com.hufs.capstone.backend.auth.application;
 
+import com.hufs.capstone.backend.auth.application.port.AuthTokenPolicy;
 import com.hufs.capstone.backend.auth.domain.repository.RefreshTokenRepository;
-import com.hufs.capstone.backend.auth.infrastructure.config.AuthProperties;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import lombok.RequiredArgsConstructor;
@@ -16,12 +17,13 @@ import org.springframework.transaction.annotation.Transactional;
 public class RefreshTokenCleanupScheduler {
 
 	private final RefreshTokenRepository refreshTokenRepository;
-	private final AuthProperties authProperties;
+	private final AuthTokenPolicy authTokenPolicy;
+	private final Clock clock;
 
 	@Scheduled(cron = "0 30 3 * * *", zone = "UTC")
 	@Transactional
 	public void cleanupRevokedTokens() {
-		Instant threshold = Instant.now().minus(authProperties.getRefresh().getCleanupRetentionDays(), ChronoUnit.DAYS);
+		Instant threshold = clock.instant().minus(authTokenPolicy.cleanupRetentionDays(), ChronoUnit.DAYS);
 		int deleted = refreshTokenRepository.deleteRevokedExpiredBefore(threshold);
 		if (deleted > 0) {
 			log.info("철회되었거나 만료된 리프레시 토큰 {}건을 삭제했습니다.", deleted);

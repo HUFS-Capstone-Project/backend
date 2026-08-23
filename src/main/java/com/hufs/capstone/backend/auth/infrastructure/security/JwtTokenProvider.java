@@ -1,5 +1,7 @@
 package com.hufs.capstone.backend.auth.infrastructure.security;
 
+import com.hufs.capstone.backend.auth.application.port.AccessTokenIssuer;
+import com.hufs.capstone.backend.auth.application.port.AccessTokenIssuer.IssuedAccessToken;
 import com.hufs.capstone.backend.auth.infrastructure.config.AuthProperties;
 import com.hufs.capstone.backend.auth.security.AuthUserPrincipal;
 import com.hufs.capstone.backend.user.domain.enums.UserRole;
@@ -25,9 +27,17 @@ import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-public class JwtTokenProvider {
+public class JwtTokenProvider implements AccessTokenIssuer {
 
 	private final AuthProperties authProperties;
+
+	@Override
+	public IssuedAccessToken issue(Long userId, UserRole role, UserStatus status, Instant issuedAt) {
+		return new IssuedAccessToken(
+				createAccessToken(userId, role, status, issuedAt),
+				getAccessTokenExpiresAt(issuedAt)
+		);
+	}
 
 	public String createAccessToken(Long userId, UserRole role, UserStatus status, Instant now) {
 		Instant expiresAt = now.plus(authProperties.getJwt().getAccessTokenTtl());

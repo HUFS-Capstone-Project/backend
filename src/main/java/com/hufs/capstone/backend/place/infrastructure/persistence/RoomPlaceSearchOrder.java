@@ -1,4 +1,4 @@
-package com.hufs.capstone.backend.place.domain.repository;
+package com.hufs.capstone.backend.place.infrastructure.persistence;
 
 import com.hufs.capstone.backend.place.domain.entity.QRoomPlace;
 import com.querydsl.core.types.OrderSpecifier;

@@ -12,7 +12,7 @@ import com.hufs.capstone.backend.place.domain.entity.PlaceTag;
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
 import com.hufs.capstone.backend.place.domain.enums.RoomPlaceAddedVia;
 import com.hufs.capstone.backend.place.domain.vo.PlaceSnapshot;
-import com.hufs.capstone.backend.region.application.dto.ResolvedRegion;
+import com.hufs.capstone.backend.region.domain.vo.ResolvedRegion;
 import com.hufs.capstone.backend.room.domain.entity.Room;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;

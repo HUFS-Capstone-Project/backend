@@ -11,6 +11,7 @@ import com.hufs.capstone.backend.place.application.dto.RoomPlaceMapItemResult;
 import com.hufs.capstone.backend.place.application.dto.RoomPlaceMapResult;
 import com.hufs.capstone.backend.place.application.dto.RoomPlacePageResult;
 import com.hufs.capstone.backend.place.application.dto.RoomPlaceResult;
+import com.hufs.capstone.backend.place.application.port.RoomPlaceSearchPort;
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
 import com.hufs.capstone.backend.place.domain.repository.RoomPlaceRepository;
 import com.hufs.capstone.backend.region.application.RegionQueryService;
@@ -38,6 +39,7 @@ public class RoomPlaceQueryService {
 
 	private final RoomAccessService roomAccessService;
 	private final RoomPlaceRepository roomPlaceRepository;
+	private final RoomPlaceSearchPort roomPlaceSearchPort;
 	private final RegionQueryService regionQueryService;
 	private final RoomPlaceResultMapper roomPlaceResultMapper;
 	private final RoomPlaceCursorPageAssembler cursorPageAssembler;
@@ -65,7 +67,7 @@ public class RoomPlaceQueryService {
 		String normalizedTagCode = normalizeTagCode(tagCode);
 		long totalCount = roomPlaceRepository.countByRoomId(room.getId());
 		RoomPlaceCursor decodedCursor = cursorPageAssembler.decode(cursor);
-		List<RoomPlace> fetched = roomPlaceRepository.searchRoomPlacesAfterCursor(
+		List<RoomPlace> fetched = roomPlaceSearchPort.searchRoomPlacesAfterCursor(
 				room.getId(),
 				normalizedKeyword,
 				normalizedCategoryCode,
@@ -96,7 +98,7 @@ public class RoomPlaceQueryService {
 		Room room = roomAccessService.requireMemberRoom(roomId, userId);
 		validateCreatedByFilter(room, createdBy);
 		Bounds bounds = validateBounds(swLat, swLng, neLat, neLng);
-		List<RoomPlace> fetched = roomPlaceRepository.findMapPlacesInBounds(
+		List<RoomPlace> fetched = roomPlaceSearchPort.findMapPlacesInBounds(
 				room.getId(),
 				bounds.minLat(),
 				bounds.maxLat(),
@@ -169,7 +171,7 @@ public class RoomPlaceQueryService {
 			throw new FieldValidationException("limit", "limit는 1~100 사이여야 합니다.", normalizedLimit);
 		}
 		RegionFilter regionFilter = regionQueryService.validateFilter(sidoCode, sigunguCode);
-		Page<RoomPlace> result = roomPlaceRepository.searchRoomPlaces(
+		Page<RoomPlace> result = roomPlaceSearchPort.searchRoomPlaces(
 				room.getId(),
 				trimToNull(keyword),
 				trimToNull(categoryCode),
@@ -219,7 +221,7 @@ public class RoomPlaceQueryService {
 			throw new FieldValidationException("limit", "limit는 1~100 사이여야 합니다.", normalizedLimit);
 		}
 		RegionFilter regionFilter = regionQueryService.validateFilter(sidoCode, sigunguCode);
-		Page<RoomPlace> result = roomPlaceRepository.searchMyRoomPlaces(
+		Page<RoomPlace> result = roomPlaceSearchPort.searchMyRoomPlaces(
 				userId,
 				trimToNull(keyword),
 				trimToNull(categoryCode),
@@ -254,7 +256,7 @@ public class RoomPlaceQueryService {
 		String normalizedKeyword = trimToNull(keyword);
 		String normalizedCategoryCode = trimToNull(categoryCode);
 		String normalizedTagCode = normalizeTagCode(tagCode);
-		long totalCount = roomPlaceRepository.countMyRoomPlaces(
+		long totalCount = roomPlaceSearchPort.countMyRoomPlaces(
 				userId,
 				null,
 				null,
@@ -263,7 +265,7 @@ public class RoomPlaceQueryService {
 				null
 		);
 		RoomPlaceCursor decodedCursor = cursorPageAssembler.decode(cursor);
-		List<RoomPlace> fetched = roomPlaceRepository.searchMyRoomPlacesAfterCursor(
+		List<RoomPlace> fetched = roomPlaceSearchPort.searchMyRoomPlacesAfterCursor(
 				userId,
 				normalizedKeyword,
 				normalizedCategoryCode,

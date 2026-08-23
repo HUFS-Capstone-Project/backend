@@ -9,7 +9,7 @@ import static org.mockito.Mockito.when;
 
 import com.hufs.capstone.backend.course.application.dto.CategorySlotCommand;
 import com.hufs.capstone.backend.course.application.dto.DateCourseCandidate;
-import com.hufs.capstone.backend.course.domain.repository.DateCourseCandidateRepository;
+import com.hufs.capstone.backend.course.application.port.DateCourseCandidateQueryPort;
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -18,10 +18,10 @@ import org.junit.jupiter.api.Test;
 
 class AvailablePoolBuilderTest {
 
-	private final DateCourseCandidateRepository candidateRepository = mock(DateCourseCandidateRepository.class);
+	private final DateCourseCandidateQueryPort candidateQueryPort = mock(DateCourseCandidateQueryPort.class);
 	private final BusinessHoursAtTimeChecker businessHoursAtTimeChecker = mock(BusinessHoursAtTimeChecker.class);
 	private final AvailablePoolBuilder builder = new AvailablePoolBuilder(
-			candidateRepository,
+			candidateQueryPort,
 			businessHoursAtTimeChecker
 	);
 
@@ -35,7 +35,7 @@ class AvailablePoolBuilderTest {
 		DateCourseCandidate open = candidate(openRoomPlace, "open-json");
 		DateCourseCandidate closed = candidate(closedRoomPlace, "closed-json");
 
-		when(candidateRepository.findCandidates(eq(roomId), eq(slots), any(Instant.class), eq("11440")))
+		when(candidateQueryPort.findCandidates(eq(roomId), eq(slots), any(Instant.class), eq("11440")))
 				.thenReturn(List.of(open, closed));
 		when(businessHoursAtTimeChecker.isOpenAt("open-json", startDateTime)).thenReturn(true);
 		when(businessHoursAtTimeChecker.isOpenAt("closed-json", startDateTime)).thenReturn(false);
@@ -48,7 +48,7 @@ class AvailablePoolBuilderTest {
 			assertThat(candidate.tagCode()).isEqualTo("KOREAN");
 			assertThat(candidate.businessHoursJson()).isEqualTo("open-json");
 		});
-		verify(candidateRepository).findCandidates(eq(roomId), eq(slots), any(Instant.class), eq("11440"));
+		verify(candidateQueryPort).findCandidates(eq(roomId), eq(slots), any(Instant.class), eq("11440"));
 	}
 
 	private static DateCourseCandidate candidate(RoomPlace roomPlace, String businessHoursJson) {

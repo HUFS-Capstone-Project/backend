@@ -1,4 +1,4 @@
-package com.hufs.capstone.backend.place.domain.repository;
+package com.hufs.capstone.backend.place.infrastructure.persistence;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -10,8 +10,10 @@ import com.hufs.capstone.backend.place.domain.entity.PlaceCategory;
 import com.hufs.capstone.backend.place.domain.entity.PlaceTag;
 import com.hufs.capstone.backend.place.domain.entity.RoomPlace;
 import com.hufs.capstone.backend.place.domain.enums.RoomPlaceAddedVia;
+import com.hufs.capstone.backend.place.application.port.RoomPlaceSearchPort;
+import com.hufs.capstone.backend.place.domain.repository.RoomPlaceRepository;
 import com.hufs.capstone.backend.place.domain.vo.PlaceSnapshot;
-import com.hufs.capstone.backend.region.application.dto.ResolvedRegion;
+import com.hufs.capstone.backend.region.domain.vo.ResolvedRegion;
 import com.hufs.capstone.backend.room.domain.entity.Room;
 import com.hufs.capstone.backend.room.domain.entity.RoomMember;
 import java.util.List;
@@ -28,8 +30,8 @@ import org.springframework.test.context.ActiveProfiles;
 @DataJpaTest
 @ActiveProfiles("test")
 @AutoConfigureTestDatabase
-@Import(JpaAuditingConfig.class)
-class RoomPlaceSearchRepositoryTest {
+@Import({JpaAuditingConfig.class, QuerydslRoomPlaceSearchAdapter.class})
+class QuerydslRoomPlaceSearchAdapterTest {
 
 	private static final long USER_ID = 100L;
 	private static final ResolvedRegion REGION = new ResolvedRegion("11", "서울", "11440", "마포구");
@@ -39,6 +41,9 @@ class RoomPlaceSearchRepositoryTest {
 
 	@Autowired
 	private RoomPlaceRepository repository;
+
+	@Autowired
+	private RoomPlaceSearchPort searchPort;
 
 	private Long roomId;
 	private List<Long> roomPlaceIds;
@@ -73,10 +78,10 @@ class RoomPlaceSearchRepositoryTest {
 
 	@Test
 	void toOneFetchJoinsReturnEachRoomPlaceOnceWithoutDistinct() {
-		List<RoomPlace> roomPlaces = repository.searchRoomPlacesAfterCursor(
+		List<RoomPlace> roomPlaces = searchPort.searchRoomPlacesAfterCursor(
 				roomId, null, null, null, null, null, null, null, null, 10
 		);
-		List<RoomPlace> myRoomPlaces = repository.searchMyRoomPlacesAfterCursor(
+		List<RoomPlace> myRoomPlaces = searchPort.searchMyRoomPlacesAfterCursor(
 				USER_ID, null, null, null, null, null, null, null, 10
 		);
 
@@ -120,7 +125,7 @@ class RoomPlaceSearchRepositoryTest {
 		entityManager.flush();
 		entityManager.clear();
 
-		List<RoomPlace> result = repository.searchMyRoomPlacesAfterCursor(
+		List<RoomPlace> result = searchPort.searchMyRoomPlacesAfterCursor(
 				USER_ID, null, null, null, null, null, null, null, 10
 		);
 

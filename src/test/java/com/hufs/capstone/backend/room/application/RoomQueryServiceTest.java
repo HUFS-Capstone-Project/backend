@@ -14,6 +14,7 @@ import com.hufs.capstone.backend.room.application.dto.RoomSummaryResult;
 import com.hufs.capstone.backend.room.application.port.RoomLinkCountPort;
 import com.hufs.capstone.backend.room.application.port.RoomMemberUserProfilePort;
 import com.hufs.capstone.backend.room.application.port.RoomMemberUserProfilePort.RoomMemberUserProfile;
+import com.hufs.capstone.backend.room.application.port.RoomMemberSearchPort;
 import com.hufs.capstone.backend.room.application.port.RoomPlaceCountPort;
 import com.hufs.capstone.backend.room.domain.entity.Room;
 import com.hufs.capstone.backend.room.domain.entity.RoomMember;
@@ -39,6 +40,9 @@ class RoomQueryServiceTest {
 	private RoomMemberRepository roomMemberRepository;
 
 	@Mock
+	private RoomMemberSearchPort roomMemberSearchPort;
+
+	@Mock
 	private RoomLinkCountPort roomLinkCountPort;
 
 	@Mock
@@ -55,7 +59,7 @@ class RoomQueryServiceTest {
 		Room room = room("11111111-1111-1111-1111-111111111111", "Test Room");
 		RoomMember member = RoomMember.join(room, USER_ID);
 		member.updatePinned(true);
-		when(roomMemberRepository.findMyRooms(USER_ID, null)).thenReturn(List.of(member));
+		when(roomMemberSearchPort.findMyRooms(USER_ID, null)).thenReturn(List.of(member));
 		when(roomMemberRepository.countByRoomIds(List.of(room.getId()))).thenReturn(List.of(roomCount(room.getId(), 3L)));
 		when(roomLinkCountPort.countLinksByRoomIds(List.of(room.getId()))).thenReturn(java.util.Map.of(room.getId(), 2L));
 		when(roomPlaceCountPort.countPlacesByRoomIds(List.of(room.getId()))).thenReturn(java.util.Map.of(room.getId(), 7L));
@@ -78,7 +82,7 @@ class RoomQueryServiceTest {
 	void getMyRoomsShouldTrimKeyword() {
 		Room room = room("11111111-1111-1111-1111-111111111111", "Dinner Room");
 		RoomMember member = RoomMember.join(room, USER_ID);
-		when(roomMemberRepository.findMyRooms(USER_ID, "dinner")).thenReturn(List.of(member));
+		when(roomMemberSearchPort.findMyRooms(USER_ID, "dinner")).thenReturn(List.of(member));
 		when(roomMemberRepository.countByRoomIds(List.of(room.getId()))).thenReturn(List.of(roomCount(room.getId(), 1L)));
 		when(roomLinkCountPort.countLinksByRoomIds(List.of(room.getId()))).thenReturn(java.util.Map.of());
 		when(roomPlaceCountPort.countPlacesByRoomIds(List.of(room.getId()))).thenReturn(java.util.Map.of());
@@ -93,7 +97,7 @@ class RoomQueryServiceTest {
 	void getMyRoomsShouldTreatBlankKeywordAsEmptySearch() {
 		Room room = room("11111111-1111-1111-1111-111111111111", "Test Room");
 		RoomMember member = RoomMember.join(room, USER_ID);
-		when(roomMemberRepository.findMyRooms(USER_ID, null)).thenReturn(List.of(member));
+		when(roomMemberSearchPort.findMyRooms(USER_ID, null)).thenReturn(List.of(member));
 		when(roomMemberRepository.countByRoomIds(List.of(room.getId()))).thenReturn(List.of(roomCount(room.getId(), 1L)));
 		when(roomLinkCountPort.countLinksByRoomIds(List.of(room.getId()))).thenReturn(java.util.Map.of());
 		when(roomPlaceCountPort.countPlacesByRoomIds(List.of(room.getId()))).thenReturn(java.util.Map.of());
