@@ -2,6 +2,7 @@ package com.hufs.capstone.backend.link.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
@@ -67,6 +68,7 @@ import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -191,7 +193,7 @@ class LinkConcurrencyIntegrationTest {
 
 	@Test
 	void shouldCreateAnalysisRequestWithoutRoomLinkForNewUrl() throws Exception {
-		when(processingClient.createJob("https://example.com/post/1", ROOM_A_PUBLIC_ID))
+		when(processingClient.createJob(eq("https://example.com/post/1"), eq(ROOM_A_PUBLIC_ID), anyString()))
 				.thenReturn(new CreateProcessingJobResponse("job-1"));
 
 		LinkAnalysisRequestResult result = linkAnalysisRequestService.requestLinkAnalysis(
@@ -212,7 +214,7 @@ class LinkConcurrencyIntegrationTest {
 				link -> link.getDispatchStatus() == ProcessingDispatchStatus.DISPATCHED
 		);
 		verify(processingClient, times(1))
-				.createJob("https://example.com/post/1", ROOM_A_PUBLIC_ID);
+				.createJob(eq("https://example.com/post/1"), eq(ROOM_A_PUBLIC_ID), anyString());
 	}
 
 	@Test
@@ -220,7 +222,7 @@ class LinkConcurrencyIntegrationTest {
 		String originalUrl = "https://example.com/post/async-response";
 		CountDownLatch dispatchStarted = new CountDownLatch(1);
 		CountDownLatch releaseDispatch = new CountDownLatch(1);
-		when(processingClient.createJob(originalUrl, ROOM_A_PUBLIC_ID))
+		when(processingClient.createJob(eq(originalUrl), eq(ROOM_A_PUBLIC_ID), anyString()))
 				.thenAnswer(invocation -> {
 					dispatchStarted.countDown();
 					if (!releaseDispatch.await(3, TimeUnit.SECONDS)) {
@@ -259,7 +261,7 @@ class LinkConcurrencyIntegrationTest {
 
 	@Test
 	void shouldReuseExistingAnalysisRequestInSameRoom() throws Exception {
-		when(processingClient.createJob("https://example.com/post/1", ROOM_A_PUBLIC_ID))
+		when(processingClient.createJob(eq("https://example.com/post/1"), eq(ROOM_A_PUBLIC_ID), anyString()))
 				.thenReturn(new CreateProcessingJobResponse("job-1"));
 
 		LinkAnalysisRequestResult first = linkAnalysisRequestService.requestLinkAnalysis(
@@ -285,12 +287,12 @@ class LinkConcurrencyIntegrationTest {
 		assertThat(linkAnalysisRequestRepository.countByLinkId(first.linkId())).isEqualTo(1);
 		assertThat(roomLinkRepository.count()).isZero();
 		verify(processingClient, times(1))
-				.createJob("https://example.com/post/1", ROOM_A_PUBLIC_ID);
+				.createJob(eq("https://example.com/post/1"), eq(ROOM_A_PUBLIC_ID), anyString());
 	}
 
 	@Test
 	void shouldReuseSingleLinkAcrossDifferentRoomsWithoutNewJob() throws Exception {
-		when(processingClient.createJob("https://example.com/post/1", ROOM_A_PUBLIC_ID))
+		when(processingClient.createJob(eq("https://example.com/post/1"), eq(ROOM_A_PUBLIC_ID), anyString()))
 				.thenReturn(new CreateProcessingJobResponse("job-1"));
 
 		LinkAnalysisRequestResult first = linkAnalysisRequestService.requestLinkAnalysis(
@@ -314,16 +316,17 @@ class LinkConcurrencyIntegrationTest {
 		assertThat(linkAnalysisRequestRepository.countByLinkId(first.linkId())).isEqualTo(2);
 		assertThat(roomLinkRepository.count()).isZero();
 		verify(processingClient, times(1))
-				.createJob("https://example.com/post/1", ROOM_A_PUBLIC_ID);
+				.createJob(eq("https://example.com/post/1"), eq(ROOM_A_PUBLIC_ID), anyString());
 	}
 
 	@Test
 	void shouldAllowProcessingServerDedupeJobIdForDifferentSubmittedUrls() throws Exception {
-		when(processingClient.createJob("https://example.com/post/1", ROOM_A_PUBLIC_ID))
+		when(processingClient.createJob(eq("https://example.com/post/1"), eq(ROOM_A_PUBLIC_ID), anyString()))
 				.thenReturn(new CreateProcessingJobResponse("job-deduped"));
 		when(processingClient.createJob(
-				"https://example.com/post/1?utm_source=x",
-				ROOM_A_PUBLIC_ID
+				eq("https://example.com/post/1?utm_source=x"),
+				eq(ROOM_A_PUBLIC_ID),
+				anyString()
 		))
 				.thenReturn(new CreateProcessingJobResponse("job-deduped"));
 
@@ -352,18 +355,20 @@ class LinkConcurrencyIntegrationTest {
 		assertThat(secondLink.getProcessingJobId()).isEqualTo("job-deduped");
 		assertThat(linkRepository.count()).isEqualTo(2);
 		verify(processingClient, times(1))
-				.createJob("https://example.com/post/1", ROOM_A_PUBLIC_ID);
+				.createJob(eq("https://example.com/post/1"), eq(ROOM_A_PUBLIC_ID), anyString());
 		verify(processingClient, times(1)).createJob(
-				"https://example.com/post/1?utm_source=x",
-				ROOM_A_PUBLIC_ID
+				eq("https://example.com/post/1?utm_source=x"),
+				eq(ROOM_A_PUBLIC_ID),
+				anyString()
 		);
 	}
 
 	@Test
 	void shouldDedupeInstagramReelsAndReelByCanonicalUrlInSameRoom() throws Exception {
 		when(processingClient.createJob(
-				"https://www.instagram.com/reels/abc123/?igsh=x#comments",
-				ROOM_A_PUBLIC_ID
+				eq("https://www.instagram.com/reels/abc123/?igsh=x#comments"),
+				eq(ROOM_A_PUBLIC_ID),
+				anyString()
 		)).thenReturn(new CreateProcessingJobResponse("job-instagram"));
 
 		LinkAnalysisRequestResult first = linkAnalysisRequestService.requestLinkAnalysis(
@@ -388,16 +393,18 @@ class LinkConcurrencyIntegrationTest {
 		assertThat(linkRepository.count()).isEqualTo(1);
 		assertThat(linkAnalysisRequestRepository.count()).isEqualTo(1);
 		verify(processingClient, times(1)).createJob(
-				"https://www.instagram.com/reels/abc123/?igsh=x#comments",
-				ROOM_A_PUBLIC_ID
+				eq("https://www.instagram.com/reels/abc123/?igsh=x#comments"),
+				eq(ROOM_A_PUBLIC_ID),
+				anyString()
 		);
 	}
 
 	@Test
 	void shouldDedupeNaverBlogDesktopAndMobileByCanonicalUrl() throws Exception {
 		when(processingClient.createJob(
-				"https://m.blog.naver.com/blogId/12345?proxyReferer=x#frag",
-				ROOM_A_PUBLIC_ID
+				eq("https://m.blog.naver.com/blogId/12345?proxyReferer=x#frag"),
+				eq(ROOM_A_PUBLIC_ID),
+				anyString()
 		)).thenReturn(new CreateProcessingJobResponse("job-naver"));
 
 		LinkAnalysisRequestResult first = linkAnalysisRequestService.requestLinkAnalysis(
@@ -421,8 +428,9 @@ class LinkConcurrencyIntegrationTest {
 		assertThat(linkRepository.count()).isEqualTo(1);
 		assertThat(linkAnalysisRequestRepository.countByLinkId(link.getId())).isEqualTo(2);
 		verify(processingClient, times(1)).createJob(
-				"https://m.blog.naver.com/blogId/12345?proxyReferer=x#frag",
-				ROOM_A_PUBLIC_ID
+				eq("https://m.blog.naver.com/blogId/12345?proxyReferer=x#frag"),
+				eq(ROOM_A_PUBLIC_ID),
+				anyString()
 		);
 	}
 
@@ -441,7 +449,7 @@ class LinkConcurrencyIntegrationTest {
 		assertThat(result.status()).isEqualTo(LinkAnalysisStatus.REQUESTED);
 		assertThat(linkAnalysisRequestRepository.count()).isEqualTo(1);
 		verify(processingClient, never())
-				.createJob("https://example.com/post/2", ROOM_A_PUBLIC_ID);
+				.createJob(eq("https://example.com/post/2"), eq(ROOM_A_PUBLIC_ID), anyString());
 	}
 
 	@Test
@@ -460,7 +468,8 @@ class LinkConcurrencyIntegrationTest {
 		AtomicInteger jobSeq = new AtomicInteger();
 		when(processingClient.createJob(
 				eq("https://example.com/post/1"),
-				eq(ROOM_A_PUBLIC_ID)
+				eq(ROOM_A_PUBLIC_ID),
+				anyString()
 		))
 				.thenAnswer(invocation -> new CreateProcessingJobResponse("job-" + jobSeq.incrementAndGet()));
 
@@ -484,7 +493,7 @@ class LinkConcurrencyIntegrationTest {
 				link -> link.getDispatchStatus() == ProcessingDispatchStatus.DISPATCHED
 		);
 		verify(processingClient, times(1))
-				.createJob("https://example.com/post/1", ROOM_A_PUBLIC_ID);
+				.createJob(eq("https://example.com/post/1"), eq(ROOM_A_PUBLIC_ID), anyString());
 	}
 
 	@Test
@@ -660,8 +669,9 @@ class LinkConcurrencyIntegrationTest {
 	@Test
 	void shouldOverlayRoomScopedCandidateOverrideForRepeatedSameLinkAnalysis() throws Exception {
 		when(processingClient.createJob(
-				"https://example.com/post/manual-corrected",
-				ROOM_A_PUBLIC_ID
+				eq("https://example.com/post/manual-corrected"),
+				eq(ROOM_A_PUBLIC_ID),
+				anyString()
 		))
 				.thenReturn(new CreateProcessingJobResponse("job-manual-corrected"));
 		LinkAnalysisRequestResult firstRequest = linkAnalysisRequestService.requestLinkAnalysis(
@@ -973,8 +983,9 @@ class LinkConcurrencyIntegrationTest {
 	@Test
 	void shouldRetryFailedRetryableLinkOnlyThroughRetryApi() throws Exception {
 		when(processingClient.createJob(
-				"https://example.com/post/retryable",
-				ROOM_A_PUBLIC_ID
+				eq("https://example.com/post/retryable"),
+				eq(ROOM_A_PUBLIC_ID),
+				anyString()
 		)).thenReturn(new CreateProcessingJobResponse("job-retryable"));
 		Link link = Link.register(
 				"https://example.com/post/retryable",
@@ -1010,8 +1021,9 @@ class LinkConcurrencyIntegrationTest {
 		assertThat(afterRetry.getStatus()).isEqualTo(LinkAnalysisStatus.REQUESTED);
 		assertThat(afterRetry.getProcessingJobId()).isEqualTo("job-retryable");
 		verify(processingClient, times(1)).createJob(
-				"https://example.com/post/retryable",
-				ROOM_A_PUBLIC_ID
+				eq("https://example.com/post/retryable"),
+				eq(ROOM_A_PUBLIC_ID),
+				anyString()
 		);
 	}
 
@@ -1091,16 +1103,18 @@ class LinkConcurrencyIntegrationTest {
 		assertThat(result.retryable()).isTrue();
 		assertThat(result.cooldownSeconds()).isEqualTo(120);
 		verify(processingClient, never()).createJob(
-				"https://instagram.com/p/cooldown-request",
-				ROOM_A_PUBLIC_ID
+				eq("https://instagram.com/p/cooldown-request"),
+				eq(ROOM_A_PUBLIC_ID),
+				anyString()
 		);
 	}
 
 	@Test
 	void shouldAutoRetryExpiredInstagramCooldownWhenSameUrlIsRequestedAgain() throws Exception {
 		when(processingClient.createJob(
-				"https://instagram.com/p/expired-cooldown",
-				ROOM_A_PUBLIC_ID
+				eq("https://instagram.com/p/expired-cooldown"),
+				eq(ROOM_A_PUBLIC_ID),
+				anyString()
 		)).thenReturn(new CreateProcessingJobResponse("job-expired-cooldown"));
 		Link link = Link.register(
 				"https://www.instagram.com/p/expired-cooldown/",
@@ -1133,14 +1147,15 @@ class LinkConcurrencyIntegrationTest {
 		assertThat(afterRetry.getErrorCode()).isNull();
 		assertThat(afterRetry.getCooldownSeconds()).isNull();
 		verify(processingClient, times(1)).createJob(
-				"https://instagram.com/p/expired-cooldown",
-				ROOM_A_PUBLIC_ID
+				eq("https://instagram.com/p/expired-cooldown"),
+				eq(ROOM_A_PUBLIC_ID),
+				anyString()
 		);
 	}
 
 	@Test
 	void shouldReturnDispatchFailedWhenDispatchRetriesExhausted() throws Exception {
-		when(processingClient.createJob("https://example.com/post/10", ROOM_A_PUBLIC_ID))
+		when(processingClient.createJob(eq("https://example.com/post/10"), eq(ROOM_A_PUBLIC_ID), anyString()))
 				.thenThrow(new RuntimeException("processing server down"));
 
 		LinkAnalysisRequestResult request = linkAnalysisRequestService.requestLinkAnalysis(
@@ -1164,14 +1179,15 @@ class LinkConcurrencyIntegrationTest {
 		assertThat(reloaded.getDispatchStatus()).isEqualTo(ProcessingDispatchStatus.DISPATCH_FAILED);
 		assertThat(linkProcessingHistoryRepository.countByLinkId(request.linkId())).isEqualTo(1);
 		verify(processingClient, times(3))
-				.createJob("https://example.com/post/10", ROOM_A_PUBLIC_ID);
+				.createJob(eq("https://example.com/post/10"), eq(ROOM_A_PUBLIC_ID), anyString());
 	}
 
 	@Test
 	void shouldStoreFailedWithoutDispatchRetryWhenInstagramRateLimitedDuringDispatch() throws Exception {
 		when(processingClient.createJob(
-				"https://instagram.com/p/rate-limited",
-				ROOM_A_PUBLIC_ID
+				eq("https://instagram.com/p/rate-limited"),
+				eq(ROOM_A_PUBLIC_ID),
+				anyString()
 		))
 				.thenThrow(new InstagramRateLimitedException("Instagram cooldown active.", "{}", true, 120));
 
@@ -1198,14 +1214,15 @@ class LinkConcurrencyIntegrationTest {
 		assertThat(result.retryable()).isTrue();
 		assertThat(result.cooldownSeconds()).isEqualTo(120);
 		verify(processingClient, times(1)).createJob(
-				"https://instagram.com/p/rate-limited",
-				ROOM_A_PUBLIC_ID
+				eq("https://instagram.com/p/rate-limited"),
+				eq(ROOM_A_PUBLIC_ID),
+				anyString()
 		);
 	}
 
 	@Test
 	void shouldManuallyRetryDispatchFailedWhenSameUrlIsRequestedAgain() throws Exception {
-		when(processingClient.createJob("https://example.com/post/11", ROOM_A_PUBLIC_ID))
+		when(processingClient.createJob(eq("https://example.com/post/11"), eq(ROOM_A_PUBLIC_ID), anyString()))
 				.thenThrow(new RuntimeException("processing server down"))
 				.thenThrow(new RuntimeException("processing server down"))
 				.thenThrow(new RuntimeException("processing server down"))
@@ -1243,8 +1260,12 @@ class LinkConcurrencyIntegrationTest {
 		assertThat(linkProcessingDispatchAttemptRepository.countByLinkId(failed.linkId())).isEqualTo(2);
 		assertThat(linkProcessingDispatchAttemptRepository.countByLinkIdAndActiveSlotIsNotNull(failed.linkId()))
 				.isZero();
+		ArgumentCaptor<String> idempotencyKeys = ArgumentCaptor.forClass(String.class);
 		verify(processingClient, times(4))
-				.createJob("https://example.com/post/11", ROOM_A_PUBLIC_ID);
+				.createJob(eq("https://example.com/post/11"), eq(ROOM_A_PUBLIC_ID), idempotencyKeys.capture());
+		assertThat(idempotencyKeys.getAllValues().subList(0, 3)).containsOnly(idempotencyKeys.getAllValues().get(0));
+		assertThat(idempotencyKeys.getAllValues().get(3)).isNotEqualTo(idempotencyKeys.getAllValues().get(0));
+		assertThat(idempotencyKeys.getAllValues()).allMatch(key -> key.startsWith("link-dispatch-attempt:"));
 	}
 
 	@Test
@@ -1264,7 +1285,7 @@ class LinkConcurrencyIntegrationTest {
 	@Test
 	void shouldRecoverStalePendingDispatchWithoutJobId() throws Exception {
 		linkProcessingDispatchPolicy.setStaleThreshold(Duration.ZERO);
-		when(processingClient.createJob("https://example.com/post/12", ROOM_A_PUBLIC_ID))
+		when(processingClient.createJob(eq("https://example.com/post/12"), eq(ROOM_A_PUBLIC_ID), anyString()))
 				.thenReturn(new CreateProcessingJobResponse("job-recovered"));
 		Link link = linkRepository.saveAndFlush(
 				Link.registerPending("https://example.com/post/12", "https://example.com/post/12")
@@ -1288,13 +1309,13 @@ class LinkConcurrencyIntegrationTest {
 		assertThat(recovered.getProcessingJobId()).isEqualTo("job-recovered");
 		assertThat(recovered.getDispatchStatus()).isEqualTo(ProcessingDispatchStatus.DISPATCHED);
 		verify(processingClient, times(1))
-				.createJob("https://example.com/post/12", ROOM_A_PUBLIC_ID);
+				.createJob(eq("https://example.com/post/12"), eq(ROOM_A_PUBLIC_ID), anyString());
 	}
 
 	@Test
 	void shouldCreateOnlyOneProcessingJobWhenDuplicateDispatchEventsRunConcurrently() throws Exception {
 		AtomicInteger jobSeq = new AtomicInteger();
-		when(processingClient.createJob("https://example.com/post/13", ROOM_A_PUBLIC_ID))
+		when(processingClient.createJob(eq("https://example.com/post/13"), eq(ROOM_A_PUBLIC_ID), anyString()))
 				.thenAnswer(invocation -> {
 					Thread.sleep(100);
 					return new CreateProcessingJobResponse("job-" + jobSeq.incrementAndGet());
@@ -1317,7 +1338,7 @@ class LinkConcurrencyIntegrationTest {
 		assertThat(dispatched.getDispatchStatus()).isEqualTo(ProcessingDispatchStatus.DISPATCHED);
 		assertThat(dispatched.getProcessingJobId()).isEqualTo("job-1");
 		verify(processingClient, times(1))
-				.createJob("https://example.com/post/13", ROOM_A_PUBLIC_ID);
+				.createJob(eq("https://example.com/post/13"), eq(ROOM_A_PUBLIC_ID), anyString());
 	}
 
 	@Test

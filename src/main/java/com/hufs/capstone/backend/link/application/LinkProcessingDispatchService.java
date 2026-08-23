@@ -59,7 +59,8 @@ public class LinkProcessingDispatchService {
 			try {
 				CreateProcessingJobResponse createdJob = processingClient.createJob(
 						payload.originalUrl(),
-						payload.roomId()
+						payload.roomId(),
+						idempotencyKey(payload.attemptId())
 				);
 				String createdJobId = requireCreatedJobId(createdJob, payload.linkId());
 				bindCreatedJobId(payload, claimToken, createdJobId);
@@ -298,6 +299,10 @@ public class LinkProcessingDispatchService {
 			throw new IllegalStateException("Processing job dispatch response does not contain jobId. linkId=" + linkId);
 		}
 		return createdJob.jobId();
+	}
+
+	private static String idempotencyKey(Long dispatchAttemptId) {
+		return "link-dispatch-attempt:" + dispatchAttemptId;
 	}
 
 	private record DispatchPayload(Long attemptId, Long linkId, String originalUrl, String roomId) {

@@ -28,6 +28,7 @@ import reactor.core.publisher.Mono;
 public class ProcessingClientImpl implements ProcessingClient {
 
 	private static final String JOBS_SEGMENT = "/jobs";
+	private static final String IDEMPOTENCY_KEY_HEADER = "Idempotency-Key";
 
 	private final WebClient processingWebClient;
 	private final ObjectMapper objectMapper;
@@ -40,7 +41,7 @@ public class ProcessingClientImpl implements ProcessingClient {
 	}
 
 	@Override
-	public CreateProcessingJobResponse createJob(String originalUrl, String roomId) {
+	public CreateProcessingJobResponse createJob(String originalUrl, String roomId, String idempotencyKey) {
 		Map<String, String> body = new LinkedHashMap<>();
 		body.put("original_url", originalUrl);
 		if (roomId != null) {
@@ -50,6 +51,7 @@ public class ProcessingClientImpl implements ProcessingClient {
 		CreateProcessingJobResponse response = readBody(
 				processingWebClient.post()
 						.uri(JOBS_SEGMENT)
+						.header(IDEMPOTENCY_KEY_HEADER, requireIdempotencyKey(idempotencyKey))
 						.contentType(MediaType.APPLICATION_JSON)
 						.bodyValue(body)
 						.retrieve(),
@@ -65,6 +67,13 @@ public class ProcessingClientImpl implements ProcessingClient {
 			);
 		}
 		return response;
+	}
+
+	private static String requireIdempotencyKey(String idempotencyKey) {
+		if (idempotencyKey == null || idempotencyKey.isBlank()) {
+			throw new IllegalArgumentException("idempotencyKey must not be blank");
+		}
+		return idempotencyKey;
 	}
 
 	@Override

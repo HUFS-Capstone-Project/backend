@@ -6,7 +6,7 @@ import com.hufs.capstone.backend.external.processing.dto.ProcessingJobResultResp
 
 public interface ProcessingClient {
 
-	CreateProcessingJobResponse createJob(String originalUrl, String roomId);
+	CreateProcessingJobResponse createJob(String originalUrl, String roomId, String idempotencyKey);
 
 	ProcessingJobResponse getJob(String jobId);
 

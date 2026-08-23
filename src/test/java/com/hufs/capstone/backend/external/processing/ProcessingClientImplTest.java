@@ -56,10 +56,12 @@ class ProcessingClientImplTest {
 	void createJobShouldSendApiKeyAndRequestBody() throws Exception {
 		AtomicReference<String> observedPath = new AtomicReference<>();
 		AtomicReference<String> observedApiKey = new AtomicReference<>();
+		AtomicReference<String> observedIdempotencyKey = new AtomicReference<>();
 		AtomicReference<String> observedBody = new AtomicReference<>();
 		startServer(exchange -> {
 			observedPath.set(exchange.getRequestURI().getPath());
 			observedApiKey.set(exchange.getRequestHeaders().getFirst(ProcessingApiHeaders.INTERNAL_API_KEY));
+			observedIdempotencyKey.set(exchange.getRequestHeaders().getFirst("Idempotency-Key"));
 			observedBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
 			writeJson(exchange, HttpStatus.CREATED.value(), """
 					{
@@ -74,7 +76,8 @@ class ProcessingClientImplTest {
 
 		CreateProcessingJobResponse response = client(3000).createJob(
 				"https://example.com/p/1",
-				"11111111-1111-1111-1111-111111111111"
+				"11111111-1111-1111-1111-111111111111",
+				"link-dispatch-attempt:1"
 		);
 
 		assertThat(response.jobId()).isEqualTo("job-1");
@@ -83,6 +86,7 @@ class ProcessingClientImplTest {
 		assertThat(response.crawlUrl()).isEqualTo("https://example.com/p/1");
 		assertThat(observedPath.get()).isEqualTo("/api/v1/jobs");
 		assertThat(observedApiKey.get()).isEqualTo(INTERNAL_API_KEY);
+		assertThat(observedIdempotencyKey.get()).isEqualTo("link-dispatch-attempt:1");
 		assertThat(observedBody.get()).contains("\"original_url\":\"https://example.com/p/1\"");
 		assertThat(observedBody.get()).contains("\"room_id\":\"11111111-1111-1111-1111-111111111111\"");
 		assertThat(observedBody.get()).doesNotContain("\"canonical_url\"");
@@ -245,7 +249,7 @@ class ProcessingClientImplTest {
 				{"detail":{"code":"INVALID_URL","message":"Invalid URL."}}
 				"""));
 
-		assertThatThrownBy(() -> client(3000).createJob("bad", "room-1"))
+		assertThatThrownBy(() -> client(3000).createJob("bad", "room-1", "link-dispatch-attempt:1"))
 				.isInstanceOfSatisfying(ProcessingClientException.class, exception -> {
 					assertThat(exception.getErrorType()).isEqualTo(ProcessingClientErrorType.CLIENT_ERROR);
 					assertThat(exception.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
@@ -281,7 +285,11 @@ class ProcessingClientImplTest {
 				}
 				"""));
 
-		assertThatThrownBy(() -> client(3000).createJob("https://instagram.com/p/abc", "room-1"))
+		assertThatThrownBy(() -> client(3000).createJob(
+				"https://instagram.com/p/abc",
+				"room-1",
+				"link-dispatch-attempt:1"
+		))
 				.isInstanceOfSatisfying(InstagramRateLimitedException.class, exception -> {
 					assertThat(exception.getStatus()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
 					assertThat(exception.getProcessingErrorCode()).isEqualTo(ProcessingErrorCodes.INSTAGRAM_RATE_LIMITED);
