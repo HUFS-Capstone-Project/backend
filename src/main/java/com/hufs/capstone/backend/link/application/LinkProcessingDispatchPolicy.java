@@ -26,7 +26,7 @@ public class LinkProcessingDispatchPolicy {
 
 	private boolean recoveryEnabled = true;
 
-	private Duration staleThreshold = Duration.ofMinutes(1);
+	private Duration staleThreshold = Duration.ofMinutes(2);
 
 	@Min(1)
 	private int recoveryBatchSize = 50;

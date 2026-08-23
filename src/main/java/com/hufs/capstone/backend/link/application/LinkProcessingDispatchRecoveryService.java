@@ -28,12 +28,20 @@ public class LinkProcessingDispatchRecoveryService {
 
 	@Transactional(readOnly = true)
 	public List<LinkProcessingRequestedEvent> findRecoverableEvents(Instant now) {
+		return findRecoverableEvents(now, dispatchPolicy.getRecoveryBatchSize());
+	}
+
+	@Transactional(readOnly = true)
+	public List<LinkProcessingRequestedEvent> findRecoverableEvents(Instant now, int batchSize) {
+		if (batchSize < 1) {
+			return List.of();
+		}
 		Instant staleBefore = now.minus(dispatchPolicy.getStaleThreshold());
 		List<Link> staleLinks = linkRepository.findStaleDispatchTargets(
 				Set.of(ProcessingDispatchStatus.PENDING, ProcessingDispatchStatus.DISPATCHING),
 				LinkAnalysisStatus.REQUESTED,
 				staleBefore,
-				PageRequest.of(0, dispatchPolicy.getRecoveryBatchSize())
+				PageRequest.of(0, batchSize)
 		);
 		return staleLinks.stream()
 				.map(this::toRecoveryEvent)

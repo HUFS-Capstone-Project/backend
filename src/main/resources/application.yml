@@ -48,6 +48,19 @@ kakao:
     read-timeout-ms: 5000
 
 app:
+  link:
+    dispatch:
+      max-attempts: 3
+      retry-backoff: 300ms
+      recovery-enabled: true
+      stale-threshold: 2m
+      recovery-batch-size: 50
+      recovery-interval-ms: 60000
+      executor:
+        core-pool-size: 2
+        max-pool-size: 4
+        queue-capacity: 100
+        await-termination-seconds: 10
   room:
     join-rate-limit:
       max-attempts: 5
